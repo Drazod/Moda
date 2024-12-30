@@ -1,0 +1,39 @@
+title Đăng nhập
+
+actor Khách hàng
+
+participant Client
+participant Controller
+participant Auth Service
+database Database
+
+activate Khách hàng
+activate Client
+Khách hàng->Client: Vào trang đăng nhập
+
+loop Nhập sai định dạng
+    Khách hàng->Client: Nhập tài khoản và mật khẩu
+    Khách hàng->Client: Nhấn nút đăng nhập
+end
+
+Client->Controller: sendCredentials()
+
+activate Controller
+Controller->Auth Service: verifyCredentials()
+
+activate Auth Service
+Auth Service->Database: queryUser()
+
+alt Hợp lệ
+    Database-->Auth Service: returnUserDetails()
+    Auth Service->Database: updateUserState()
+    Auth Service->Auth Service: createToken()
+    Auth Service-->Controller: returnVerificationResult()
+    Controller-->Client: sendResponse()
+else Không hợp lệ
+    Database-->Auth Service: returnErrors()
+    Auth Service-->Controller: sendFailureMessage()
+    Controller-->Client: sendResponse()
+end
+
+Client-->Khách hàng: displayResult()

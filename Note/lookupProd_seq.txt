@@ -1,0 +1,39 @@
+title Tìm kiếm sản phẩm
+
+actor Khách hàng
+participant Client
+participant Controller
+participant Products Service
+database Database
+
+activate Khách hàng
+activate Client
+
+Khách hàng->Client: Nhấn vào trang "Store"
+Khách hàng->Client: Chọn các danh mục qua bộ lọc
+
+note over Client: Khi vào trang, mặc định sẽ tìm kiếm các sản phẩm với Page = 1
+
+Client->Controller: sendGetProductsPageRequest()
+
+activate Controller
+Controller->Products Service: forwardRequest()
+
+activate Products Service
+Products Service->Products Service: calculatePaginationData()
+
+note left of Products Service: Nếu người dùng không chọn bộ lọc, mặc định lấy tất cả theo thứ tự
+
+Products Service->Database: queryPagedProductsWithFilter()
+
+alt Tìm thấy sản phẩm phù hợp
+    Database-->Products Service: returnListOfProducts()
+    Products Service-->Controller: sendListOfProducts()
+    Controller-->Client: responseListOfProducts()
+    Client-->Khách hàng: Hiển thị các sản phẩm cho trang hiện tại
+else Không tìm thấy sản phẩm phù hợp
+    Database-->Products Service: responseNotFound()
+    Products Service-->Controller: sendNotFoundMessage()
+    Controller-->Client: responseNotFoundMessage()
+    Client-->Khách hàng: Hiển thị "Không tìm thấy sản phẩm"
+end

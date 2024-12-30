@@ -1,0 +1,67 @@
+title Khôi phục mật khẩu
+
+actor Khách hàng
+
+participant Client
+participant Controller
+participant Auth Service
+database Database
+participant Email Service
+
+activate Khách hàng
+activate Client
+
+Khách hàng->Client: Nhấn vào nút quên mật khẩu
+Client-->Khách hàng: switchToForgetPasswordPage()
+
+loop Nhập sai định dạng
+    Khách hàng->Client: Nhập email xác nhận
+    Khách hàng->Client: Nhấn nút xác nhận
+end
+
+Client->Controller: submitEmail()
+
+activate Controller
+Controller->Auth Service: validateEmail()
+
+activate Auth Service
+Auth Service->Database: queryUserByEmail()
+
+alt Email có tồn tại
+    Database-->Auth Service: returnUserDetails()
+    Auth Service->Database: storeTimeSensitiveToken()
+    Auth Service->Email Service: createTimeSensitiveToken()
+    Auth Service->Email Service: generateResetLink()
+    Auth Service-->Controller: sendVerificationResponse()
+    Controller-->Client: sendResponse()
+    Client-->Khách hàng: displayResetEmailSentMessage()
+    Client-->Khách hàng: switchToNewPasswordFormPage()
+else Email chưa tồn tại
+    Database-->Auth Service: returnErrors()
+    Auth Service-->Controller: sendFailureMessage()
+    Controller-->Client: sendResponse()
+    Client-->Khách hàng: displayFailureMessage()
+    Client-->Khách hàng: requestReEnterEmail()
+end
+
+loop Nhập sai mã
+    Khách hàng->Client: Nhập mã được gửi trong email
+    Khách hàng->Client: Nhập mật khẩu mới
+end
+
+Client->Controller: sendCredentials()
+
+Controller->Auth Service: validateToken()
+alt Nhập đúng mã
+    Auth Service->Database: updateUserPassword()
+    Database-->Auth Service: returnSuccessMessage()
+    Auth Service-->Controller: returnSuccessResult()
+    Controller-->Client: sendResponse()
+    Client-->Khách hàng: displaySuccessMessage()
+    Client-->Khách hàng: switchToLoginPage()
+else Nhập sai mã
+    Auth Service-->Controller: sendValidateError()
+    Controller-->Client: sendResponse()
+    Client-->Khách hàng: displayFailureMessage()
+    Client-->Khách hàng: requestReEnterCode()
+end

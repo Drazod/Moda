@@ -1,0 +1,83 @@
+title Xem thông tin cá nhân
+
+actor Khách hàng
+participant Client
+participant Controller
+participant User Service
+participant Auth Service
+database Database
+
+activate Khách hàng
+activate Client
+
+Khách hàng->Client: Nhấn vào trang Cá nhân
+Client->Controller: sendUserDetailRequest()
+Controller->User Service: verifyUser()
+User Service->Database: queryUserDetailData()
+Database-->User Service: returnUserDetailData()
+User Service-->Controller: sendUserDetailData()
+Controller-->Client: responseUserDetailData()
+Client-->Khách hàng: Hiển thị trang Cá nhân Khách hàng
+
+opt Chỉnh sửa thông tin cá nhân
+    Khách hàng->Client: Nhấn vào trang "Hồ sơ"
+    Khách hàng->Client: Nhập các thông tin muốn thay đổi
+    Khách hàng->Client: Nhấn nút Lưu
+    Client->Controller: sendUpdateUserForm()
+    Controller->User Service: validateUserForm()
+    User Service->Database: updateUserData()
+    alt Update Succeeds
+        Database-->User Service: returnSuccessMessage()
+        User Service-->Controller: sendSuccessMessage()
+        Controller-->Client: responseSuccessMessage()
+        Client-->Khách hàng: Hiển thị trạng thái cập nhật thành công
+    else Update Fails
+        Database-->User Service: returnErrorMessage()
+        User Service-->Controller: sendErrorMessage()
+        Controller-->Client: responseFailureMessage()
+        Client-->Khách hàng: Hiển thị lỗi cập nhật thất bại
+    end
+end
+
+opt Chỉnh sửa cài đặt trang web
+    Khách hàng->Client: Nhấn vào trang "Cài đặt"
+    Khách hàng->Client: Chọn các tùy chỉnh
+    Khách hàng->Client: Nhấn nút Lưu
+    Client->Controller: sendUpdateUserSettingForm()
+    Controller->User Service: validateUserSettingForm()
+    User Service->Database: updateUserData()
+    Database-->User Service: returnSuccessMessage()
+    User Service-->Controller: sendSuccessMessage()
+    Controller-->Client: responseSuccessMessage()
+    Client-->Khách hàng: Hiển thị trạng thái cập nhật thành công
+end
+
+opt Thay đổi thông tin bảo mật
+    Khách hàng->Client: Nhấn vào trang "Privacy"
+    Khách hàng->Client: Nhập mật khẩu cũ, và mật khẩu muốn thay đổi
+    Client->Controller: sendCredentials()
+    Controller->Auth Service: verifyCredentials()
+    Auth Service->Database: queryUser()
+    alt Đúng mật khẩu
+        Database-->Auth Service: returnUserDetails()
+        Auth Service-->Controller: returnVerificationResult()
+        Controller-->Client: sendSuccessChangePasswordResponse()
+        Client-->Khách hàng: Notify change success
+    else Sai mật khẩu
+        Database-->Auth Service: returnErrors()
+        Auth Service-->Controller: sendFailureMessage()
+        Controller-->Client: sendWrongPasswordResponse()
+        Client-->Khách hàng: Notify re-enter password
+    end
+end
+
+opt Xem lịch sử giao dịch
+    Khách hàng->Client: Nhấn vào trang "Lịch sử giao dịch"
+    Client->Controller: sendTransactionHistoryRequest(userId)
+    Controller->User Service: getTransactionHistory(userId)
+    User Service->Database: queryTransactionHistory(userId)
+    Database-->User Service: returnTransactionHistory()
+    User Service-->Controller: sendTransactionHistory()
+    Controller-->Client: responseTransactionHistory()
+    Client-->Khách hàng: Hiển thị danh sách các giao dịch
+end

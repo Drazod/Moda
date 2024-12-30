@@ -1,0 +1,32 @@
+actor Khách hàng
+participant Client
+participant Controller
+participant Review Service
+database Database
+
+activate Khách hàng
+activate Client
+
+Khách hàng -> Client : Đăng nhập vào website
+Khách hàng -> Client : Nhấn vào "Đơn hàng" -> chọn sản phẩm vừa nhận
+Khách hàng -> Client : Nhấn "Đã nhận được hàng"
+Client -> Controller : sendConfirmation(orderId, userId)
+
+activate Controller
+Controller -> Review Service: forwardConfirmationRequest(orderId, userId)
+
+activate Review Service
+Review Service -> Database: updateOrderStatus(orderId, "Delivered")
+Database --> Review Service: confirmUpdate()
+Review Service --> Controller: returnConfirmationResponse()
+Controller --> Client: Hiển thị trạng thái "Đã nhận hàng thành công"
+
+Khách hàng -> Client : Nhấn vào nút "Đánh giá sản phẩm"
+Khách hàng -> Client : Nhập nội dung
+Client -> Controller : sendReviewRequest(productId, reviewData)
+
+Controller -> Review Service: saveReview(userId, productId, reviewData)
+Review Service -> Database:storeReview(userId, productId, review)
+Database --> Review Service: confirm()
+Review Service --> Controller: returnSaveSuccess()
+Controller --> Client: Hiển thị đánh giá ngay dưới sản phẩm

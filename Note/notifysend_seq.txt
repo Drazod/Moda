@@ -1,0 +1,18 @@
+title Gửi thông báo
+
+actor Quản trị viên
+participant Client
+participant Controller
+participant Notify service
+database Database
+
+Quản trị viên->Client:Bấm vào giao diện "Gửi thông báo"
+Quản trị viên->Client:Nhập thông tin muốn gửi
+Quản trị viên->Client:Nhấn nút "Xác nhận"
+Client->Controller:sendPostNotifyRequest()
+Controller->Notify service:forwardRequest()
+Notify service->Database:storeNotifyData()
+Database-->Notify service:returnSuccessMessage()
+Notify service-->Controller:sendSuccessMessage()
+Controller-->Client:sendSuccessResponse()
+Client-->Quản trị viên:Thông báo cập nhật thành công

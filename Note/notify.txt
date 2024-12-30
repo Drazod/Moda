@@ -1,0 +1,39 @@
+title Nhận thông báo
+
+actor Khách hàng
+
+participant Client
+participant Controller
+participant Notify Service
+database Database
+
+activate Khách hàng
+activate Client
+
+Khách hàng->Client: Sau khi đăng nhập thành công
+
+Client->Controller: sendGetNotifyRequest()
+
+activate Controller
+Controller->Notify Service: requestNotifyData()
+
+activate Notify Service
+Notify Service->Database: queryNotifications()
+Database-->Notify Service: returnNotificationData()
+
+Notify Service-->Controller: sendNotification()
+Controller-->Client: sendResponse()
+Client-->Khách hàng: displayNotification()
+
+Khách hàng->Client: Nhấn nút thông báo
+Khách hàng->Client: Xem, tương tác với thông báo
+
+Client->Controller: markAsRead()
+
+Controller->Notify Service: requestUpdateNotificationStatus()
+Notify Service->Database: updateNotificationStatus()
+Database-->Notify Service: confirmUpdate()
+
+Notify Service-->Controller: sendConfirmResponse()
+Controller-->Client: updateState()
+Client-->Khách hàng: Đánh dấu thông báo đã đọc

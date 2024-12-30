@@ -1,0 +1,50 @@
+title Quản lí người dùng
+
+actor Quản trị viên
+participant Client
+participant Controller
+participant Users Management Service
+database Database
+
+Quản trị viên->Client:Nhấn vào trang Thông tin khách hàng
+note left of Quản trị viên:có thể để trống phần nhập thông tin tìm kiếm
+Quản trị viên->Client:Nhập thông tin tìm kiếm
+Client->Controller:sendGetUsersPageRequest()
+Controller->Users Management Service:forwardRequest()
+Users Management Service->Users Management Service:calculatePaginationData()
+Users Management Service->Database:queryPagedUsersWithFilter()
+alt Tìm thấy người dùng
+Database-->Users Management Service:returnListofUsers()
+Users Management Service-->Controller:sendListofUsers()
+Controller-->Client:responseListofUsers()
+Client-->Quản trị viên:display users management page
+Quản trị viên->Client:Chọn vào người dùng muốn xem chi tiết
+Client->Controller:sendUserDetailRequest()
+Controller->Users Management Service:forwardRequest()
+Users Management Service->Database:queryUserDetailData()
+Database-->Users Management Service:returnUserDetailData()
+Users Management Service-->Controller:sendUserDetailData()
+Controller-->Client:reponseUserDetailData()
+Client-->Quản trị viên:display user profile
+opt Đã chọn người dùng
+Quản trị viên->Client:Nhấn nút xóa trong giao diện profile khách hàng
+Client->Controller:sendDeleteUserRequest()
+Controller->Users Management Service: verifyUserAccount()
+alt Đạt điều kiện xóa
+Users Management Service->Database:removeUser()
+Database-->Users Management Service:returnSuccessMessage()
+Users Management Service-->Controller:sendDeleteSuccessMessage()
+Controller-->Client:reponseDeleleteSuccessMessage()
+Client-->Quản trị viên:Notify Delete Successful
+else Không đạt điều kiện xóa
+Users Management Service-->Controller:sendCannotDeleteMessage()
+Controller-->Client:reponseCannotDeleteMessage()
+Client-->Quản trị viên:Notify Delete Failure
+end
+end
+else Không tìm thấy người dùng
+Database-->Users Management Service:reponstNotFound()
+Users Management Service-->Controller:sendNotFoundMessage()
+Controller-->Client:responseNotFoundMessage()
+Client-->Quản trị viên:Hiển thị không tim thấy người dùng
+end

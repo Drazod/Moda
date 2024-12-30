@@ -1,0 +1,23 @@
+title Thêm khuyến mãi
+
+actor Quản trị viên
+participant Client
+participant Controller
+participant Utilities service
+database Database
+activate Quản trị viên
+activate Client
+activate Controller
+activate Utilities service
+activate Database
+
+Quản trị viên->Client:Bấm vào giao diện "Khuyến mãi"
+Quản trị viên->Client:Nhập thông tin khuyến mãi
+Quản trị viên->Client:Nhấn nút "Xác nhận"
+Client->Controller:sendAddVoucherRequest()
+Controller->Notify service:forwardRequest()
+Notify service->Database:storeNewVoucher()
+Database-->Notify service:returnSuccessMessage()
+Notify service-->Controller:sendSuccessMessage()
+Controller-->Client:sendSuccessResponse()
+Client-->Quản trị viên:Thông báo cập nhật thành công

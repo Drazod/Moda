@@ -1,0 +1,27 @@
+title Đăng xuất
+
+actor Khách hàng
+
+participant Client
+participant Controller
+participant Auth Service
+database Database
+
+activate Khách hàng
+activate Client
+
+Khách hàng->Client: Vào trang "Profile"
+
+Khách hàng->Client: Nhấn nút đăng xuất
+Client->Controller: sendRequest()
+
+activate Controller
+Controller->Auth Service: executeLogout()
+
+activate Auth Service
+Auth Service->Database: updateUserState()
+Database-->Auth Service: returnConfirm()
+Auth Service-->Controller: returnResult()
+
+Controller-->Client: removeCookies()
+Client-->Khách hàng: redirectHomePage()

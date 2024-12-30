@@ -1,0 +1,37 @@
+actor Khách hàng
+participant Client
+participant Controller
+participant Order service
+participant Payment service
+database Database
+
+activate Khách hàng
+activate Client
+activate Controller
+activate Order service
+activate Payment service
+activate Database
+
+Khách hàng -> Client : Nhấn vào "Hủy đơn hàng"
+Client -> Controller : sendCancelOrderRequest(orderId)
+Controller -> Order service : validateOrderStatus(orderId)
+Order service -> Database : queryOrder(orderId)
+alt Order is Cancellable
+    Database --> Order service : returnOrderData()
+    Order service --> Controller : returnValidOrder()
+    Controller -> Payment service : processRefund(orderId)
+    Payment service -> Database : updatePaymentStatus(orderId, "Refunded")
+    Database --> Payment service : confirmUpdate()
+    Payment service --> Controller : returnRefundStatus("Success")
+    Controller -> Order service : updateOrderStatus(orderId, "Cancelled")
+    Order service -> Database : updateOrderStatus(orderId)
+    Database --> Order service : confirmUpdate()
+    Order service --> Controller : returnCancelConfirmation()
+    Controller --> Client : notifyCancelSuccess()
+    Client --> Khách hàng : Hiển thị thông báo: Đơn hàng đã được hủy thành công
+else Order is Non-Cancellable
+    Database --> Order service : returnInvalidStatus()
+    Order service --> Controller : returnError("Cannot Cancel")
+    Controller --> Client : notifyCancelError()
+    Client --> Khách hàng : Hiển thị lỗi: Không thể hủy đơn hàng
+end

@@ -1,0 +1,34 @@
+title Quản lí giao dịch
+
+actor Quản trị viên
+participant Client
+participant Controller
+participant Payment service
+database Database
+activate Quản trị viên
+activate Client
+activate Controller
+activate Payment service
+activate Database
+Quản trị viên->Client:Vào giao diện quản lí
+Quản trị viên->Client:Chọn phần "Thống kê"
+opt 
+Quản trị viên->Client:Tìm kiếm các giao dịch qua các bộ lọc
+end
+Client->Controller:sendGetPaymentPageRequest()
+Controller->Payment service:forwardRequest()
+Payment service->Payment service:calculatePaginationData()
+Payment service->Database:queryPaymentData()
+Database-->Payment service:returnListOfPayments()
+Payment service-->Controller:sendListOfPayments()
+Controller-->Client:responseListOfPayments()
+Client-->Quản trị viên:Hiển thị danh sách các giao dịch
+Quản trị viên->Client:Nhấn nút "Xuất báo cáo"
+Client->Controller:sendExportPaymentsData()
+Controller->Payment service:forwardRequest()
+Payment service->Payment service:calculateTotal()
+Payment service->Payment service:exportReport()
+Payment service->Database:storeReport()
+Payment service-->Controller:sendReport()
+Controller-->Client:responseReportFile()
+Client-->Quản trị viên:Tải file report về máy

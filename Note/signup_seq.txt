@@ -1,0 +1,40 @@
+title Đăng kí
+
+actor Khách hàng
+
+participant Client
+participant Controller
+participant Auth Service
+database Database
+
+activate Khách hàng
+activate Client
+Khách hàng->Client: Vào trang đăng kí 
+
+loop Nhập sai định dạng
+    Khách hàng->Client: Nhập các thông tin vào form đăng kí
+    Khách hàng->Client: Nhấn nút đăng kí
+end
+
+Client->Controller: sendCredentials()
+
+activate Controller
+Controller->Auth Service: verifyCredentials()
+
+activate Auth Service
+Auth Service->Database: verifyEmail()
+
+alt Email mới
+    Database->Database: storeNewUser()
+    Database-->Auth Service: returnSuccessMessage()
+    Auth Service-->Controller: returnVerificationResult()
+    Controller-->Client: sendResponse()
+    Client-->Khách hàng: displaySuccessMessage()
+    Client-->Khách hàng: switchtoLoginPage()
+else Email đã có người sử dụng
+    Database-->Auth Service: returnErrors()
+    Auth Service-->Controller: sendFailureMessage()
+    Controller-->Client: sendResponse()
+    Client-->Khách hàng: displayEmailUsesMessage()
+    Client-->Khách hàng: request re-enter email
+end

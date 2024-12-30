@@ -1,0 +1,24 @@
+title Quản lí giao hàng
+
+actor Quản trị viên
+participant Client
+participant Controller
+participant Shipping service
+database Database
+activate Quản trị viên
+activate Client
+activate Controller
+activate Shipping service
+activate Database
+Quản trị viên->Client:Vào giao diện quản lí giao hàng
+opt 
+Quản trị viên->Client:Tìm kiếm đơn hàng qua các bộ lọc
+end
+Client->Controller:sendGetShippingPageRequest()
+Controller->Shipping service:forwardRequest()
+Shipping service->Shipping service:calculatePaginationData()
+Shipping service->Database:queryShippingData()
+Database-->Shipping service:returnListOfShipping()
+Shipping service-->Controller:sendListOfShipping()
+Controller-->Client:responseListOfShipping()
+Client-->Quản trị viên:Hiển thị danh sách các đơn đang giao

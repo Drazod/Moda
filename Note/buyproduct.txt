@@ -1,0 +1,77 @@
+title Mua hàng
+
+actor Khách hàng
+participant Client
+participant Controller
+participant Products Service
+participant Payment Service
+database Database
+participant External Payment Gateway
+
+activate Khách hàng
+activate Client
+activate Controller
+activate Products Service
+activate Payment Service
+
+Khách hàng->Client: Thêm sản phẩm vào giỏ hàng
+Khách hàng->Client: Nhấn vào giỏ hàng
+
+opt Nhập mã khuyến mãi
+    Khách hàng->Client: Nhập mã khuyến mãi
+    Client->Controller: sendVoucherData()
+    Controller->Payment Service: verifyVoucher()
+    Payment Service->Database: queryVoucher()
+    
+    alt Nhập đúng mã
+        Database-->Payment Service: returnDiscountValue()
+        Payment Service-->Controller: forwardDiscountValue()
+        Controller-->Client: updateOrderPrice()
+        Client-->Khách hàng: Cập nhật giá đơn hàng
+    else Nhập sai mã
+        Database-->Payment Service: returnNotFoundMessage()
+        Payment Service-->Controller: returnErrorMessage()
+        Controller-->Client: forwardErrorMessage()
+        Client-->Khách hàng: Hiển thị mã không tồn tại
+    end
+end
+
+Khách hàng->Client: Nhấn vào thanh toán
+Client->Controller: sendPurchaseDetails()
+
+activate Controller
+Controller->Products Service: checkProductAvailability()
+Products Service->Database: queryProduct()
+Database-->Products Service: returnProductData()
+
+alt Product Available
+    Products Service-->Controller: forwardProductDetails()
+    Controller-->Client: Proceed to Payment
+    Client-->Khách hàng: displayPaymentModal()
+    Khách hàng->Client: Nhập thông tin thanh toán
+    Client->Controller: sendPaymentInformation()
+    Controller->Payment Service: requestPayment()
+    Payment Service->External Payment Gateway: authorizePayment()
+    
+    alt Thanh toán trong thời gian hợp lệ
+        External Payment Gateway-->Payment Service: returnSuccessResult()
+        Payment Service-->Controller: forwardPaymentStatus()
+        Controller->Products Service: updateOrderStatusAndInventory()
+        Products Service->Database: updateOrder()
+        Database-->Products Service: confirmUpdate()
+        Products Service-->Controller: returnOrderConfirmation()
+        Controller-->Client: returnOrderResponse()
+        Client-->Khách hàng: Thông báo thanh toán thành công
+        Client-->Khách hàng: redirectToOrderSummary()
+    else Thanh toán trong thời gian không hợp lệ
+        External Payment Gateway-->Payment Service: returnExpired()
+        Payment Service-->Controller: forwardExpiredMessage()
+        Controller-->Client: returnExpiredResponse()
+        Client-->Khách hàng: Thông báo thanh toán thất bại
+    end
+else Product not Available
+    Products Service-->Controller: returnOutOfStock()
+    Controller-->Client: forwardOutOfStockMessage()
+    Client-->Khách hàng: Thông báo lỗi: sản phẩm hiện hết hàng
+    Client-->Khách hàng: Suggest alternative products
+end

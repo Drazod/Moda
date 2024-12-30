@@ -1,0 +1,54 @@
+@import url("https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jockey+One&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=ABeeZee:ital,wght@0,400;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+.dancing-script {
+  font-family: "Dancing Script", cursive;
+  font-optical-sizing: auto;
+  font-weight: 200;
+  font-style: normal;
+}
+
+.relative-container {
+  position: relative;
+  background-color: #f3e9db; /* Main background color */
+}
+
+.noise-overlay::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('./assets/noisy_background.png'); /* Replace with your noisy texture */
+  background-size: cover;
+  background-repeat: no-repeat;
+  mix-blend-mode: luminosity; /* Blend mode for luminosity effect */
+  pointer-events: none; /* Ensure it doesn't block interactions */
+  z-index: 0; /* Keeps it below all other elements */
+}
+
+.main-content {
+  position: relative;
+  z-index: 1; /* Keeps the layout above the noise */
+}
