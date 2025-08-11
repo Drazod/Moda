@@ -5,7 +5,8 @@ import gallery1 from "../assets/productdetail/product-image.png";
 import gallery2 from "../assets/productdetail/product-image_sub1.png";
 import gallery3 from "../assets/productdetail/product-image_sub2.png";
 import gallery4 from "../assets/productdetail/product-image_sub3.png";
-
+import gallery5 from "../assets/productdetail/product-image_detail1.png";
+import gallery6 from "../assets/productdetail/product-image_detail2.png";
 
 const ProductDetail = () => {
   const [selectedColor, setSelectedColor] = useState("Green");
@@ -24,6 +25,13 @@ const ProductDetail = () => {
       prevIndex === 0 ? product.images.length - 1 : prevIndex - 1
     );
   };
+
+  const suggestedProducts = [
+    { name: "Cotton Polo Shirt", image: "/products/polo1.jpg" },
+    { name: "Summer Chino Shorts", image: "/products/shorts1.jpg" },
+    { name: "Linen Casual Pants", image: "/products/pants1.jpg" },
+    { name: "Leather Sandals", image: "/products/sandals1.jpg" },
+  ];
 
   // Mock product data
   const product = {
@@ -78,7 +86,7 @@ const ProductDetail = () => {
             {/* Left Arrow */}
             <button
               onClick={handlePrevImage}
-              className="absolute left-0 top-1/2 -translate-y-1/2 p-4 hover:bg-white text-black text-4xl z-10"
+              className="absolute left-0 top-1/2 -translate-y-1/2 p-4 hover:text-gray-500 text-black text-5xl z-10"
             >
               {"<"}
             </button>
@@ -86,7 +94,7 @@ const ProductDetail = () => {
             {/* Right Arrow */}
             <button
               onClick={handleNextImage}
-              className="absolute right-0 top-1/2 -translate-y-1/2 p-4 hover:bg-white text-black text-4xl z-10"
+              className="absolute right-0 top-1/2 -translate-y-1/2 p-4 hover:text-gray-500 text-black text-5xl z-10"
             >
               {">"}
             </button>
@@ -105,49 +113,59 @@ const ProductDetail = () => {
         </div>
 
         {/* Right: Product Details */}
-        <div>
+        <div className="font-Jsans text-[#353535]">
           <nav className="text-gray-500 text-sm mb-4">
             <a href="/" className="hover:underline">Home</a> /
             <a href="/products" className="hover:underline"> Products</a> /
             <span className="text-black">{product.name}</span>
           </nav>
 
-          <h1 className="text-3xl font-bold">{product.name}</h1>
-          <p className="text-xl text-gray-800 font-semibold mt-2">${product.price.toFixed(2)}</p>
+          <h1 className="text-4xl text-black font-bold">{product.name}</h1>
+          <p className="text-4xl text-black  mt-4">${product.price.toFixed(2)}</p>
 
           {/* Tabs */}
-          <div className="flex space-x-6 mt-4 border-b border-gray-300">
+          <div className="flex mt-4 border-b border-gray-300">
             <button
-              className={`py-2 ${activeTab === "description" ? "border-b-2 border-black text-black font-semibold" : "text-gray-500"}`}
+              className={`flex-1 py-2 text-center ${
+                activeTab === "description"
+                  ? "border-b-2 border-black text-black font-semibold"
+                  : "text-gray-500"
+              }`}
               onClick={() => setActiveTab("description")}
             >
               Product Description
             </button>
             <button
-              className={`py-2 ${activeTab === "materials" ? "border-b-2 border-black text-black font-semibold" : "text-gray-500"}`}
+              className={`flex-1 py-2 text-center ${
+                activeTab === "materials"
+                  ? "border-b-2 border-black text-black font-semibold"
+                  : "text-gray-500"
+              }`}
               onClick={() => setActiveTab("materials")}
             >
               Materials
             </button>
           </div>
 
+
           {/* Tab Content */}
           {activeTab === "description" && (
-            <p className="mt-4 text-gray-700">{product.description}</p>
+            <p className="mt-4 ">{product.description}</p>
           )}
           {activeTab === "materials" && (
-            <p className="mt-4 text-gray-700">High-quality cotton blend, ethically sourced.</p>
+            <p className="mt-4 ">High-quality cotton blend, ethically sourced.</p>
           )}
 
           {/* Product Color Selection */}
-          <div className="mt-6">
-            <p className="text-gray-800 font-semibold">Product color: <span className="text-black">{selectedColor}</span></p>
-            <div className="flex space-x-3 mt-2">
+          <div className="mt-4">
+            <p className="text-black font-semibold">Product color: <span >{selectedColor}</span></p>
+            <p className="mt-2 font-light">Select a color</p>
+            <div className="flex space-x-10 mt-2">
               {product.colors.map((color, index) => (
                 <div
                   key={index}
                   onClick={() => setSelectedColor(color)}
-                  className={`w-8 h-8 rounded-full border-2 cursor-pointer ${selectedColor === color ? "border-black" : "border-gray-300"}`}
+                  className={`w-12 h-12 rounded-full border-2 cursor-pointer ${selectedColor === color ? "border-black" : "border-gray-300"}`}
                   style={{ backgroundColor: color }}
                 />
               ))}
@@ -155,9 +173,9 @@ const ProductDetail = () => {
           </div>
 
           {/* Product Size Selection */}
-          <div className="mt-6">
-            <p className="text-gray-800 font-semibold">Product size</p>
-            <div className="flex space-x-3 mt-2">
+          <div className="mt-4">
+            <p className="text-black font-semibold">Product size</p>
+            <div className="flex space-x-14 mt-2">
               {product.sizes.map((size) => (
                 <button
                   key={size}
@@ -192,52 +210,52 @@ const ProductDetail = () => {
         </div>
       </div>
 
-      <section className="mt-20 px-8 text-[#333] font-['Abeezee']">
+      <section className="mt-20 px-8 ">
         {/* More About Section */}
-        <div className="text-center max-w-4xl mx-auto">
-          <h2 className="text-lg font-semibold mb-4">More about this product</h2>
-          <p className="text-sm text-gray-700 leading-relaxed">
-            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim...
+        <div className="text-center mx-auto">
+          <h2 className="text-2xl mb-4 font-Jsans text-[#353535]">More about this product</h2>
+          <p className="font-Jsans font-light text-base text-[#434237] leading-loose">
+            Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim.Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enimNulla consequat massa quis enim.Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim.Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim.Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim.Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. 
           </p>
         </div>
 
         {/* Side-by-side Images */}
         <div className="flex flex-col md:flex-row justify-center items-center gap-8 mt-10">
-          <img src="/images/product-closeup.jpg" alt="Front View" className="w-[300px] rounded" />
-          <img src="/images/product-back.jpg" alt="Back View" className="w-[300px] rounded" />
+          <img src={gallery5} alt="Front View" className="" />
+          <img src={gallery6} alt="Back View" className="" />
         </div>
       </section>
 
-      <section className="mt-10 px-6  mx-auto font-['Abeezee'] text-[#333]">
+      <section className="mt-20 px-8 mx-auto">
         {/* Rating Summary */}
-        <div className="flex items-center text-lg mb-6">
-          <span className="text-3xl mr-2">5.0</span>
-          <div className="text-black mr-2">
+        <div className="flex items-center text-lg">
+          <span className="text-4xl font-kaisei text-[#434237] tracking-wide">5.0</span>
+          <div className="text-[#434237] mx-2">
             {"★★★★★".split("").map((_, i) => (
               <span key={i} className="text-3xl">★</span>
             ))}
           </div>
-          <span className="text-2xl text-gray-600">| 15 reviews</span>
+          <span className="pt-2 text-2xl font-Jsans font-light text-[#353535]">| 15 reviews</span>
         </div>
 
         {/* Reviews */}
         {[1, 2, 3].map((_, i) => (
-          <div key={i} className="ml-16 py-6 border-b border-[#c7c2b7] font-abeezee text-xl">
+          <div key={i} className="ml-16 py-20 border-b border-[#434237] font-Jsans text-xl">
             <div className="grid grid-cols-1 lg:grid-cols-[150px_1fr] gap-4 items-justify-start">
               <div>
-                <p className="font-semibold text-black">Ricky Ng.</p>
-                <p className="text-xs text-gray-500">Verified Buyer</p>
+                <p className=" text-2xl text-[#353535]">Ricky Ng.</p>
+                <p className="text-sm font-light text-[#353535]">Verified Buyer</p>
               </div>
               <div className="ml-32">
                 <div className="flex items-center mb-2">
-                  <span className="text-black text-base">
+                  <span className="text-[#434237]  text-base">
                     {"★★★★★".split("").map((_, i) => (
                       <span key={i} className="text-xl">★</span>
                     ))}
                   </span>
-                  <span className="font-semibold ml-2">Perfect essential</span>
+                  <span className="text-[#434237] text-xl ml-2">Perfect essential</span>
                 </div>
-                <p className="text-[#444] max-w-[90%]">
+                <p className="text-[#353535] font-light max-w-[90%]">
                   This is an amazing staple for my wardrobe. So soft and effortless, lightweight but warm.
                 </p>
               </div>
@@ -245,6 +263,23 @@ const ProductDetail = () => {
           </div>
         ))}
       </section>
+      {/* You May Also Like */}
+      <section className="mt-20 px-8 font-Jsans text-[#353535]">
+        <h2 className="text-2xl font-semibold text-center mx-auto mb-6">You May Also Like</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {suggestedProducts.map((item, index) => (
+            <div key={index} className="text-center">
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-auto object-cover rounded-lg mb-2"
+              />
+              <p className="text-xl ">{item.name}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       </div>
       <Footer />
     </div>

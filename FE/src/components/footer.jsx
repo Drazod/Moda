@@ -44,9 +44,9 @@ const Footer = () => {
               Moda
             </h2>
             <p className="mt-2 text-gray-700">
-              Get your precious time with <br /> favorite cake
+              Define your style.
             </p>
-            <div className="flex flex-row space-x-4">
+            <div className="flex flex-row mt-2 space-x-4">
               <a
                 className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300"
                 href={contact.instagram}
@@ -87,7 +87,7 @@ const Footer = () => {
 
 
             <p className="mt-6 text-gray-500 text-sm">
-              Copyright 2023 YUMEOW, Inc. Terms & Privacy
+              Copyright 2023 MODA, Inc. Terms & Privacy
               <p>Phone number: {contact.phone_number}</p>
             </p>
 
