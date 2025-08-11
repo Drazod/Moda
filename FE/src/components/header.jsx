@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import "../index.css";
 import { FaUserCircle, FaShoppingCart, FaGift } from "react-icons/fa";
-// import CartModal from "../layouts/cart";
+import CartModal from "../layouts/cart";
 
 export default function Header() {
   // const [showCart, setShowCart] = useState(false);
   console.log("Welcome Page");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -50,9 +51,9 @@ export default function Header() {
             <span className="text-base font-medium">Login</span>
         </a>
 
-        {/* <FaShoppingCart onClick={() => setShowCart(true)} className="text-xl hover:text-gray-600" />
-        <CartModal showCart={showCart} setShowCart={setShowCart} /> */}
-        <FaShoppingCart className="text-xl hover:text-gray-600" />
+        <FaShoppingCart onClick={() => setOpen(true)} className="text-xl hover:text-gray-600" />
+        <CartModal open={open} onClose={() => setOpen(false)} />
+        {/* <FaShoppingCart className="text-xl hover:text-gray-600" /> */}
       </div>
 
       {isMobile && (
