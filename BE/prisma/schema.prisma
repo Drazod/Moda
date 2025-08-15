@@ -43,6 +43,7 @@ model User {
   Shipping  Shipping[]
   transactions Transaction[]
   Notification Notification[]
+
 }
 
 model CartItem {
