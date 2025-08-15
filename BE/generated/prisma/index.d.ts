@@ -2136,17 +2136,20 @@ export namespace Prisma {
   export type CartAvgAggregateOutputType = {
     id: number | null
     userId: number | null
+    totalprice: number | null
   }
 
   export type CartSumAggregateOutputType = {
     id: number | null
     userId: number | null
+    totalprice: number | null
   }
 
   export type CartMinAggregateOutputType = {
     id: number | null
     userId: number | null
     state: $Enums.State | null
+    totalprice: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2155,6 +2158,7 @@ export namespace Prisma {
     id: number | null
     userId: number | null
     state: $Enums.State | null
+    totalprice: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2163,6 +2167,7 @@ export namespace Prisma {
     id: number
     userId: number
     state: number
+    totalprice: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -2172,17 +2177,20 @@ export namespace Prisma {
   export type CartAvgAggregateInputType = {
     id?: true
     userId?: true
+    totalprice?: true
   }
 
   export type CartSumAggregateInputType = {
     id?: true
     userId?: true
+    totalprice?: true
   }
 
   export type CartMinAggregateInputType = {
     id?: true
     userId?: true
     state?: true
+    totalprice?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2191,6 +2199,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     state?: true
+    totalprice?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2199,6 +2208,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     state?: true
+    totalprice?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -2294,6 +2304,7 @@ export namespace Prisma {
     id: number
     userId: number
     state: $Enums.State
+    totalprice: number
     createdAt: Date
     updatedAt: Date
     _count: CartCountAggregateOutputType | null
@@ -2321,6 +2332,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     state?: boolean
+    totalprice?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -2334,11 +2346,12 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     state?: boolean
+    totalprice?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type CartOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "state" | "createdAt" | "updatedAt", ExtArgs["result"]["cart"]>
+  export type CartOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "state" | "totalprice" | "createdAt" | "updatedAt", ExtArgs["result"]["cart"]>
   export type CartInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     items?: boolean | Cart$itemsArgs<ExtArgs>
@@ -2355,6 +2368,7 @@ export namespace Prisma {
       id: number
       userId: number
       state: $Enums.State
+      totalprice: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["cart"]>
@@ -2731,6 +2745,7 @@ export namespace Prisma {
     readonly id: FieldRef<"Cart", 'Int'>
     readonly userId: FieldRef<"Cart", 'Int'>
     readonly state: FieldRef<"Cart", 'State'>
+    readonly totalprice: FieldRef<"Cart", 'Float'>
     readonly createdAt: FieldRef<"Cart", 'DateTime'>
     readonly updatedAt: FieldRef<"Cart", 'DateTime'>
   }
@@ -15290,6 +15305,7 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     state: 'state',
+    totalprice: 'totalprice',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -15546,6 +15562,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Float'
+   */
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+  /**
    * Reference to a field of type 'DateTime'
    */
   export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -15567,13 +15590,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Float'
-   */
-  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
-    
-
-
-  /**
    * Reference to a field of type 'Boolean'
    */
   export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
@@ -15590,6 +15606,7 @@ export namespace Prisma {
     id?: IntFilter<"Cart"> | number
     userId?: IntFilter<"Cart"> | number
     state?: EnumStateFilter<"Cart"> | $Enums.State
+    totalprice?: FloatFilter<"Cart"> | number
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -15600,6 +15617,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     state?: SortOrder
+    totalprice?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -15613,6 +15631,7 @@ export namespace Prisma {
     NOT?: CartWhereInput | CartWhereInput[]
     userId?: IntFilter<"Cart"> | number
     state?: EnumStateFilter<"Cart"> | $Enums.State
+    totalprice?: FloatFilter<"Cart"> | number
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
@@ -15623,6 +15642,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     state?: SortOrder
+    totalprice?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: CartCountOrderByAggregateInput
@@ -15639,6 +15659,7 @@ export namespace Prisma {
     id?: IntWithAggregatesFilter<"Cart"> | number
     userId?: IntWithAggregatesFilter<"Cart"> | number
     state?: EnumStateWithAggregatesFilter<"Cart"> | $Enums.State
+    totalprice?: FloatWithAggregatesFilter<"Cart"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Cart"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Cart"> | Date | string
   }
@@ -16425,6 +16446,7 @@ export namespace Prisma {
 
   export type CartCreateInput = {
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutCartsInput
@@ -16435,6 +16457,7 @@ export namespace Prisma {
     id?: number
     userId: number
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemUncheckedCreateNestedManyWithoutCartInput
@@ -16442,6 +16465,7 @@ export namespace Prisma {
 
   export type CartUpdateInput = {
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutCartsNestedInput
@@ -16452,6 +16476,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUncheckedUpdateManyWithoutCartNestedInput
@@ -16461,12 +16486,14 @@ export namespace Prisma {
     id?: number
     userId: number
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type CartUpdateManyMutationInput = {
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -16475,6 +16502,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17238,6 +17266,17 @@ export namespace Prisma {
     not?: NestedEnumStateFilter<$PrismaModel> | $Enums.State
   }
 
+  export type FloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[]
@@ -17268,6 +17307,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     state?: SortOrder
+    totalprice?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -17275,12 +17315,14 @@ export namespace Prisma {
   export type CartAvgOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    totalprice?: SortOrder
   }
 
   export type CartMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
     state?: SortOrder
+    totalprice?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -17289,6 +17331,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     state?: SortOrder
+    totalprice?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -17296,6 +17339,7 @@ export namespace Prisma {
   export type CartSumOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    totalprice?: SortOrder
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -17322,6 +17366,22 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumStateFilter<$PrismaModel>
     _max?: NestedEnumStateFilter<$PrismaModel>
+  }
+
+  export type FloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -17534,17 +17594,6 @@ export namespace Prisma {
     _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
-  export type FloatFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel>
-    in?: number[]
-    notIn?: number[]
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatFilter<$PrismaModel> | number
-  }
-
   export type ClothesScalarRelationFilter = {
     is?: ClothesWhereInput
     isNot?: ClothesWhereInput
@@ -17599,22 +17648,6 @@ export namespace Prisma {
     clothesId?: SortOrder
     totalprice?: SortOrder
     quantity?: SortOrder
-  }
-
-  export type FloatWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel>
-    in?: number[]
-    notIn?: number[]
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedFloatFilter<$PrismaModel>
-    _min?: NestedFloatFilter<$PrismaModel>
-    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type IntNullableFilter<$PrismaModel = never> = {
@@ -18141,6 +18174,14 @@ export namespace Prisma {
     set?: $Enums.State
   }
 
+  export type FloatFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -18437,14 +18478,6 @@ export namespace Prisma {
     create?: XOR<CartCreateWithoutItemsInput, CartUncheckedCreateWithoutItemsInput>
     connectOrCreate?: CartCreateOrConnectWithoutItemsInput
     connect?: CartWhereUniqueInput
-  }
-
-  export type FloatFieldUpdateOperationsInput = {
-    set?: number
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
   }
 
   export type ClothesUpdateOneRequiredWithoutCartItemsNestedInput = {
@@ -18961,6 +18994,17 @@ export namespace Prisma {
     not?: NestedEnumStateFilter<$PrismaModel> | $Enums.State
   }
 
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
   export type NestedDateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[]
@@ -18988,17 +19032,6 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type NestedFloatFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel>
-    in?: number[]
-    notIn?: number[]
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatFilter<$PrismaModel> | number
-  }
-
   export type NestedEnumStateWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.State | EnumStateFieldRefInput<$PrismaModel>
     in?: $Enums.State[]
@@ -19007,6 +19040,22 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumStateFilter<$PrismaModel>
     _max?: NestedEnumStateFilter<$PrismaModel>
+  }
+
+  export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -19115,22 +19164,6 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
-  export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel>
-    in?: number[]
-    notIn?: number[]
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
-    _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedFloatFilter<$PrismaModel>
-    _min?: NestedFloatFilter<$PrismaModel>
-    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -19313,6 +19346,7 @@ export namespace Prisma {
 
   export type CartCreateWithoutUserInput = {
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemCreateNestedManyWithoutCartInput
@@ -19321,6 +19355,7 @@ export namespace Prisma {
   export type CartUncheckedCreateWithoutUserInput = {
     id?: number
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     items?: CartItemUncheckedCreateNestedManyWithoutCartInput
@@ -19485,6 +19520,7 @@ export namespace Prisma {
     id?: IntFilter<"Cart"> | number
     userId?: IntFilter<"Cart"> | number
     state?: EnumStateFilter<"Cart"> | $Enums.State
+    totalprice?: FloatFilter<"Cart"> | number
     createdAt?: DateTimeFilter<"Cart"> | Date | string
     updatedAt?: DateTimeFilter<"Cart"> | Date | string
   }
@@ -19664,6 +19700,7 @@ export namespace Prisma {
 
   export type CartCreateWithoutItemsInput = {
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutCartsInput
@@ -19673,6 +19710,7 @@ export namespace Prisma {
     id?: number
     userId: number
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -19733,6 +19771,7 @@ export namespace Prisma {
 
   export type CartUpdateWithoutItemsInput = {
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutCartsNestedInput
@@ -19742,6 +19781,7 @@ export namespace Prisma {
     id?: IntFieldUpdateOperationsInput | number
     userId?: IntFieldUpdateOperationsInput | number
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -20843,6 +20883,7 @@ export namespace Prisma {
   export type CartCreateManyUserInput = {
     id?: number
     state?: $Enums.State
+    totalprice?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -20880,6 +20921,7 @@ export namespace Prisma {
 
   export type CartUpdateWithoutUserInput = {
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUpdateManyWithoutCartNestedInput
@@ -20888,6 +20930,7 @@ export namespace Prisma {
   export type CartUncheckedUpdateWithoutUserInput = {
     id?: IntFieldUpdateOperationsInput | number
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     items?: CartItemUncheckedUpdateManyWithoutCartNestedInput
@@ -20896,6 +20939,7 @@ export namespace Prisma {
   export type CartUncheckedUpdateManyWithoutUserInput = {
     id?: IntFieldUpdateOperationsInput | number
     state?: EnumStateFieldUpdateOperationsInput | $Enums.State
+    totalprice?: FloatFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

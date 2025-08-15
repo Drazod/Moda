@@ -124,6 +124,7 @@ exports.Prisma.CartScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   state: 'state',
+  totalprice: 'totalprice',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
