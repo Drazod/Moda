@@ -32,7 +32,6 @@ model User {
   password   String  @db.VarChar(1024)
   phone      String  @unique
   address    String  @db.VarChar(1024)
-  role       Role    @default(USER)
   carts      Cart[]
   couponCode String? @unique
   coupon     Coupon? @relation(fields: [couponCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
@@ -43,6 +42,16 @@ model User {
   Shipping     Shipping[]
   transactions Transaction[]
   Notification Notification[]
+}
+
+model Admin {
+  id       Int    @id @default(autoincrement())
+  name     String
+  email    String @unique
+  password String @db.VarChar(1024)
+  phone    String @unique
+  salary   Float
+  role     Role   @default(ADMIN)
 }
 
 model CartItem {
@@ -166,5 +175,5 @@ enum State {
 
 enum Role {
   ADMIN
-  USER
+  HOST
 }

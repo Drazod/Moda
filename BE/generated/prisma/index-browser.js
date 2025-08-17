@@ -136,10 +136,19 @@ exports.Prisma.UserScalarFieldEnum = {
   password: 'password',
   phone: 'phone',
   address: 'address',
-  role: 'role',
   couponCode: 'couponCode',
   updatedAt: 'updatedAt',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.AdminScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  email: 'email',
+  password: 'password',
+  phone: 'phone',
+  salary: 'salary',
+  role: 'role'
 };
 
 exports.Prisma.CartItemScalarFieldEnum = {
@@ -253,6 +262,13 @@ exports.Prisma.UserOrderByRelevanceFieldEnum = {
   couponCode: 'couponCode'
 };
 
+exports.Prisma.AdminOrderByRelevanceFieldEnum = {
+  name: 'name',
+  email: 'email',
+  password: 'password',
+  phone: 'phone'
+};
+
 exports.Prisma.ClothesOrderByRelevanceFieldEnum = {
   name: 'name',
   description: 'description',
@@ -295,12 +311,13 @@ exports.State = exports.$Enums.State = {
 
 exports.Role = exports.$Enums.Role = {
   ADMIN: 'ADMIN',
-  USER: 'USER'
+  HOST: 'HOST'
 };
 
 exports.Prisma.ModelName = {
   Cart: 'Cart',
   User: 'User',
+  Admin: 'Admin',
   CartItem: 'CartItem',
   Clothes: 'Clothes',
   Category: 'Category',
