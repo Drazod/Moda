@@ -1,10 +1,10 @@
 import React from 'react';
 
 // dashBoard's import
-import StatCard from '../components/dash/dashBoard/dashBoardStat';
-import TopProductsTable from '../components/dash/dashBoard/dashBoardTopPd';
-import WebStatusChart from '../components/dash/dashBoard/dashBoardChart';
-import NoticeBoard from '../components/dash/dashBoard/dashBoardNotice';
+import StatCard from '../../components/dash/dashBoard/dashBoardStat';
+import TopProductsTable from '../../components/dash/dashBoard/dashBoardTopPd';
+import WebStatusChart from '../../components/dash/dashBoard/dashBoardChart';
+import NoticeBoard from '../../components/dash/dashBoard/dashBoardNotice';
 
 // dashBoard's icon
 import { IoWalletOutline, IoBriefcaseOutline, IoTimeOutline, IoPeopleOutline } from 'react-icons/io5';
@@ -76,11 +76,5 @@ const DashBoardMain = () => {
     </>
   );
 };
-
-// dashActLog
-// dashOM
-// dashPdM
-// dashUM
-// dashUptN
 
 export default DashBoardMain;

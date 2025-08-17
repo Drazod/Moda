@@ -7,8 +7,8 @@ import Product from "./layouts/productPage";
 import CartModal from "./layouts/cart";
 
 // Dashboard's layout
-import DashboardLayout from "./layouts/dashLayout"; // <-- IMPORT LAYOUT MỚI
-import DashBoardMain from "./layouts/dashPage";
+import DashboardLayout from "./layouts/dash/dashLayout";
+import DashBoardMain from "./layouts/dash/dashBoard";
 
 const App = () => {
   return (
