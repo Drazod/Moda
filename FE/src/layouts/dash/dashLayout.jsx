@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import SideNav from '../components/dash/dashSideNav';
-import DashBoardHeader from '../components/dash/dashHeader';
+import SideNav from '../../components/dash/dashSideNav';
+import DashBoardHeader from '../../components/dash/dashHeader';
 
 const DashboardLayout = () => {
   return (
