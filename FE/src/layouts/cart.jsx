@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import VoucherPanel from "../components/cart/voucherPanel";
 
 const bg = "#E6DAC4";          // modal bg
 const fieldBg = "#CDC2AF";      // input bg
@@ -30,6 +31,8 @@ export default function CartModal({ open, onClose }) {
     message: "",
     payment: "store",
   });
+  const [showVouchers, setShowVouchers] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState(null);
 
   const subtotal = useMemo(
     () => items.reduce((s, it) => s + it.price * it.qty, 0),
@@ -62,7 +65,7 @@ export default function CartModal({ open, onClose }) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       {/* sheet */}
       <div
-        className="absolute left-1/2 top-1/2 w-[min(1000px,96vw)] -translate-x-1/2 -translate-y-1/2 rounded-xl shadow-2xl ring-1 ring-black/10"
+        className="absolute left-1/2 top-1/2 w-[min(1000px,96vw)] -translate-x-1/2 -translate-y-1/2 shadow-2xl ring-1 ring-black/10"
         style={{ background: bg }}
       >
         {/* header */}
@@ -166,9 +169,20 @@ export default function CartModal({ open, onClose }) {
 
               <div className="flex items-center gap-3">
                 <span className="text-base font-medium">Offers:</span>
-                <button className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70">
-                  Find voucher <span className="translate-x-[2px]">⟶</span>
-                </button>
+                  <button
+                    onClick={() => setShowVouchers(true)}
+                    className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70"
+                  >
+                    {selectedVoucher ? (
+                      <>
+                        {selectedVoucher} <span className="text-xs opacity-70">(applied)</span>
+                      </>
+                    ) : (
+                      <>
+                        Find voucher <span className="translate-x-[2px]">⟶</span>
+                      </>
+                    )}
+                  </button>
               </div>
             </div>
           </div>
@@ -181,7 +195,7 @@ export default function CartModal({ open, onClose }) {
                 name="name"
                 value={form.name}
                 onChange={handleForm}
-                className="h-12 w-full rounded-xl px-4 outline-none ring-1 ring-black/15"
+                className="h-12 w-full rounded-xl px-4 outline-none shadow-inner ring-1 ring-black/15"
                 style={{ background: fieldBg }}
                 placeholder=""
               />
@@ -194,7 +208,7 @@ export default function CartModal({ open, onClose }) {
                   name="address"
                   value={form.address}
                   onChange={handleForm}
-                  className="h-12 w-full rounded-xl px-4 outline-none ring-1 ring-black/15"
+                  className="h-12 w-full rounded-xl px-4 outline-none shadow-inner ring-1 ring-black/15"
                   style={{ background: fieldBg }}
                 />
               </div>
@@ -204,7 +218,7 @@ export default function CartModal({ open, onClose }) {
                   name="phone"
                   value={form.phone}
                   onChange={handleForm}
-                  className="h-12 w-full rounded-xl px-4 outline-none ring-1 ring-black/15"
+                  className="h-12 w-full rounded-xl px-4 outline-none ring-1 shadow-inner ring-black/15"
                   style={{ background: fieldBg }}
                 />
               </div>
@@ -217,7 +231,7 @@ export default function CartModal({ open, onClose }) {
                 value={form.message}
                 onChange={handleForm}
                 rows={7}
-                className="w-full rounded-xl p-4 outline-none ring-1 ring-black/15"
+                className="w-full rounded-xl p-4 outline-none ring-1 shadow-inner ring-black/15"
                 style={{ background: fieldBg }}
               />
             </div>
@@ -258,6 +272,15 @@ export default function CartModal({ open, onClose }) {
           </div>
         </div>
       </div>
+    {showVouchers && (
+      <VoucherPanel
+        onClose={() => setShowVouchers(false)}
+        onApply={(voucherName) => {
+          setSelectedVoucher(voucherName);   // 👈 store voucher name
+          setShowVouchers(false);
+        }}
+      />
+    )}
     </div>
   );
 }
