@@ -20,7 +20,12 @@ model Cart {
   state      State      @default(PENDING)
   user       User       @relation(fields: [userId], references: [id])
   items      CartItem[]
-  totalprice Float      @default(0)
+  listClothes String     @default("")
+  totalprice  Float      @default(0)
+  couponCode String?    @unique
+  coupon     Coupon?    @relation(fields: [couponCode], references: [code])
+  transactionId Int?
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   
@@ -116,6 +121,7 @@ model Coupon {
   isActive  Boolean  @default(true)
   count     Int
   user      User[]
+  carts     Cart[]
 }
 
 model Shipping {
@@ -141,6 +147,7 @@ model Transaction {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   Report     Report[]
+  Cart       Cart[]
 }
 
 model Payment {
