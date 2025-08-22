@@ -124,7 +124,10 @@ exports.Prisma.CartScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   state: 'state',
+  listClothes: 'listClothes',
   totalprice: 'totalprice',
+  couponCode: 'couponCode',
+  transactionId: 'transactionId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -251,6 +254,11 @@ exports.Prisma.SortOrder = {
 exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
+};
+
+exports.Prisma.CartOrderByRelevanceFieldEnum = {
+  listClothes: 'listClothes',
+  couponCode: 'couponCode'
 };
 
 exports.Prisma.UserOrderByRelevanceFieldEnum = {
