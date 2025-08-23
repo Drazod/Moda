@@ -11,7 +11,7 @@ import { IoWalletOutline, IoBriefcaseOutline, IoTimeOutline, IoPeopleOutline } f
 import { FaChevronDown } from 'react-icons/fa';
 
 // dashBoard
-const DashBoard = () => {
+const DashBoard_Main = () => {
   const overviewData = [
     {
       title: 'Total revenue',
@@ -77,4 +77,4 @@ const DashBoard = () => {
   );
 };
 
-export default DashBoard;
+export default DashBoard_Main;
