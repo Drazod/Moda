@@ -8,8 +8,8 @@ import CartModal from "./layouts/cart";
 import ProfilePage from "./layouts/profilePage";
 
 // Dashboard's layout
-import DashboardLayout from "./layouts/dash/dashLayout";
-import DashBoardMain from "./layouts/dash/dashBoard";
+import DashLayout from "./layouts/dash/dashLayout";
+import DashBoard from "./layouts/dash/dashBoard";
 
 const App = () => {
   return (
@@ -22,8 +22,8 @@ const App = () => {
         <Route path="/cart" element={<CartModal/>}/>
         <Route path="/profile" element={<ProfilePage />} />
         {/* Dashboard's Route */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
-          <Route index element={<DashBoardMain />} />
+        <Route path="/dash-board" element={<DashLayout />}>
+          <Route index element={<DashBoard />} />
           {/* Other routes for dashboard properties*/}
         </Route>
 

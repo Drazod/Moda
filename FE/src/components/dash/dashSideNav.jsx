@@ -3,7 +3,7 @@ import React from 'react';
 // To be continued
 import { IoGridOutline, IoSettingsOutline, IoDocumentTextOutline, IoPeopleOutline, IoTimeOutline, IoBriefcaseOutline, IoEyeOutline } from 'react-icons/io5';
 
-const SideNav = () => {
+const DashSideNav = () => {
   const navItems = [
     { name: 'Dashboard', icon: <IoGridOutline />, active: true },
     { name: 'Products manage', icon: <IoBriefcaseOutline /> },
@@ -17,10 +17,10 @@ const SideNav = () => {
     <div className="h-screen bg-[#E5DACE] w-64 p-6 flex flex-col">
       <h1 className="text-4xl font-dancing font-semibold mb-12">Moda</h1>
       
-      <button className="flex items-center justify-center w-full bg-white text-black py-3 rounded-full shadow-md mb-10">
+      {/* <button className="flex items-center justify-center w-full bg-white text-black py-3 rounded-full shadow-md mb-10">
         <IoEyeOutline className="mr-2" />
-        Review Web
-      </button>
+        Something else
+      </button> */}
 
       <nav className="flex flex-col space-y-4">
         {navItems.map((item) => (
@@ -42,4 +42,4 @@ const SideNav = () => {
   );
 };
 
-export default SideNav;
+export default DashSideNav;

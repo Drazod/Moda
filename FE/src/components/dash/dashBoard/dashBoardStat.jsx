@@ -3,7 +3,7 @@ import React from 'react';
 // To be continued
 import { FaArrowUp, FaArrowDown } from 'react-icons/fa';
 
-const StatCard = ({ icon, title, value, change, changeType }) => {
+const DashBoardStat = ({ icon, title, value, change, changeType }) => {
   const isIncrease = changeType === 'increase';
   const changeColor = isIncrease ? 'text-green-500' : 'text-red-500';
   const ChangeIcon = isIncrease ? FaArrowUp : FaArrowDown;
@@ -27,4 +27,4 @@ const StatCard = ({ icon, title, value, change, changeType }) => {
   );
 };
 
-export default StatCard;
+export default DashBoardStat;
