@@ -1,8 +1,7 @@
 import React from 'react';
-// To be continued
 import { FaChevronDown, FaBell } from 'react-icons/fa';
 
-const DashBoardHeader = () => {
+const DashHeader = () => {
   return (
     <header className="flex items-center justify-between mb-8">
       <h1 className="text-4xl font-bold">Dashboard</h1>
@@ -17,7 +16,7 @@ const DashBoardHeader = () => {
         </div>
         <div className="flex items-center space-x-3 bg-white p-2 rounded-full shadow-sm cursor-pointer">
           <img 
-            src="https://via.placeholder.com/40" // To be continued
+            src="https://via.placeholder.com/40"
             alt="User Avatar" 
             className="w-10 h-10 rounded-full" 
           />
@@ -32,4 +31,4 @@ const DashBoardHeader = () => {
   );
 };
 
-export default DashBoardHeader;
+export default DashHeader;
