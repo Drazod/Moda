@@ -30,7 +30,7 @@ code {
 
 .relative-container {
   position: relative;
-  background-color: #f3e9db; /* Main background color */
+  background-color: #E6DAC4; /* Main background color */
 }
 
 .noise-overlay::before {
