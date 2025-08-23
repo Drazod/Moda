@@ -2,11 +2,10 @@ import React from 'react';
 import { IoPencil, IoTrashOutline, IoAddCircleOutline } from 'react-icons/io5';
 
 const DashActLogList = () => {
-    // Dữ liệu giả được cập nhật chính xác theo yêu cầu của bạn
     const logDataByDate = {
         "Today, 23 May 2025": [
             {
-                type: 'new', // 'new' cho hành động 'add'
+                type: 'new',
                 user: 'Zod',
                 role: 'Admin1',
                 action: 'had added new product',
@@ -26,7 +25,7 @@ const DashActLogList = () => {
         ],
         "Yesterday, 22 May 2025": [
             {
-                type: 'edit', // 'edit' cho hành động 'update'
+                type: 'edit',
                 user: 'Zinh',
                 role: 'Admin3',
                 action: 'had updated a notice',
@@ -53,11 +52,10 @@ const DashActLogList = () => {
                 time: '12:50',
             }
         ],
-        "21 May 2025": [], // Nhóm ngày không có hoạt động
-        "13 May 2025": []  // Nhóm ngày không có hoạt động
+        "21 May 2025": [], 
+        "13 May 2025": [] 
     };
 
-    // Hàm helper để chọn icon và màu sắc
     const getLogIcon = (type) => {
         switch (type) {
             case 'edit':
@@ -67,7 +65,6 @@ const DashActLogList = () => {
             case 'delete':
                 return <IoTrashOutline className="h-5 w-5 text-red-500" />;
             default:
-                // Icon mặc định cho các nhóm ngày
                 return <div className="h-2.5 w-2.5 bg-gray-300 rounded-full"></div>;
         }
     };
@@ -79,12 +76,12 @@ const DashActLogList = () => {
                     {Object.entries(logDataByDate).map(([date, logs], dateIndex) => (
                         <li key={date}>
                             <div className="relative pb-8">
-                                {/* Đường kẻ dọc timeline */}
+                                {/* Timeline */}
                                 {dateIndex !== Object.keys(logDataByDate).length - 1 && (
                                     <span className="absolute left-5 top-5 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
                                 )}
                                 
-                                {/* Header của nhóm ngày */}
+                                {/* Header */}
                                 <div className="relative flex items-center space-x-3">
                                     <div className="relative h-10 w-10 flex items-center justify-center">
                                         <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center ring-4 ring-white">
@@ -94,17 +91,17 @@ const DashActLogList = () => {
                                     <h3 className="font-semibold text-gray-800">{date}</h3>
                                 </div>
 
-                                {/* Danh sách các log trong ngày */}
+                                {/* Log */}
                                 <div className="ml-3 mt-4 space-y-6 pl-11">
                                     {logs.length > 0 ? (
                                         logs.map((log, logIndex) => (
                                             <div key={logIndex} className="relative flex items-start space-x-4">
-                                                {/* Icon cho từng hành động */}
+                                                {/* Icon */}
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 ring-4 ring-white">
                                                     {getLogIcon(log.type)}
                                                 </div>
                                                 
-                                                {/* Nội dung log */}
+                                                {/* Log */}
                                                 <div className="min-w-0 flex-1 pt-1.5">
                                                     <p className="text-sm text-gray-600">
                                                         <span className="font-bold text-amber-800">{log.user}</span>
@@ -118,7 +115,6 @@ const DashActLogList = () => {
                                             </div>
                                         ))
                                     ) : (
-                                        // Hiển thị nếu không có log trong ngày
                                         <div className="relative flex items-start space-x-4">
                                             <div className="flex h-10 w-10 items-center justify-center"></div>
                                             <div className="min-w-0 flex-1 pt-1.5">
