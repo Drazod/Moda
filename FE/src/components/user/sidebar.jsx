@@ -3,14 +3,14 @@ import { CiSettings, CiUser, CiReceipt,CiHome } from "react-icons/ci";
 
 const Sidebar = () => {
   return (
-    <aside className=" md:w-1/12 max-h bg-gradient-to-tl ml-4 my-10 from-[#4A6FA5] to-[#D6E5E3] rounded-3xl py-4 flex flex-col items-center">
+    <aside className=" md:w-1/12 max-h bg-[#BFAF92] ml-4 my-10 rounded-3xl py-4 flex flex-col items-center z-10">
         <a href="/home">
             <button className="hover:text-[#4A6FA5] flex items-center">
             <CiHome size={30} />
             </button>
         </a>
 
-        <h1 className="text-xs mt-2 font-dancing font-semibold">SCAMS</h1>
+        <h1 className="text-xs mt-2 font-dancing font-semibold">MODA</h1>
         <nav className="w-full flex flex-col items-center border-white border-t-2 space-y-14 mt-4 py-10">
             <a href="/profile">
                 <button className="hover:text-[#4A6FA5] flex">
