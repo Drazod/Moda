@@ -19,7 +19,8 @@ model Cart {
   userId        Int
   state         State        @default(PENDING)
   user          User         @relation(fields: [userId], references: [id])
-  items         CartItem[]
+  cartItemId    Int
+  cartItem      CartItem     @relation(fields: [cartItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   listClothes   String       @default("")
   totalprice    Float        @default(0)
   couponCode    String?      @unique
@@ -60,16 +61,14 @@ model Admin {
 }
 
 model CartItem {
-  id         Int     @id @default(autoincrement())
-  cartId     Int
+  id         Int      @id @default(autoincrement())
   clothesId  Int
-  totalprice Float   @default(0)
+  totalprice Float    @default(0)
   quantity   Int
-  clothes    Clothes @relation(fields: [clothesId], references: [id])
-  cart       Cart    @relation(fields: [cartId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  clothes    Clothes  @relation(fields: [clothesId], references: [id])
+  cart       Cart[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Clothes {
