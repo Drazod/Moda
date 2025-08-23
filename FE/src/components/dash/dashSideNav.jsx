@@ -16,13 +16,13 @@ const DashSideNav = () => {
   ];
 
   return (
-    <div className="h-screen bg-[#E5DACE] w-64 p-6 flex-col hidden md:flex">
-      <h1 className="text-4xl font-dancing font-semibold mb-12">Moda</h1>
+    <div className="h-screen bg-[#E5DACE] items-center w-65 p-12 flex-col hidden md:flex">
+      <h1 className="text-4xl font-dancing font-semibold mb-9">Moda</h1>
       
-      <button className="flex items-center justify-center w-full bg-white text-black py-3 rounded-full shadow-md mb-10">
+      {/* <button className="flex items-center justify-center w-full bg-white text-black py-3 rounded-full shadow-md mb-10">
         <IoEyeOutline className="mr-2" />
         Review Web
-      </button>
+      </button> */}
 
       <nav className="flex flex-col space-y-4">
         {navItems.map((item) => {
