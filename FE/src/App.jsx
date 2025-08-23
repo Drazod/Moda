@@ -11,6 +11,7 @@ import ProfilePage from "./layouts/profilePage";
 import DashLayout from "./layouts/dash/dashLayout";
 import DashBoard_Main from "./layouts/dash/dashBoard";
 import DashOM_Main from "./layouts/dash/dashOM.jsx"; 
+import DashActLog_Main from "./layouts/dash/dashActLog.jsx";
 
 const App = () => {
   return (
@@ -27,6 +28,7 @@ const App = () => {
           <Route index element={<DashBoard_Main />} />
           {/* Other routes for dash's properties*/}
           <Route path="order-manage" element={<DashOM_Main />} />
+          <Route path="activity-log" element={<DashActLog_Main />} />
         </Route>
       </Routes>
     </BrowserRouter>
