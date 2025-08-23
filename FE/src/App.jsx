@@ -7,9 +7,10 @@ import Product from "./layouts/productPage";
 import CartModal from "./layouts/cart";
 import ProfilePage from "./layouts/profilePage";
 
-// Dashboard's layout
+// dash's import
 import DashLayout from "./layouts/dash/dashLayout";
-import DashBoard from "./layouts/dash/dashBoard";
+import DashBoard_Main from "./layouts/dash/dashBoard";
+import DashOM_Main from "./layouts/dash/dashOM.jsx"; 
 
 const App = () => {
   return (
@@ -21,12 +22,12 @@ const App = () => {
         <Route path="/product" element={<Product/>}/>
         <Route path="/cart" element={<CartModal/>}/>
         <Route path="/profile" element={<ProfilePage />} />
-        {/* Dashboard's Route */}
+        {/* dash's Route */}
         <Route path="/dash-board" element={<DashLayout />}>
-          <Route index element={<DashBoard />} />
-          {/* Other routes for dashboard properties*/}
+          <Route index element={<DashBoard_Main />} />
+          {/* Other routes for dash's properties*/}
+          <Route path="order-manage" element={<DashOM_Main />} />
         </Route>
-
       </Routes>
     </BrowserRouter>
   );
