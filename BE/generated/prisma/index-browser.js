@@ -124,6 +124,7 @@ exports.Prisma.CartScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   state: 'state',
+  cartItemId: 'cartItemId',
   listClothes: 'listClothes',
   totalprice: 'totalprice',
   couponCode: 'couponCode',
@@ -156,7 +157,6 @@ exports.Prisma.AdminScalarFieldEnum = {
 
 exports.Prisma.CartItemScalarFieldEnum = {
   id: 'id',
-  cartId: 'cartId',
   clothesId: 'clothesId',
   totalprice: 'totalprice',
   quantity: 'quantity',
