@@ -1,17 +1,17 @@
 import React from 'react';
 
 // dashBoard's import
-import StatCard from '../../components/dash/dashBoard/dashBoardStat';
-import TopProductsTable from '../../components/dash/dashBoard/dashBoardTopPd';
-import WebStatusChart from '../../components/dash/dashBoard/dashBoardChart';
-import NoticeBoard from '../../components/dash/dashBoard/dashBoardNotice';
+import DashBoardStat from '../../components/dash/dashBoard/dashBoardStat';
+import DashBoardTopPd from '../../components/dash/dashBoard/dashBoardTopPd';
+import DashBoardChart from '../../components/dash/dashBoard/dashBoardChart';
+import DashBoardNotice from '../../components/dash/dashBoard/dashBoardNotice';
 
 // dashBoard's icon
 import { IoWalletOutline, IoBriefcaseOutline, IoTimeOutline, IoPeopleOutline } from 'react-icons/io5';
 import { FaChevronDown } from 'react-icons/fa';
 
 // dashBoard
-const DashBoardMain = () => {
+const DashBoard_Main = () => {
   const overviewData = [
     {
       title: 'Total revenue',
@@ -55,7 +55,7 @@ const DashBoardMain = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {overviewData.map((data, index) => (
-            <StatCard
+            <DashBoardStat
               key={index}
               title={data.title}
               value={data.value}
@@ -69,12 +69,12 @@ const DashBoardMain = () => {
 
       {/* Main content */}
       <div className="mt-8 grid grid-cols-3 gap-6">
-        <TopProductsTable />
-        <WebStatusChart />
+        <DashBoardTopPd />
+        <DashBoardChart />
       </div>
-      <NoticeBoard />
+      <DashBoardNotice />
     </>
   );
 };
 
-export default DashBoardMain;
+export default DashBoard_Main;
