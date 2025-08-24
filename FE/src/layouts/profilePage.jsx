@@ -4,36 +4,16 @@ import { BiLogOutCircle } from "react-icons/bi";
 import Sidebar from "../components/user/sidebar";
 import "../index.css";
 import { useAuth } from "../context/AuthContext";
-import Notification from "../components/user/notification";
-import EditBookingPopup from "../components/user/editbookingPopUp";
+import NotificationCard from "../components/user/notificationCard";
+import RecentOrdersCard from "../components/user/recentOrderCard";
+import OrderStatusCard from "../components/user/orderStatusCard";
 
-import BookingHistory from "../components/user/BookingHistory";
-import UserApproval from "../components/user/UserApproval";
-
-import AllRoomTimetable from "../components/user/AllRoomTimetable";
 import axiosInstance from '../configs/axiosInstance';
 import { useNavigate } from "react-router-dom";
 
 export default function ProfilePage() {
   // const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
-  const [editPopupOpen, setEditPopupOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-
-const handleEditBooking = (roomIdOrBooking, maybeScheduleId) => {
-  if (typeof roomIdOrBooking === "object") {
-    setSelectedBooking(roomIdOrBooking);
-  } else {
-    setSelectedBooking({ roomId: roomIdOrBooking, scheduleId: maybeScheduleId });
-  }
-  setEditPopupOpen(true);
-};
-
-
-  const closeEditPopup = () => {
-    setEditPopupOpen(false);
-    setSelectedBooking(null);
-  };
 
   const navigate = useNavigate();
   const handleLogout = async () => {
@@ -98,29 +78,27 @@ const handleEditBooking = (roomIdOrBooking, maybeScheduleId) => {
             <BiLogOutCircle className="mr-2" /> Log out
           </button>
         </section>
-
-      <Notification />
-
+        <NotificationCard />
       </div>
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-10">
-        {profile?.user.role === "lecturer" ? (
-          <BookingHistory
-            bookings={profile?.user.bookings || []}
-            onEdit={handleEditBooking}
-          />
-        ) : profile?.user.role === "staff" ? (
-          <>
-            <AllRoomTimetable onEdit={handleEditBooking}/>
-            <UserApproval />
-          </>
-        ) : null}
+      <div className="flex-1 mx-4 grid grid-cols-1 md:grid-cols-3 gap-10">
+        <RecentOrdersCard
+          orders={[
+            { id: "#1234", date: "17 Sept", price: "200.000 VND" },
+            { id: "#1235", date: "18 Sept", price: "200.000 VND" },
+            { id: "#1236", date: "19 Sept", price: "200.000 VND" },
+            { id: "#1237", date: "20 Sept", price: "200.000 VND" },
+            { id: "#1238", date: "21 Sept", price: "200.000 VND" },
+          ]}
+        />
+
+        <OrderStatusCard
+          items={[
+            { id: "#1239", item: "Shirt, Jean", date: "10/12/2024", price: "200.000 VND", status: "prepare" },
+            { id: "#1240", item: "Shirt, Jean", date: "11/12/2024", price: "200.000 VND", status: "ongoing" },
+            { id: "#1241", item: "Shirt, Jean", date: "12/12/2024", price: "200.000 VND", status: "completed" },
+          ]}
+        />
       </div>
-      <EditBookingPopup
-        show={editPopupOpen}
-        booking={selectedBooking}
-        onClose={closeEditPopup}
-        onUpdated={() => window.location.reload()}
-      />
     </div>
   </div>
   );

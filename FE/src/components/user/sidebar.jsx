@@ -1,5 +1,7 @@
 import React from "react";
 import { CiSettings, CiUser, CiReceipt,CiHome } from "react-icons/ci";
+import InformationForm from "./setting/information";
+import Support from "./setting/support";
 
 const Sidebar = () => {
   return (
@@ -17,24 +19,24 @@ const Sidebar = () => {
                     <CiUser size={40} />
                 </button>
             </a>
-            {/* <a href="/setting">
+            <a href="/setting">
                 <button className="hover:text-[#4A6FA5] flex">
                     <CiSettings size={43} />
                 </button>
-            </a> */}
+            </a>
 
-          {/* <button className="hover:text-pink-800 flex">
+          <button className="hover:text-pink-800 flex">
             <CiReceipt size={43} />
-          </button> */}
+          </button> 
         </nav>
 
-        {/* <div className="mt-auto mb-4">
+        <div className="mt-auto mb-4">
           <img
             src="https://via.placeholder.com/50"
             alt="User"
             className="rounded-full w-12 h-12 mx-auto"
           />
-        </div> */}
+        </div> 
       </aside>
   );
 };
