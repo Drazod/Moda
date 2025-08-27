@@ -15,9 +15,14 @@ const DashUptNNoticesList = ({ onEditNotice }) => {
             {notices.map((notice) => (
                 <div key={notice.id} className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                     <p>{notice.title}</p>
+
+                    {/* Unify */}
                     <div className="flex items-center space-x-4">
                         <span className={`px-3 py-1 text-sm rounded-full ${getStatusClass(notice.status)}`}>{notice.status}</span>
-                        <IoPencil onClick={() => onEditNotice(notice)} className="cursor-pointer text-gray-500 hover:text-green-500"/>
+                        <IoPencil 
+                            onClick={() => onEditNotice(notice)} 
+                            className="cursor-pointer text-green-500 hover:text-green-700 text-lg"
+                        />
                     </div>
                 </div>
             ))}
