@@ -26,12 +26,16 @@ const DashPdM_Main = () => {
         <>
         <DashPdMTopSellingTable />
 
+        {/* Unify */}
         <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">Products manage</h2>
-            <button onClick={handleOpenAddPopup} className="bg-black text-white px-4 py-2 rounded-full flex items-center text-sm">
+            <button 
+                onClick={handleOpenAddPopup} 
+                className="bg-gray-200 px-4 py-2 rounded-full flex items-center text-sm font-medium hover:bg-gray-300"
+            >
                 <IoAdd className="mr-2 text-lg" /> Add products
             </button>
-        </div>
+      </div>
 
         <DashPdMProductsTable onEditProduct={handleOpenEditPopup} />
 

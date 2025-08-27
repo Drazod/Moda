@@ -16,7 +16,7 @@ const DashUMTable = ({ onEditUser }) => {
     const getStatusClass = (status) => {
         switch (status) {
             case 'Online': return 'bg-green-100 text-green-700';
-            case 'Deleted': return 'bg-yellow-100 text-yellow-700';
+            case 'Deleted': return 'bg-red-100 text-red-700'; // Unify
             case 'Offline': return 'bg-gray-200 text-gray-700';
             default: return 'bg-gray-100 text-gray-700';
         }
@@ -45,11 +45,17 @@ const DashUMTable = ({ onEditUser }) => {
                                     {user.status}
                                 </span>
                             </td>
+
+                            {/* Unify */}
                             <td className="py-4">
                                 <div className="flex justify-center items-center space-x-4">
-                                    <IoEyeOutline className="cursor-pointer text-gray-500 hover:text-blue-500" />
-                                    <IoPencil onClick={() => onEditUser(user)} className="cursor-pointer text-gray-500 hover:text-green-500" />
-                                    <IoTrashOutline className="cursor-pointer text-gray-500 hover:text-red-500" />
+                                    <IoPencil 
+                                        onClick={() => onEditUser(user)} 
+                                        className="cursor-pointer text-green-500 hover:text-green-700 text-lg" 
+                                    />
+                                    <IoTrashOutline 
+                                        className="cursor-pointer text-red-500 hover:text-red-700 text-lg" 
+                                    />
                                 </div>
                             </td>
                         </tr>
