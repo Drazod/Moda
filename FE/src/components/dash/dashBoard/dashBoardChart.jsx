@@ -1,7 +1,7 @@
 import React from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 
-const WebStatusChart = () => {
+const DashBoardChart = () => {
   return (
     <div className="col-span-1 bg-white p-6 rounded-2xl shadow-sm flex flex-col">
       <div className="flex justify-between items-center mb-4">
@@ -36,4 +36,4 @@ const WebStatusChart = () => {
   );
 };
 
-export default WebStatusChart;
+export default DashBoardChart;

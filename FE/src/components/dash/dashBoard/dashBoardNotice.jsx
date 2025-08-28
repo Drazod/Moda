@@ -1,6 +1,6 @@
 import React from 'react';
 
-const NoticeBoard = () => {
+const DashBoardNotice = () => {
     const notices = [
         { text: 'Explore exlusive styles without boundaries', status: 'Active' },
         { text: 'Clothes your sprite of Fashion', status: 'Disable' },
@@ -44,4 +44,4 @@ const NoticeBoard = () => {
     );
 };
 
-export default NoticeBoard;
+export default DashBoardNotice;

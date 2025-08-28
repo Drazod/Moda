@@ -7,9 +7,14 @@ import Product from "./layouts/productPage";
 import CartModal from "./layouts/cart";
 import ProfilePage from "./layouts/profilePage";
 
-// Dashboard's layout
-import DashboardLayout from "./layouts/dash/dashLayout";
-import DashBoardMain from "./layouts/dash/dashBoard";
+// dash's import
+import DashLayout from "./layouts/dash/dashLayout";
+import DashBoard_Main from "./layouts/dash/dashBoard";
+import DashOM_Main from "./layouts/dash/dashOM.jsx"; 
+import DashActLog_Main from "./layouts/dash/dashActLog.jsx";
+import DashUM_Main from "./layouts/dash/dashUM.jsx";
+import DashPdM_Main from "./layouts/dash/dashPdM.jsx";
+import DashUptN_Main from "./layouts/dash/dashUptN.jsx";
 
 const App = () => {
   return (
@@ -21,12 +26,16 @@ const App = () => {
         <Route path="/product" element={<Product/>}/>
         <Route path="/cart" element={<CartModal/>}/>
         <Route path="/profile" element={<ProfilePage />} />
-        {/* Dashboard's Route */}
-        <Route path="/dashboard" element={<DashboardLayout />}>
-          <Route index element={<DashBoardMain />} />
-          {/* Other routes for dashboard properties*/}
+        {/* dash's Route */}
+        <Route path="/dash-board" element={<DashLayout />}>
+          <Route index element={<DashBoard_Main />} />
+          {/* Other routes for dash's properties*/}
+          <Route path="order-manage" element={<DashOM_Main />} />
+          <Route path="activity-log" element={<DashActLog_Main />} />
+          <Route path="users-manage" element={<DashUM_Main />} />
+          <Route path="products-manage" element={<DashPdM_Main />} />
+          <Route path="update-notices" element={<DashUptN_Main />} />
         </Route>
-
       </Routes>
     </BrowserRouter>
   );
