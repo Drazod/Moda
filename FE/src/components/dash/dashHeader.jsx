@@ -1,6 +1,9 @@
 import React from 'react';
 import { FaChevronDown, FaBell } from 'react-icons/fa';
 
+// Update
+import adminAvatar from '../../assets/dash/dashUser/dashUser_Logo.jpg';
+
 const DashHeader = () => {
   return (
     <header className="flex items-center justify-between mb-8">
@@ -16,12 +19,13 @@ const DashHeader = () => {
         </div>
         <div className="flex items-center space-x-3 bg-white p-2 rounded-full shadow-sm cursor-pointer">
           <img 
-            src="https://via.placeholder.com/40"
-            alt="User Avatar" 
-            className="w-10 h-10 rounded-full" 
+            // Update
+            src={adminAvatar}
+            alt="Zod Father" 
+            className="w-10 h-10 rounded-full object-cover"
           />
           <div>
-            <p className="font-semibold text-sm">Alex meian</p>
+            <p className="font-semibold text-sm">Zod Father</p>
             <p className="text-xs text-gray-500">Product manager</p>
           </div>
           <FaChevronDown className="text-gray-400" />
