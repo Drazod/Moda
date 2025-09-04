@@ -1,7 +1,7 @@
 import React from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 
-const TopProductsTable = () => {
+const DashBoardTopPd = () => {
   
   // To be continued
   const products = [
@@ -44,4 +44,4 @@ const TopProductsTable = () => {
   );
 };
 
-export default TopProductsTable;
+export default DashBoardTopPd;

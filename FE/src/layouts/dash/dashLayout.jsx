@@ -1,24 +1,24 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import SideNav from '../../components/dash/dashSideNav';
-import DashBoardHeader from '../../components/dash/dashHeader';
+import DashSideNav from '../../components/dash/dashSideNav';
+import DashHeader from '../../components/dash/dashHeader';
 
-const DashboardLayout = () => {
+const DashLayout = () => {
   return (
-    <div className="flex min-h-screen bg-[#F7F3EC] font-karla">
-      {/* To be continued  */}
-      <SideNav />
+    <div className="flex h-screen overflow-hidden bg-[#F7F3EC] font-karla">
+      <DashSideNav />
 
-      {/* To be continued  */}
-      <main className="flex-1 p-8 overflow-auto">
-        {/* To be continued  */}
-        <DashBoardHeader />
-
-        {/* To be continued  */}
-        <Outlet />
-      </main>
+      {/* Update */}
+      <div className="flex-1 flex flex-col overflow-hidden p-8 gap-y-8">
+        <DashHeader />
+        
+        {/* Update */}
+        <main className="flex-1 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 };
 
-export default DashboardLayout;
+export default DashLayout;
