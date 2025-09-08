@@ -1,12 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  // output = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -15,170 +10,136 @@ datasource db {
 }
 
 model Cart {
-  id         Int        @id @default(autoincrement())
-  userId     Int
-  state      State      @default(PENDING)
-  user       User       @relation(fields: [userId], references: [id])
-  cartItemId  Int
-  cartItem   CartItem    @relation(fields: [cartItemId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  listClothes String     @default("")
-  totalprice  Float      @default(0)
-  couponCode String?    @unique
-  coupon     Coupon?    @relation(fields: [couponCode], references: [code])
-  transactionId Int?
-  transaction Transaction? @relation(fields: [transactionId], references: [id])
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  state           State     @default(PENDING)
+  user            User      @relation(fields: [userId], references: [id])
+  items           CartItem[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
-model User {
-  id         Int     @id @default(autoincrement())
-  name       String
-  email      String  @unique
-  password   String  @db.VarChar(1024)
-  phone      String  @unique
-  address    String  @db.VarChar(1024)
-  carts      Cart[]
-  couponCode String? @unique
-  coupon     Coupon? @relation(fields: [couponCode], references: [code], onDelete: Cascade, onUpdate: Cascade)
-
-  updatedAt    DateTime       @updatedAt
-  createdAt    DateTime       @default(now())
-  Comment      Comment[]
-  Shipping     Shipping[]
-  transactions Transaction[]
-  Notification Notification[]
-}
-model Admin{
-  id         Int     @id @default(autoincrement())
-  name       String
-  email      String  @unique
-  password   String  @db.VarChar(1024)
-  phone      String  @unique
-  salary     Float   
-  role       Role    @default(ADMIN)
-}
 model CartItem {
-  id         Int     @id @default(autoincrement())
-  clothesId  Int
-  totalprice Float   @default(0)
-  quantity   Int
-  clothes    Clothes @relation(fields: [clothesId], references: [id])
-  cart       Cart[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              Int       @id @default(autoincrement())
+  cartId          Int
+  ClothesId       Int
+  totalprice      Float     @default(0)
+  quantity        Int
+  Clothes         Clothes      @relation(fields: [ClothesId], references: [id])
+  cart            Cart      @relation(fields: [cartId], references: [id])
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Comment{
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  ClothesId       Int
+  content         String    @db.VarChar(1024)
+  rating          Int
+  user            User      @relation(fields: [userId], references: [id])
+  Clothes        Clothes   @relation(fields: [ClothesId], references: [id])
+}
+
+model Coupon{
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  description     String    @db.VarChar(1024) 
+  discount        Float
+  expiryDate      DateTime
+  isActive        Boolean   @default(true)
+  users           User[]
+  transactions    Transaction[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Clothes {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  description String     @db.VarChar(1024)
-  price       Float
-  count       Int
-  Color       String     @db.VarChar(1024)
-  cartItems   CartItem[]
-  mainImgId   Int?       @unique
-  mainImg     Image?     @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  description     String    @db.VarChar(1024) 
+  price           Float
+  mainImgId       Int?      @unique
+  ingredients     String    @db.VarChar(1024)
+  cartItems       CartItem[]
+  Comments       Comment[]
+  Category       Category[]
 
-  Category  Category[]
-  comments  Comment[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
+  mainImg         Image?    @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
+  extraImgs       Image[]   @relation(name: "ExtraImages")
 
-model Category {
-  id         Int     @id @default(autoincrement())
-  Clothes_id Int     @unique
-  name       String  @unique
-  Clothes    Clothes @relation(fields: [Clothes_id], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Image {
-  id          Int      @id @default(autoincrement()) // Primary key
-  name        String
-  url         String   @unique
-  clothesMain Clothes? @relation(name: "MainImage")
+  id         Int      @id @default(autoincrement()) // Primary key
+  name       String
+  url        String   @unique
+  ClothesMain   Clothes?    @relation(name: "MainImage")
+  ClothesExtras Clothes[]   @relation(name: "ExtraImages")
 }
 
-model Comment {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  user      User    @relation(fields: [userId], references: [id])
-  clothesId Int
-  clothes   Clothes @relation(fields: [clothesId], references: [id])
-  content   String  @db.VarChar(1024)
-  point     Int
+
+model Category{
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  ClothesId       Int 
+  Clothes        Clothes   @relation(fields: [ClothesId], references: [id])
 }
 
-model Coupon {
-  id        Int      @id @default(autoincrement())
-  code      String   @unique
-  discount  Float
-  startDate DateTime @default(now())
-  endDate   DateTime @default(now())
-  isActive  Boolean  @default(true)
-  count     Int
-  user      User[]
-  carts     Cart[]
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String    
+  email           String    @unique
+  password        String    @db.VarChar(1024)
+  phone           String    @unique
+  address         String    @db.VarChar(1024)
+  code            String?   @unique
+  role            Role      @default(USER)
+  carts           Cart[]
+  comments        Comment[]
+  coupons         Coupon?  @relation(fields: [code], references: [code])
+  shippings       Shipping[]
+  transactions    Transaction[]
+  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
 }
 
-model Shipping {
-  id          Int         @id @default(autoincrement())
-  userId      Int
-  user        User        @relation(fields: [userId], references: [id])
-  address     String      @db.VarChar(1024)
-  state       State       @default(PENDING)
-  transID     Int
-  transaction Transaction @relation(fields: [transID], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+model Shipping{
+  id              Int       @id @default(autoincrement())
+  address         String    @db.VarChar(1024)
+  userId          Int
+  transId         Int       @unique
+  State           State     @default(PENDING)
+  user            User      @relation(fields: [userId], references: [id])
+  transaction     Transaction @relation(fields: [transId], references: [id])
+
+
 }
 
-model Transaction {
-  id         Int        @id @default(autoincrement())
-  userId     Int
-  user       User       @relation(fields: [userId], references: [id])
-  totalprice Float
-  PaymentId  Int
-  payment    Payment    @relation(fields: [PaymentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  Shipping   Shipping[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  Report     Report[]
-  Cart       Cart[]
-}
-
-model Payment {
-  id          Int           @id @default(autoincrement())
-  Transaction Transaction[]
-  fee         Float
-  method      String        @db.VarChar(1024)
-}
-
-model Report {
-  createdAt      DateTime    @id @unique @default(now())
-  revenue        Float
-  fee            Float
-  transactionsId Int
-  transaction    Transaction @relation(fields: [transactionsId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  content   String   @db.VarChar(1024)
-  headline  String   @db.VarChar(1024)
-  createdAt DateTime @default(now())
-}
-
-enum State {
-  ORDERED
-  PENDING
+model Transaction{
+  id              Int       @id @default(autoincrement())
+  amount          Float
+  method          String
+  userId          Int
+  couponCode      String?
+  user            User      @relation(fields: [userId], references: [id])
+  coupon          Coupon?   @relation(fields: [couponCode], references: [code])
+  shipping        Shipping[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 enum Role {
   ADMIN
   HOST
+  USER
+}
+
+enum State {
+  ORDERED
+  PENDING
 }
