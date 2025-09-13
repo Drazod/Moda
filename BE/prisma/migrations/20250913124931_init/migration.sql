@@ -127,6 +127,15 @@ CREATE TABLE `Transaction` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `_ExtraImages` (
+    `A` INTEGER NOT NULL,
+    `B` INTEGER NOT NULL,
+
+    UNIQUE INDEX `_ExtraImages_AB_unique`(`A`, `B`),
+    INDEX `_ExtraImages_B_index`(`B`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- AddForeignKey
 ALTER TABLE `Cart` ADD CONSTRAINT `Cart_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -149,9 +158,6 @@ ALTER TABLE `Clothes` ADD CONSTRAINT `Clothes_categoryId_fkey` FOREIGN KEY (`cat
 ALTER TABLE `Clothes` ADD CONSTRAINT `Clothes_mainImgId_fkey` FOREIGN KEY (`mainImgId`) REFERENCES `Image`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Image` ADD CONSTRAINT `Image_id_fkey` FOREIGN KEY (`id`) REFERENCES `Clothes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE `User` ADD CONSTRAINT `User_code_fkey` FOREIGN KEY (`code`) REFERENCES `Coupon`(`code`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -165,3 +171,9 @@ ALTER TABLE `Transaction` ADD CONSTRAINT `Transaction_userId_fkey` FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE `Transaction` ADD CONSTRAINT `Transaction_couponCode_fkey` FOREIGN KEY (`couponCode`) REFERENCES `Coupon`(`code`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `_ExtraImages` ADD CONSTRAINT `_ExtraImages_A_fkey` FOREIGN KEY (`A`) REFERENCES `Clothes`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `_ExtraImages` ADD CONSTRAINT `_ExtraImages_B_fkey` FOREIGN KEY (`B`) REFERENCES `Image`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
