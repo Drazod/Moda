@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { prisma } from "..";
-import { Type } from "@prisma/client";
+import { Category } from "@prisma/client";
 
 const authorize = (roles: string[]) => {
     return async (req: Request, res: Response, next: NextFunction) => {

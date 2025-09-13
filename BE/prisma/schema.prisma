@@ -62,10 +62,10 @@ model Clothes {
   description     String    @db.VarChar(1024) 
   price           Float
   mainImgId       Int?      @unique
-  ingredients     String    @db.VarChar(1024)
-  cartItems       CartItem[]
+  cartItems      CartItem[]
   Comments       Comment[]
-  Category       Category[]
+  categoryId          Int       
+  category            Category      @relation(fields: [categoryId], references: [id])
 
   mainImg         Image?    @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
   extraImgs       Image[]   @relation(name: "ExtraImages")
@@ -86,8 +86,7 @@ model Image {
 model Category{
   id              Int       @id @default(autoincrement())
   name            String    @unique
-  ClothesId       Int 
-  Clothes        Clothes   @relation(fields: [ClothesId], references: [id])
+  Clothes         Clothes[]
 }
 
 model User {

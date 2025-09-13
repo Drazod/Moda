@@ -55,7 +55,7 @@ CREATE TABLE `Clothes` (
     `description` VARCHAR(1024) NOT NULL,
     `price` DOUBLE NOT NULL,
     `mainImgId` INTEGER NULL,
-    `ingredients` VARCHAR(1024) NOT NULL,
+    `categoryId` INTEGER NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -78,7 +78,6 @@ CREATE TABLE `Image` (
 CREATE TABLE `Category` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `name` VARCHAR(191) NOT NULL,
-    `ClothesId` INTEGER NOT NULL,
 
     UNIQUE INDEX `Category_name_key`(`name`),
     PRIMARY KEY (`id`)
@@ -128,15 +127,6 @@ CREATE TABLE `Transaction` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
-CREATE TABLE `_ExtraImages` (
-    `A` INTEGER NOT NULL,
-    `B` INTEGER NOT NULL,
-
-    UNIQUE INDEX `_ExtraImages_AB_unique`(`A`, `B`),
-    INDEX `_ExtraImages_B_index`(`B`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
 -- AddForeignKey
 ALTER TABLE `Cart` ADD CONSTRAINT `Cart_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -153,10 +143,13 @@ ALTER TABLE `Comment` ADD CONSTRAINT `Comment_userId_fkey` FOREIGN KEY (`userId`
 ALTER TABLE `Comment` ADD CONSTRAINT `Comment_ClothesId_fkey` FOREIGN KEY (`ClothesId`) REFERENCES `Clothes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `Clothes` ADD CONSTRAINT `Clothes_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Clothes` ADD CONSTRAINT `Clothes_mainImgId_fkey` FOREIGN KEY (`mainImgId`) REFERENCES `Image`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `Category` ADD CONSTRAINT `Category_ClothesId_fkey` FOREIGN KEY (`ClothesId`) REFERENCES `Clothes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `Image` ADD CONSTRAINT `Image_id_fkey` FOREIGN KEY (`id`) REFERENCES `Clothes`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `User` ADD CONSTRAINT `User_code_fkey` FOREIGN KEY (`code`) REFERENCES `Coupon`(`code`) ON DELETE SET NULL ON UPDATE CASCADE;
@@ -172,9 +165,3 @@ ALTER TABLE `Transaction` ADD CONSTRAINT `Transaction_userId_fkey` FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE `Transaction` ADD CONSTRAINT `Transaction_couponCode_fkey` FOREIGN KEY (`couponCode`) REFERENCES `Coupon`(`code`) ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `_ExtraImages` ADD CONSTRAINT `_ExtraImages_A_fkey` FOREIGN KEY (`A`) REFERENCES `Clothes`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE `_ExtraImages` ADD CONSTRAINT `_ExtraImages_B_fkey` FOREIGN KEY (`B`) REFERENCES `Image`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

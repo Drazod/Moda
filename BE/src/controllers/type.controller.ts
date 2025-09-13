@@ -4,7 +4,7 @@ import { messaging } from 'firebase-admin';
 
 export const getAllTypes = async (req: Request, res: Response) => {
     try {
-        const types = await prisma.type.findMany();
+        const types = await prisma.category.findMany();
         res.status(200).json(types);
     } catch (error) {
         res.status(500).json({ message: "Internal server error" });
@@ -13,7 +13,7 @@ export const getAllTypes = async (req: Request, res: Response) => {
 
 export const createType = async (req: Request, res: Response) => {
     try {
-        const type = await prisma.type.create({
+        const type = await prisma.category.create({
             data: {
                 ...req.body
             }
@@ -27,7 +27,7 @@ export const createType = async (req: Request, res: Response) => {
 export const getTypeById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const type = await prisma.type.findUnique({
+        const type = await prisma.category.findUnique({
             where: {
                 id: parseInt(id)
             }
@@ -41,7 +41,7 @@ export const getTypeById = async (req: Request, res: Response) => {
 export const updateType = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const type = await prisma.type.update({
+        const type = await prisma.category.update({
             where: {
                 id: parseInt(id)
             },
@@ -59,7 +59,7 @@ export const updateType = async (req: Request, res: Response) => {
 export const deleteType = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const deleteType = await prisma.type.delete({
+        const deleteType = await prisma.category.delete({
             where: {
                 id: parseInt(id)
             }

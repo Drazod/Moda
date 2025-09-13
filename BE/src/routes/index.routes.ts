@@ -12,9 +12,9 @@ import uploadRoute from "./upload.routes"; // Add this line
 const route = Router();
 
 route.use('/auth', authRoute);
-route.use('/cake', cakeRoute);
+route.use('/clothes', cakeRoute);
 route.use('/cart', cartRoute);
-route.use('/type', typeRoute);
+route.use('/category', typeRoute);
 route.use('/cartItem', cartItemRoute);
 route.use('/user', userRoute);
 route.use('/vnpay', vnpayRoutes); 

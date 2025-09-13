@@ -1,76 +1,81 @@
-import { Router } from 'express';
-import { clothesCreate, clothesList, clothesDetail, clothesByKeyword, listClothesByCategory, clothesCreateMany, deleteClothes, updateClothes, updateImage, deleteImage } from '../controllers/cake.controller';
-import multer from 'multer';
-export const upload = multer({
-    storage: multer.memoryStorage(),
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.upload = void 0;
+const express_1 = require("express");
+const cake_controller_1 = require("../controllers/cake.controller");
+const multer_1 = __importDefault(require("multer"));
+exports.upload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
 });
-
-const cakeRoute: Router = Router();
-
+const cakeRoute = (0, express_1.Router)();
 /**
  * @swagger
  * components:
  *   schemas:
- *     Clothes:
+ *     Cake:
  *       type: object
  *       required:
  *         - name
  *         - description
  *         - price
- *         - categoryId
+ *         - typeId
  *       properties:
  *         name:
  *           type: string
- *           description: The name of the clothes.
+ *           description: The name of the cake.
  *         description:
  *           type: string
- *           description: The description of the clothes.
+ *           description: The description of the cake.
  *         price:
  *           type: number
- *           description: The price of the clothes.
+ *           description: The price of the cake.
  *         image:
  *           type: array
  *           items:
  *             type: string
- *           description: List of image URLs of the clothes.
- *         categoryId:
+ *           description: List of image URLs of the cake.
+ *         ingredients:
+ *           type: string
+ *           description: Ingredients of the cake.
+ *         typeId:
  *           type: integer
- *           description: The ID of the clothes category.
+ *           description: The ID of the cake type.
  */
-
 /**
  * @swagger
- * /clothes/list:
+ * /cake/list:
  *   get:
- *     summary: Get the list of all clothes
- *     tags: [Clothes]
+ *     summary: Get the list of all cakes
+ *     tags: [Cakes]
  *     responses:
  *       200:
- *         description: A list of clothes
+ *         description: A list of cakes
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Clothes'
+ *                 $ref: '#/components/schemas/Cake'
  *       500:
  *         description: Internal server error
  */
-cakeRoute.get('/list', clothesList);
-
+cakeRoute.get('/list', cake_controller_1.cakeList);
 /**
  * @swagger
- * /clothes/search:
+ * /cake/search:
  *   get:
- *     summary: Search clothes by keyword (name or description)
- *     tags: [Clothes]
+ *     summary: Search cakes by keyword (name or description)
+ *     tags: [Cakes]
  *     parameters:
  *       - in: query
  *         name: keyword
  *         required: true
  *         schema:
  *           type: string
- *         description: Keyword to search clothes by name or description
+ *         description: Keyword to search cakes by name or description
  *     responses:
  *       200:
  *         description: A list of cakes matching the keyword
@@ -79,57 +84,55 @@ cakeRoute.get('/list', clothesList);
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Clothes'
+ *                 $ref: '#/components/schemas/Cake'
  *       400:
  *         description: Invalid keyword provided
  *       500:
  *         description: Internal server error
  */
-cakeRoute.get('/search', clothesByKeyword);
-
+cakeRoute.get('/search', cake_controller_1.cakeByKeyword);
 /**
  * @swagger
- * /clothes/category/{category}:
+ * /cake/type/{type}:
  *   get:
- *     summary: Get clothes by category
- *     tags: [Clothes]
+ *     summary: Get cakes by type
+ *     tags: [Cakes]
  *     parameters:
  *       - in: path
- *         name: category
+ *         name: type
  *         required: true
  *         schema:
  *           type: string
- *         description: The category of clothes to filter by
+ *         description: The type of cake to filter by
  *     responses:
  *       200:
- *         description: A list of clothes by category
+ *         description: A list of cakes by type
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Clothes'
+ *                 $ref: '#/components/schemas/Cake'
  *       500:
  *         description: Internal server error
  */
-cakeRoute.get('/category/:category', listClothesByCategory);
-
+cakeRoute.get('/type/:type', cake_controller_1.listCakeByType);
 /**
  * @swagger
- * /clothes/{id}:
+ * /cake/{id}:
  *   get:
- *     summary: Get a clothes by its ID
- *     tags: [Clothes]
+ *     summary: Get a cake by its ID
+ *     tags: [Cakes]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The unique ID of the clothes
+ *         description: The unique ID of the cake
  *     responses:
  *       200:
- *         description: A single clothes
+ *         description: A single cake
  *         content:
  *           application/json:
  *             schema:
@@ -139,56 +142,39 @@ cakeRoute.get('/category/:category', listClothesByCategory);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.get('/:id', clothesDetail);
-
-/**
+cakeRoute.get('/:id', cake_controller_1.cakeDetail);
 /**
  * @swagger
- * /clothes/create:
+ * /cake/create:
  *   post:
- *     summary: Create a new clothes with images
- *     tags: [Clothes]
+ *     summary: Create a new cake with optional images
+ *     tags: [Cakes]
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               price:
- *                 type: number
- *               categoryId:
- *                 type: integer
- *               mainImage:
- *                 type: string
- *                 format: binary
- *               extraImages:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
+ *             $ref: '#/components/schemas/Cake'
  *     responses:
  *       201:
- *         description: Clothes created successfully
+ *         description: Cake created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Cake'
+ *       500:
+ *         description: Internal server error
  */
-cakeRoute.post('/create',
-    upload.fields([
-        { name: 'mainImage', maxCount: 1 }, // One main image
-        { name: 'extraImages', maxCount: 4 }, // Up to 4 extra images
-    ]),
-    clothesCreate);
-
-
+cakeRoute.post('/create', exports.upload.fields([
+    { name: 'mainImage', maxCount: 1 }, // One main image
+    { name: 'extraImages', maxCount: 4 }, // Up to 4 extra images
+]), cake_controller_1.cakeCreate);
 /**
  * @swagger
- * /clothes/createMany:
+ * /cake/createMany:
  *   post:
- *     summary: Bulk create clothes
- *     tags: [Clothes]
+ *     summary: Bulk create cakes
+ *     tags: [Cakes]
  *     requestBody:
  *       required: true
  *       content:
@@ -199,87 +185,84 @@ cakeRoute.post('/create',
  *               $ref: '#/components/schemas/Cake'
  *     responses:
  *       201:
- *         description: Clothes created successfully
+ *         description: Cakes created successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Clothes'
+ *                 $ref: '#/components/schemas/Cake'
  *       500:
  *         description: Internal server error
  */
-cakeRoute.post('/createMany', clothesCreateMany);
-
+cakeRoute.post('/createMany', cake_controller_1.cakeCreateMany);
 /**
  * @swagger
- * /clothes/update/{id}:
+ * /cake/update/{id}:
  *   put:
- *     summary: Update an existing clothes
- *     tags: [Clothes]
+ *     summary: Update an existing cake
+ *     tags: [Cakes]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes to update
+ *         description: The ID of the cake to update
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Clothes'
+ *             $ref: '#/components/schemas/Cake'
  *     responses:
  *       200:
  *         description: Cake updated successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Clothes'
+ *               $ref: '#/components/schemas/Cake'
  *       404:
  *         description: Cake not found
  *       500:
  *         description: Internal server error
  */
-cakeRoute.put('/update/:id', updateClothes);
-
+cakeRoute.put('/update/:id', cake_controller_1.updateCake);
 /**
  * @swagger
- * /clothes/delete/{id}:
+ * /cake/delete/{id}:
  *   delete:
  *     summary: Delete a cake by its ID
- *     tags: [Clothes]
+ *     tags: [Cakes]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes to delete
+ *         description: The ID of the cake to delete
  *     responses:
  *       200:
- *         description: Clothes deleted successfully
+ *         description: Cake deleted successfully
  *       404:
- *         description: Clothes not found
+ *         description: Cake not found
  *       500:
  *         description: Internal server error
  */
-cakeRoute.delete('/delete/:id', deleteClothes);
-
+cakeRoute.delete('/delete/:id', cake_controller_1.deleteCake);
 /**
  * @swagger
- * /clothes/deleteImage/{clothesId}:
+ * /cake/deleteImage/{cakeId}:
  *   delete:
- *     summary: Delete a specific image from a clothes
- *     tags: [Clothes]
+ *     summary: Delete a specific image from a cake
+ *     tags: [Cakes]
  *     parameters:
  *       - in: path
- *         name: clothesId
+ *         name: cakeId
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes to delete an image from
+ *         description: The ID of the cake to delete an image from
  *       - in: query
  *         name: imageName
  *         required: true
@@ -294,21 +277,20 @@ cakeRoute.delete('/delete/:id', deleteClothes);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.delete('/deleteImage/:id', deleteImage);
-
+cakeRoute.delete('/deleteImage/:id', cake_controller_1.deleteImage);
 /**
  * @swagger
- * /clothes/updateImage/{id}:
+ * /cake/updateImage/{id}:
  *   put:
- *     summary: Update images (main and extra) of an existing clothes
- *     tags: [Clothes]
+ *     summary: Update images (main and extra) of an existing cake
+ *     tags: [Cakes]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes to update images for
+ *         description: The ID of the cake to update images for
  *     requestBody:
  *       required: true
  *       content:
@@ -318,7 +300,7 @@ cakeRoute.delete('/deleteImage/:id', deleteImage);
  *             properties:
  *               mainImage:
  *                 type: file
- *                 description: The main image of the clothes (optional)
+ *                 description: The main image of the cake (optional)
  *               extraImages:
  *                 type: array
  *                 items:
@@ -332,11 +314,8 @@ cakeRoute.delete('/deleteImage/:id', deleteImage);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.put('/updateImage/:id',
-    upload.fields([
-        { name: 'mainImage', maxCount: 1 },
-        { name: 'extraImages', maxCount: 4 },
-    ]),
-    updateImage);
-
-export default cakeRoute;
+cakeRoute.put('/updateImage/:id', exports.upload.fields([
+    { name: 'mainImage', maxCount: 1 },
+    { name: 'extraImages', maxCount: 4 },
+]), cake_controller_1.updateImage);
+exports.default = cakeRoute;

@@ -1,20 +1,34 @@
 import swaggerJSDoc from "swagger-jsdoc";
 
 const options = {
-    definition: {
-        openapi: "3.0.0",
-        info: {
-            title: "BE API",
-            version: "1.0.0",
-            description: "A simple Express Library API",
-        },
-        servers: [
-            {
-                url: "http://localhost:4000",
-            },
-        ],
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "BE API",
+      version: "1.0.0",
+      description: "A simple Express Library API",
     },
-    apis: ["./src/routes/*.ts", "./src/controllers/*.ts"],
+    servers: [
+      {
+        url: "http://localhost:4000",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
+  },
+  apis: ["./src/routes/*.ts", "./src/controllers/*.ts"],
 };
 
 const specs = swaggerJSDoc(options);

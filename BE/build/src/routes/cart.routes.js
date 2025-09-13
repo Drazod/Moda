@@ -1,12 +1,12 @@
-import { Router } from 'express';
-import { getCart, getCartById, createCart, placeOrder, updateCart, deleteCart, addCartItemToCart, viewCartItemInCart,
-    updateCartItemInCart, deleteCartItemFromCart
-} from '../controllers/cart.controller';
-import authMiddleware from '../middlewares/authentication';
-import authorize from '../middlewares/authorization';
-
-const cartRoute: Router = Router();
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const cart_controller_1 = require("../controllers/cart.controller");
+const authentication_1 = __importDefault(require("../middlewares/authentication"));
+const cartRoute = (0, express_1.Router)();
 /**
  * @swagger
  * components:
@@ -43,10 +43,9 @@ const cartRoute: Router = Router();
  *                 type: integer
  *                 description: The quantity of this particular cake in the cart
  */
-
 /**
  * @swagger
- * /cart/all:
+ * /cart:
  *   get:
  *     summary: Get all carts (admin only)
  *     tags: [Cart]
@@ -64,33 +63,7 @@ const cartRoute: Router = Router();
  *       500:
  *         description: Internal server error
  */
-cartRoute.get('/all', authMiddleware, getCart);
-
-/**
- * @swagger
- * /cart/view:
- *   get:
- *     summary: View items in the user's cart
- *     tags: [Cart]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: A list of items in the user's cart
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/CartItem'
- *       401:
- *         description: User not authenticated
- *       500:
- *         description: Internal server error
- */
-cartRoute.get('/view', authMiddleware, viewCartItemInCart);
-
-
+cartRoute.get('/view', authentication_1.default, cart_controller_1.getCart);
 /**
  * @swagger
  * /cart/{id}:
@@ -118,8 +91,7 @@ cartRoute.get('/view', authMiddleware, viewCartItemInCart);
  *       500:
  *         description: Internal server error
  */
-cartRoute.get('/:id', authMiddleware, getCartById);
-
+cartRoute.get('/:id', authentication_1.default, cart_controller_1.getCartById);
 /**
  * @swagger
  * /cart/create:
@@ -140,8 +112,7 @@ cartRoute.get('/:id', authMiddleware, getCartById);
  *       500:
  *         description: Internal server error
  */
-cartRoute.post('/create', authMiddleware, createCart);
-
+cartRoute.post('/create', authentication_1.default, cart_controller_1.createCart);
 /**
  * @swagger
  * /cart/update/{id}:
@@ -177,8 +148,7 @@ cartRoute.post('/create', authMiddleware, createCart);
  *       500:
  *         description: Internal server error
  */
-cartRoute.put('/update/:id', authMiddleware, updateCart);
-
+cartRoute.put('/update/:id', authentication_1.default, cart_controller_1.updateCart);
 /**
  * @swagger
  * /cart/placeOrder/{id}:
@@ -204,8 +174,7 @@ cartRoute.put('/update/:id', authMiddleware, updateCart);
  *       500:
  *         description: Internal server error
  */
-cartRoute.put('/placeOrder/:id', authMiddleware, placeOrder);
-
+cartRoute.put('/placeOrder/:id', authentication_1.default, cart_controller_1.placeOrder);
 /**
  * @swagger
  * /cart/add:
@@ -244,10 +213,30 @@ cartRoute.put('/placeOrder/:id', authMiddleware, placeOrder);
  *       500:
  *         description: Internal server error
  */
-cartRoute.post('/add', authMiddleware, addCartItemToCart);
-
-
-
+cartRoute.post('/add', authentication_1.default, cart_controller_1.addCartItemToCart);
+/**
+ * @swagger
+ * /cart/view:
+ *   get:
+ *     summary: View items in the user's cart
+ *     tags: [Cart]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: A list of items in the user's cart
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/CartItem'
+ *       401:
+ *         description: User not authenticated
+ *       500:
+ *         description: Internal server error
+ */
+cartRoute.get('/view', authentication_1.default, cart_controller_1.viewCartItemInCart);
 /**
  * @swagger
  * /cart/update:
@@ -288,8 +277,7 @@ cartRoute.post('/add', authMiddleware, addCartItemToCart);
  *       500:
  *         description: Internal server error
  */
-cartRoute.put('/update', authMiddleware, updateCartItemInCart);
-
+cartRoute.put('/update', authentication_1.default, cart_controller_1.updateCartItemInCart);
 /**
  * @swagger
  * /cart/delete:
@@ -318,7 +306,6 @@ cartRoute.put('/update', authMiddleware, updateCartItemInCart);
  *       500:
  *         description: Internal server error
  */
-cartRoute.delete('/delete', authMiddleware, deleteCartItemFromCart);
-cartRoute.delete('/delete/:id', authMiddleware, deleteCart);
-
-export default cartRoute;
+cartRoute.delete('/delete', authentication_1.default, cart_controller_1.deleteCartItemFromCart);
+cartRoute.delete('/delete/:id', authentication_1.default, cart_controller_1.deleteCart);
+exports.default = cartRoute;
