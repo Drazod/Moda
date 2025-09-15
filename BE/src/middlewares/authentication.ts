@@ -5,6 +5,9 @@ import { prisma } from "..";
 import { JwtPayload } from "../types/express";
 
 const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+    console.log('Headers:', req.headers);
+    console.log('Authorization header:', req.headers.authorization);
+
     let token = req.headers.authorization;
     if (!token || !token.startsWith('Bearer ')) {
         return res.status(401).json({ message: "Unauthorized" });

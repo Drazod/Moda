@@ -7,7 +7,7 @@ export const getCartItem = async (req: Request, res: Response) => {
   try {
     const cartItem = await prisma.cartItem.findMany({
       include: {
-        cake: true,
+        Clothes: true,
         cart: true
       },
     });
@@ -26,7 +26,7 @@ export const getCartItemById = async (req: Request, res: Response) => {
         const cartItem = await prisma.cartItem.findUnique({
         where: { id: parseInt(id) },
         include: {
-            cake: true,
+            Clothes: true,
             cart: true
         },
         });
@@ -45,18 +45,18 @@ export const getCartItemById = async (req: Request, res: Response) => {
 export const createCartItem = async (req: Request, res: Response) => {
     const { cartId, cakeId, quantity } = req.body;
     try {
-        const cake = await prisma.cake.findUnique({ where: { id: cakeId } });
+        const clothes = await prisma.clothes.findUnique({ where: { id: cakeId } });
         
-        if (!cake) {
-            return res.status(404).json({ message: "Cake not found" });
+        if (!clothes) {
+            return res.status(404).json({ message: "Clothes not found" });
         }
 
-        const totalprice = cake.price * quantity;
+        const totalprice = clothes.price * quantity;
 
         const cartItem = await prisma.cartItem.create({
             data: {
                 cartId,
-                cakeId,
+                ClothesId: clothes.id,
                 quantity,
                 totalprice
             },
@@ -79,13 +79,13 @@ export const updateCartItem = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Cart item not found" });
         }
 
-        const cake = await prisma.cake.findUnique({ where: { id: cartItem.cakeId } });
+        const clothes = await prisma.clothes.findUnique({ where: { id: cartItem.ClothesId } });
 
-        if (!cake) {
-            return res.status(404).json({ message: "Cake not found" });
+        if (!clothes) {
+            return res.status(404).json({ message: "Clothes not found" });
         }
 
-        const totalprice = cake.price * quantity;
+        const totalprice = clothes.price * quantity;
 
         const updatedCartItem  = await prisma.cartItem.update({
             where: { id: parseInt(id) },

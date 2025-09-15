@@ -23,3 +23,48 @@ typeRoute.post('/upload',
 // typeRoute.delete('/delete', deleteImageFromFirebaseAndPrisma);
 
 export default typeRoute;
+
+/**
+ * @swagger
+ * /file/upload:
+ *   post:
+ *     summary: Upload main and extra images
+ *     tags: [Images]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               mainImage:
+ *                 type: string
+ *                 format: binary
+ *                 description: Main image
+ *               extraImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Extra images (max 4)
+ *     responses:
+ *       200:
+ *         description: Images uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 main:
+ *                   type: string
+ *                   description: Public URL of main image
+ *                 additional:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Public URLs of extra images
+ *       400:
+ *         description: Missing images
+ *       500:
+ *         description: Internal server error
+ */

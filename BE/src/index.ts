@@ -21,10 +21,10 @@ import serviceAccount from '../khanh-bakery.json';
 
 initializeApp({
     credential: cert(serviceAccount as any),
-    storageBucket: 'khanh-bakery.appspot.com'
+    storageBucket: 'moda-938e0.firebasestorage.app'
   });
 
-export const bucket = getStorage().bucket('khanh-bakery');
+export const bucket = getStorage().bucket('moda-938e0.firebasestorage.app');
 
 export const prisma = new PrismaClient({
     errorFormat: 'pretty',

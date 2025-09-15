@@ -1,37 +1,30 @@
-import { Router } from 'express';
-import {
-  getAllTypes,
-  createType,
-  getTypeById,
-  updateType,
-  deleteType
-} from '../controllers/type.controller';
-
-const typeRoute: Router = Router();
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const type_controller_1 = require("../controllers/type.controller");
+const typeRoute = (0, express_1.Router)();
 /**
  * @swagger
  * components:
  *   schemas:
- *     Category:
+ *     Type:
  *       type: object
  *       properties:
  *         name:
- *           category: string
+ *           type: string
  *           description: The name of the cake type.
  *       required:
  *         - name
  */
-
 /**
  * @swagger
- * /category/list:
+ * /type/list:
  *   get:
- *     summary: Retrieve a list of all clothes categories
- *     tags: [Category]
+ *     summary: Retrieve a list of all cake types
+ *     tags: [Types]
  *     responses:
  *       200:
- *         description: Successfully retrieved list of clothes categories
+ *         description: Successfully retrieved list of cake types
  *         content:
  *           application/json:
  *             schema:
@@ -41,14 +34,13 @@ const typeRoute: Router = Router();
  *       500:
  *         description: Internal server error
  */
-typeRoute.get('/list', getAllTypes);
-
+typeRoute.get('/list', type_controller_1.getAllTypes);
 /**
  * @swagger
- * /category/create:
+ * /type/create:
  *   post:
- *     summary: Create a new clothes category
- *     tags: [Category]
+ *     summary: Create a new cake type
+ *     tags: [Types]
  *     requestBody:
  *       required: true
  *       content:
@@ -57,7 +49,7 @@ typeRoute.get('/list', getAllTypes);
  *             $ref: '#/components/schemas/Type'
  *     responses:
  *       201:
- *         description: Successfully created a new clothes category
+ *         description: Successfully created a new cake type
  *         content:
  *           application/json:
  *             schema:
@@ -65,30 +57,29 @@ typeRoute.get('/list', getAllTypes);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Category created successfully!"
+ *                   example: "Type created successfully!"
  *                 type:
  *                   $ref: '#/components/schemas/Type'
  *       500:
  *         description: Internal server error
  */
-typeRoute.post('/create', createType);
-
+typeRoute.post('/create', type_controller_1.createType);
 /**
  * @swagger
- * /category/{id}:
+ * /type/{id}:
  *   get:
- *     summary: Retrieve a clothes category by ID
- *     tags: [Category]
+ *     summary: Retrieve a cake type by ID
+ *     tags: [Types]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes category
+ *         description: The ID of the cake type
  *     responses:
  *       200:
- *         description: Successfully retrieved the clothes category
+ *         description: Successfully retrieved the cake type
  *         content:
  *           application/json:
  *             schema:
@@ -96,21 +87,20 @@ typeRoute.post('/create', createType);
  *       500:
  *         description: Internal server error
  */
-typeRoute.get('/:id', getTypeById);
-
+typeRoute.get('/:id', type_controller_1.getTypeById);
 /**
  * @swagger
- * /category/update/{id}:
+ * /type/update/{id}:
  *   put:
- *     summary: Update a clothes category by ID
- *     tags: [Category]
+ *     summary: Update a cake type by ID
+ *     tags: [Types]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes category to update
+ *         description: The ID of the cake type to update
  *     requestBody:
  *       required: true
  *       content:
@@ -119,7 +109,7 @@ typeRoute.get('/:id', getTypeById);
  *             $ref: '#/components/schemas/Type'
  *     responses:
  *       200:
- *         description: Successfully updated the clothes category
+ *         description: Successfully updated the cake type
  *         content:
  *           application/json:
  *             schema:
@@ -127,30 +117,29 @@ typeRoute.get('/:id', getTypeById);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Category updated successfully"
+ *                   example: "Type updated successfully"
  *                 type:
  *                   $ref: '#/components/schemas/Type'
  *       500:
  *         description: Internal server error
  */
-typeRoute.put('/update/:id', updateType);
-
+typeRoute.put('/update/:id', type_controller_1.updateType);
 /**
  * @swagger
- * /category/delete/{id}:
+ * /type/delete/{id}:
  *   delete:
- *     summary: Delete a clothes category by ID
- *     tags: [Category]
+ *     summary: Delete a cake type by ID
+ *     tags: [Types]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
  *           type: integer
- *         description: The ID of the clothes category to delete
+ *         description: The ID of the cake type to delete
  *     responses:
  *       200:
- *         description: Successfully deleted the clothes category
+ *         description: Successfully deleted the cake type
  *         content:
  *           application/json:
  *             schema:
@@ -158,10 +147,9 @@ typeRoute.put('/update/:id', updateType);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Category deleted successfully"
+ *                   example: "Type deleted successfully"
  *       500:
  *         description: Internal server error
  */
-typeRoute.delete('/delete/:id', deleteType);
-
-export default typeRoute;
+typeRoute.delete('/delete/:id', type_controller_1.deleteType);
+exports.default = typeRoute;

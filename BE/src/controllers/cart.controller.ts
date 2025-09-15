@@ -3,26 +3,39 @@ import { prisma } from "..";
 import { State } from "@prisma/client";
 
 export const getCart = async (req: Request, res: Response) => {
-  
   if (!req.user) return res.status(401).json({ message: "User not authenticated" });
-  const userId = req.user.id;
+
   try {
-    const cart = await prisma.cart.findFirst({ 
-      where: { userId, state: "PENDING" },
-      include: {
-        items: {
-          include: {
-            cake: true,
+    let carts;
+
+    if (req.user.role === "ADMIN") {
+      // Admin can see all carts
+      carts = await prisma.cart.findMany({
+        include: {
+          items: {
+            include: { Clothes: true },
           },
         },
-      }, 
-    });
-    res.status(200).json({ cart });
+      });
+    } else {
+      // Regular users only see their own PENDING cart
+      carts = await prisma.cart.findMany({
+        where: { userId: req.user.id, state: "PENDING" },
+        include: {
+          items: {
+            include: { Clothes: true },
+          },
+        },
+      });
+    }
+
+    res.status(200).json({ carts });
   } catch (error) {
-    console.error("Error getting cart:", error);
+    console.error("Error getting carts:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
+
 
 export const getCartById = async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -33,7 +46,7 @@ export const getCartById = async (req: Request, res: Response) => {
       include: {
         items: {
           include: {
-            cake: true,
+            Clothes: true,
           },
         },
       },
@@ -86,6 +99,7 @@ export const updateCart = async (req: Request, res: Response) => {
 }
 
 export const placeOrder = async (req: Request, res: Response) => {
+  console.log('Authorization header:', req.headers.authorization);
   const { id } = req.params;
   // const { userId } = req.body;
   try {
@@ -145,26 +159,26 @@ export const addCartItemToCart = async (req: Request, res: Response) => {
   const userId = req.user.id;
   try {
       // Kiểm tra xem bánh có tồn tại không
-      const cake = await prisma.cake.findUnique({ where: { id: cakeId } });
-      if (!cake) return res.status(404).json({ message: "Cake not found" });
+      const clothes = await prisma.clothes.findUnique({ where: { id: cakeId } });
+      if (!clothes) return res.status(404).json({ message: "Clothes not found" });
       // Tìm hoặc tạo giỏ hàng cho người dùng
       let cart = await prisma.cart.findFirst({ where: { userId: userId, state: State.PENDING } });
       if (!cart) cart = await prisma.cart.create({ data: { userId } });
 
       const existingItem = await prisma.cartItem.findFirst({
-          where: { cartId: cart.id, cakeId },
+          where: { cartId: cart.id, ClothesId: clothes.id},
       });
       const new_quantity = existingItem ? existingItem.quantity + quantity : quantity;  
           
       if (existingItem) {
           const updatedItem = await prisma.cartItem.update({
               where: { id: existingItem.id },
-              data: { quantity: new_quantity, totalprice: cake.price * (existingItem.quantity + quantity) },
+              data: { quantity: new_quantity, totalprice: clothes.price * (existingItem.quantity + quantity) },
           });
           return res.status(200).json({ message: "Cart updated", data: updatedItem });
       } else {
           const newItem = await prisma.cartItem.create({
-              data: { cartId: cart.id, cakeId, quantity: new_quantity, totalprice: cake.price * new_quantity },
+              data: { cartId: cart.id, ClothesId: clothes.id, quantity: new_quantity, totalprice: clothes.price * new_quantity },
           });
           return res.status(201).json({ message: "Item added to cart", data: newItem });
           }
@@ -187,7 +201,7 @@ export const viewCartItemInCart = async (req: Request, res: Response) => {
     else {
       const cartItems = await prisma.cartItem.findMany({
         where: { cartId: cart.id },
-        include: { cake: true },
+        include: { Clothes: true },
       });
       return res.status(200).json({ cartItems });
     }
@@ -216,12 +230,12 @@ export const updateCartItemInCart = async (req: Request, res: Response) => {
     // Check if the cartItem exists and belongs to the user's cart
     const cartItem = await prisma.cartItem.findFirst({
       where: { id: cartItemId, cartId: cart.id },
-      include: { cake: true },
+      include: { Clothes: true },
     });
 
     if (!cartItem) return res.status(404).json({ message: "Cart item not found" });
 
-    const newTotalPrice = cartItem.cake.price * quantity;
+    const newTotalPrice = cartItem.Clothes.price * quantity;
     
     // Update the CartItem with the new quantity and total price
     const updatedCartItem = await prisma.cartItem.update({
