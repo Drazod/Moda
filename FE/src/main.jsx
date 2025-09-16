@@ -5,13 +5,16 @@ import "./index.css";
 import App from "./App";
 import { Provider } from "react-redux";
 // import { store } from "./configs/store";
+import { AuthProvider } from "./context/AuthContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     {/* // <ThemeProvider> */}
-      {/* <Provider store={store}> */}
-          <App/>
-      {/* </Provider> */}
+    {/* <Provider store={store}> */}
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+    {/* </Provider> */}
     {/* // </ThemeProvider> */}
   </React.StrictMode>
 );

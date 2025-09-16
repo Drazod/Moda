@@ -95,7 +95,7 @@ model User {
   email           String    @unique
   password        String    @db.VarChar(1024)
   phone           String    @unique
-  address         String    @db.VarChar(1024)
+  address         String    @default("N/A") @db.VarChar(1024)
   code            String?   @unique
   role            Role      @default(USER)
   carts           Cart[]

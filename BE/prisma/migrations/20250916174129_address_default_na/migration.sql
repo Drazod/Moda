@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `User` MODIFY `address` VARCHAR(1024) NOT NULL DEFAULT 'N/A';
