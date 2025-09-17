@@ -16,39 +16,45 @@ export default function LogInPage() {
 
 const navigate = useNavigate();
 const location = useLocation();
-const next = new URLSearchParams(location.search).get('next') || '/';
+const rawNext = new URLSearchParams(location.search).get("next") || "/";
+
+// tiny sanitizer so ?next can't send off-site
+const safeNext = rawNext.startsWith("/") ? rawNext : "/";
 
 const onSubmit = async (values, { setSubmitting }) => {
   setSubmitError(null);
-
   try {
     const payload = {
       email: values.email.trim().toLowerCase(),
       password: values.password,
     };
 
+    // Use the route your API actually provides:
+    // const { data } = await axiosInstance.post('/auth/signin', payload);
     const { data } = await axiosInstance.post('/auth/login', payload);
+
     const token = data?.token;
-    let   user  = data?.user;
+    let   profile = data?.user;
 
-    if (!token) {
-      throw new Error('Login succeeded but no token was returned.');
-    }
+    if (!token) throw new Error('Login succeeded but no token was returned.');
 
-    // If API didn't include user, fetch it right away with the new token
-    if (!user) {
+    // If no user in response, fetch it with the fresh token
+    if (!profile) {
       const me = await axiosInstance.get('/auth/me', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      user = me?.data?.user;
-      if (!user) throw new Error('Unable to fetch user profile after login.');
+      profile = me?.data?.user ?? me?.data;
+      if (!profile) throw new Error('Unable to fetch user profile after login.');
     }
 
-    // Store in your AuthContext (persists token to localStorage per your AuthProvider)
-    login(user, token);
+    // Persist via your AuthContext (stores token in localStorage)
+    login(profile, token);
 
-    // Instant redirect (you also have the <Navigate/> guard on mount)
-    navigate(next, { replace: true });
+    // Choose destination
+    const dest = isAdminUser(profile) ? '/dash-board' : safeNext;
+    console.log("Navigating to:", dest);
+    navigate(dest, { replace: true });
+
   } catch (error) {
     const message =
       error?.response?.data?.message ||
@@ -59,6 +65,7 @@ const onSubmit = async (values, { setSubmitting }) => {
     setSubmitting?.(false);
   }
 };
+
 
 
   return (

@@ -1,28 +1,16 @@
-// import { configureStore } from "@reduxjs/toolkit";
-// import selectedIndexReducer from "../features/slices/selectedIndex";
-// import modalReducer from "../slices/modalSlice";
-// import editLessionReducer from "@/slices/editLessionSlice";
-// import adminCourseviewReducer from "@/slices/adminCourseViewSlice";
-// import { studentApi } from "../apis/StudentDashboardApi";
-// import { instuctorApi } from "@/apis/InstructorDashboardApi";
-// import { CourseApi } from "@/apis/CourseApi";
-// // import { adminApi } from "@/apis/adminApi";
+import { configureStore } from '@reduxjs/toolkit';
 
-// export const store = configureStore({
-//   reducer: {
-//     modal: modalReducer,
-//     selectedIndex: selectedIndexReducer,
-//     editLession: editLessionReducer,
-//     adminCourseView: adminCourseviewReducer,
-//     // [adminApi.reducerPath]: adminApi.reducer,
-//     [studentApi.reducerPath]: studentApi.reducer,
-//     [instuctorApi.reducerPath]: instuctorApi.reducer,
-//     [CourseApi.reducerPath]: CourseApi.reducer,
-//   },
-//   middleware: (getDefaultMiddleware) =>
-//     getDefaultMiddleware()
-//       .concat(studentApi.middleware)
-//       .concat(instuctorApi.middleware)
-//       .concat(CourseApi.middleware)
-//       // .concat(adminApi.middleware),
-// });
+import { apiSlice } from "./apiSlice";
+
+export const store = configureStore({
+    reducer: {
+        [apiSlice.reducerPath]: apiSlice.reducer,
+    },
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware().concat(apiSlice.middleware),
+        devTools: true
+});
+
+// // Infer the `RootState` and `AppDispatch` types from the store itself
+// export type RootState = ReturnType<typeof store.getState>;
+// export type AppDispatch = typeof store.dispatch;

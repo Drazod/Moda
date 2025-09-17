@@ -12,7 +12,7 @@ import axiosInstance from '../configs/axiosInstance';
 import { useNavigate } from "react-router-dom";
 
 export default function ProfilePage() {
-  // const { user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
 
   const navigate = useNavigate();

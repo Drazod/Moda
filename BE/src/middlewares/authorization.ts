@@ -1,21 +1,14 @@
-import { NextFunction, Request, Response } from "express";
-import { prisma } from "..";
-import { Category } from "@prisma/client";
+// middlewares/authorize.ts
+import { NextFunction, Request, Response } from 'express';
 
 const authorize = (roles: string[]) => {
-    return async (req: Request, res: Response, next: NextFunction) => {
-        if (!req.user) {
-            return res.status(401).json({ message: "User not authenticated" });
-          }
-      
-          const userRole = req.user.role;
-      
-          if (!roles.includes(userRole)) {
-            return res.status(403).json({ message: "Forbidden: You do not have the required permissions" });
-          }
-      
-          next();
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) return res.status(401).json({ message: 'User not authenticated' });
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Forbidden: You do not have the required permissions' });
     }
-}
+    next();
+  };
+};
 
 export default authorize;
