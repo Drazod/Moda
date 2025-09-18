@@ -49,7 +49,7 @@ export default function RegisterPage() {
       }
 
       // 2) Fallback: immediately sign in to get a token
-      const signIn = await axiosInstance.post('/auth/signin', {
+      const signIn = await axiosInstance.post('/auth/login', {
         email: payload.email,
         password: payload.password,
       });
