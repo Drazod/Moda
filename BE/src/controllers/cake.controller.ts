@@ -8,7 +8,9 @@ export const clothesList = async (req: Request, res: Response) => {
             include: {
                 category: true,  // Include the type to get information about the type of each cake
                 mainImg: true,
-                extraImgs: true
+                extraImgs: true,
+                sizes: true,
+                features: true,
             },
         });
         res.status(200).json(listCake);
@@ -19,9 +21,12 @@ export const clothesList = async (req: Request, res: Response) => {
 
 export const clothesCreate = async (req: Request, res: Response) => {
     console.log('req.body:', req.body);
-    const { name, description, price, categoryId } = req.body;
+    const { name, description, price, categoryId, sizes, features } = req.body;
     const parsedPrice = parseFloat(price);
     const parsedTypeId = parseInt(categoryId, 10);
+    const parsedSizes = sizes ? JSON.parse(sizes) : [];
+    const parsedFeatures = features ? JSON.parse(features) : [];
+
 
     // Lấy danh sách file từ request
     const files = req.files as {
@@ -70,16 +75,47 @@ export const clothesCreate = async (req: Request, res: Response) => {
             )
         );
 
-        const cake = await prisma.clothes.create({
-            data: {
-                name,
-                description,
-                price: parsedPrice,
-                mainImg: { connect: { id: mainImage.id } },
-                extraImgs: { connect: extraImages.map(image => ({ id: image.id })) },
-                category: { connect: { id: parsedTypeId } },  // Ensure typeId is provided in the data
-            },
-        });
+    // Parse sizes và features nếu có
+    let parsedSizes: any[] = [];
+    let parsedFeatures: any[] = [];
+
+    try {
+    if (sizes) {
+        parsedSizes = JSON.parse(sizes); // sizes gửi lên phải dạng JSON string
+    }
+    if (features) {
+        parsedFeatures = JSON.parse(features);
+    }
+    } catch (e) {
+    return res.status(400).json({ message: "Invalid sizes or features format" });
+    }
+
+    const cake = await prisma.clothes.create({
+    data: {
+        name,
+        description,
+        price: parsedPrice,
+        mainImg: { connect: { id: mainImage.id } },
+        extraImgs: { connect: extraImages.map(image => ({ id: image.id })) },
+        category: { connect: { id: parsedTypeId } },
+        sizes: {
+        create: parsedSizes.map((s: any) => ({
+            label: s.label,
+            quantity: s.quantity,
+        })),
+        },
+        features: {
+        create: parsedFeatures.map((f: any) => ({
+            value: f.value,
+        })),
+        },
+    },
+    include: {
+        sizes: true,
+        features: true,
+    },
+    });
+
         res.status(201).json({ message: "Successfully create clothes", cake });
     } catch (error) {
         res.status(500).json({ message: 'Internal server error' });
@@ -182,8 +218,12 @@ export const listClothesByCategory = async (req: Request, res: Response) => {
                 }
             },
             include: {
+                category: true,
                 mainImg: true,
-                extraImgs: true
+                extraImgs: true,
+                sizes: true,
+                features: true,
+
             }
         });
 

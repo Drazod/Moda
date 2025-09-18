@@ -18,6 +18,8 @@ const cakeRoute: Router = Router();
  *         - description
  *         - price
  *         - categoryId
+ *         - sizes
+ *         - features
  *       properties:
  *         name:
  *           type: string
@@ -36,6 +38,22 @@ const cakeRoute: Router = Router();
  *         categoryId:
  *           type: integer
  *           description: The ID of the clothes category.
+ *         sizes:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               label:
+ *                 type: string
+ *               quantity:
+ *                 type: integer
+ *         features:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *                value:
+ *                  type: string
  */
 
 /**
@@ -163,6 +181,10 @@ cakeRoute.get('/:id', clothesDetail);
  *                 type: number
  *               categoryId:
  *                 type: integer
+ *               sizes:
+ *                 type: string
+ *               features:
+ *                type: string
  *               mainImage:
  *                 type: string
  *                 format: binary
