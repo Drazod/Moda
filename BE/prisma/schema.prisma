@@ -115,6 +115,7 @@ model User {
   password        String    @db.VarChar(1024)
   phone           String    
   address         String    @db.VarChar(1024)
+
   code            String?   @unique
   role            Role      @default(USER)
   carts           Cart[]

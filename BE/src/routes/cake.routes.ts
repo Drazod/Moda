@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { clothesCreate, clothesList, clothesDetail, clothesByKeyword, listClothesByCategory, clothesCreateMany, deleteClothes, updateClothes, updateImage, deleteImage } from '../controllers/cake.controller';
+import authMiddleware from '../middlewares/authentication';
+import authorize from '../middlewares/authorization';
 import multer from 'multer';
 export const upload = multer({
     storage: multer.memoryStorage(),
@@ -201,7 +203,7 @@ cakeRoute.post('/create',
     upload.fields([
         { name: 'mainImage', maxCount: 1 }, // One main image
         { name: 'extraImages', maxCount: 4 }, // Up to 4 extra images
-    ]),
+    ]), authMiddleware, authorize(["ADMIN"]),
     clothesCreate);
 
 
@@ -264,7 +266,7 @@ cakeRoute.post('/createMany', clothesCreateMany);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.put('/update/:id', updateClothes);
+cakeRoute.put('/update/:id',authMiddleware,authorize(["ADMIN"]), updateClothes);
 
 /**
  * @swagger
@@ -287,7 +289,7 @@ cakeRoute.put('/update/:id', updateClothes);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.delete('/delete/:id', deleteClothes);
+cakeRoute.delete('/delete/:id',authMiddleware,authorize(["ADMIN"]), deleteClothes);
 
 /**
  * @swagger
@@ -316,7 +318,7 @@ cakeRoute.delete('/delete/:id', deleteClothes);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.delete('/deleteImage/:id', deleteImage);
+cakeRoute.delete('/deleteImage/:id',authMiddleware, authorize(["ADMIN"]), deleteImage);
 
 /**
  * @swagger
@@ -358,7 +360,7 @@ cakeRoute.put('/updateImage/:id',
     upload.fields([
         { name: 'mainImage', maxCount: 1 },
         { name: 'extraImages', maxCount: 4 },
-    ]),
+    ]), authMiddleware, authorize(["ADMIN"]),
     updateImage);
 
 export default cakeRoute;

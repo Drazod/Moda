@@ -6,6 +6,8 @@ import {
   updateType,
   deleteType
 } from '../controllers/type.controller';
+import authMiddleware from '../middlewares/authentication';
+import authorize from '../middlewares/authorization';
 
 const typeRoute: Router = Router();
 
@@ -71,7 +73,7 @@ typeRoute.get('/list', getAllTypes);
  *       500:
  *         description: Internal server error
  */
-typeRoute.post('/create', createType);
+typeRoute.post('/create',authMiddleware,authorize(["admin"]), createType);
 
 /**
  * @swagger
@@ -96,7 +98,7 @@ typeRoute.post('/create', createType);
  *       500:
  *         description: Internal server error
  */
-typeRoute.get('/:id', getTypeById);
+typeRoute.get('/:id',authMiddleware,authorize(["admin"]), getTypeById);
 
 /**
  * @swagger
@@ -133,7 +135,7 @@ typeRoute.get('/:id', getTypeById);
  *       500:
  *         description: Internal server error
  */
-typeRoute.put('/update/:id', updateType);
+typeRoute.put('/update/:id',authMiddleware,authorize(["admin"]), updateType);
 
 /**
  * @swagger
@@ -162,6 +164,6 @@ typeRoute.put('/update/:id', updateType);
  *       500:
  *         description: Internal server error
  */
-typeRoute.delete('/delete/:id', deleteType);
+typeRoute.delete('/delete/:id',authMiddleware,authorize(["admin"]), deleteType);
 
 export default typeRoute;

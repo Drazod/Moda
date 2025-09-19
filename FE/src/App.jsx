@@ -6,7 +6,10 @@ import Store from "./layouts/storePage";
 import Product from "./layouts/productPage";
 import CartModal from "./layouts/cart";
 import ProfilePage from "./layouts/profilePage";
-
+import LogInPage from "./layouts/loginPage";
+import Register from "./layouts/registerPage";
+import Setting from "./layouts/settingPage";
+// import Settings from "./layouts/settingPage";
 // dash's import
 import DashLayout from "./layouts/dash/dashLayout";
 import DashBoard_Main from "./layouts/dash/dashBoard";
@@ -15,19 +18,44 @@ import DashActLog_Main from "./layouts/dash/dashActLog.jsx";
 import DashUM_Main from "./layouts/dash/dashUM.jsx";
 import DashPdM_Main from "./layouts/dash/dashPdM.jsx";
 import DashUptN_Main from "./layouts/dash/dashUptN.jsx";
-
+import RequireAdmin from "./utils/RequireAdmin.jsx";
+import RequireAuth from "./utils/RequireAuth";
+import PublicOnly from "./utils/PublicOnly";
+import usePresenceHeartbeat from '../src/hooks/usePresenceHeartbeat';
 const App = () => {
+  usePresenceHeartbeat(20000);
   return (
-    <BrowserRouter>
+
       <Routes>
         <Route path="/" element={<Welcome/>}/>
         <Route path="/home" element={<Home/>}/>
         <Route path="/store" element={<Store/>}/>
         <Route path="/product" element={<Product/>}/>
         <Route path="/cart" element={<CartModal/>}/>
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/login" element={
+          <PublicOnly>
+            <LogInPage />
+          </PublicOnly>
+        } />
+        <Route path="/register" element={
+          <PublicOnly>
+            <Register />
+          </PublicOnly>
+        } />
+        <Route path="/profile" element={
+          <RequireAuth>
+            <ProfilePage />
+          </RequireAuth>
+        } />
+        <Route path="/setting" element={
+          <RequireAuth>
+            <Setting />
+          </RequireAuth>
+        } />
         {/* dash's Route */}
-        <Route path="/dash-board" element={<DashLayout />}>
+        <Route path="/dash-board" element={
+          <RequireAdmin><DashLayout /></RequireAdmin>
+        }>
           <Route index element={<DashBoard_Main />} />
           {/* Other routes for dash's properties*/}
           <Route path="order-manage" element={<DashOM_Main />} />
@@ -37,7 +65,6 @@ const App = () => {
           <Route path="update-notices" element={<DashUptN_Main />} />
         </Route>
       </Routes>
-    </BrowserRouter>
   );
 };
 

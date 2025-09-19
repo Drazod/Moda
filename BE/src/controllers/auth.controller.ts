@@ -29,7 +29,7 @@ export const Register = async (req: Request, res: Response, next: NextFunction) 
                 email,
                 password: hashSync(password, 10),
                 phone,
-                address
+                address: "N/A"
             },
         });
         res.status(201).json(user);

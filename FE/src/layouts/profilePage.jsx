@@ -12,7 +12,7 @@ import axiosInstance from '../configs/axiosInstance';
 import { useNavigate } from "react-router-dom";
 
 export default function ProfilePage() {
-  // const { user, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
 
   const navigate = useNavigate();
@@ -49,24 +49,24 @@ export default function ProfilePage() {
                 className="rounded-full border w-20 h-20 mr-4"
               />
               <div>
-                <h2 className="text-2xl font-semibold">{profile?.user.name || "Guest"}</h2>
-                <p className="text-gray-600">{profile?.user.email || "example@email.com"}</p>
+                <h2 className="text-2xl font-semibold">{profile?.name || "Guest"}</h2>
+                <p className="text-gray-600">{profile?.email || "example@email.com"}</p>
               </div>
             </div>
             <div className="mt-4 text-[#1D1A05] flex justify-between">
-              <p>Membership: {profile?.user.membership || "No membership"}</p>
+              <p>Membership: {profile?.membership || "No membership"}</p>
             </div>
             <div className="mt-4 w-full bg-[#F2F2F2] rounded-full h-2.5">
               <div
-                style={{ width: `${profile?.user.membershipProgress || 20}%` }}
+                style={{ width: `${profile?.membershipProgress || 20}%` }}
                 className="bg-[#434237] h-2.5 rounded-full"
               >
               </div>
             </div>
             <div className="mt-6 space-y-6">
               <h3 className="font-semibold text-2xl">Profile</h3>
-              <p>Address: {profile?.user.address || "No address provided"}</p>
-              <p>📞 {profile?.user.phone || "No phone number"}</p>
+              <p>Address: {profile?.address || "No address provided"}</p>
+              <p>📞 {profile?.phone || "No phone number"}</p>
             </div>
           </div>
 

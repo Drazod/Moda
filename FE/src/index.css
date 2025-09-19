@@ -52,3 +52,39 @@ code {
   position: relative;
   z-index: 1; /* Keeps the layout above the noise */
 }
+
+.diagonal-line-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25vh;
+  height: 1px;
+  background-color: black;
+  transform: rotate(45deg);
+  transform-origin: top left;
+}
+
+.diagonal-line-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 25vh;
+  height: 1px;
+  background-color: black;
+  transform: rotate(-45deg);
+  transform-origin: bottom left;
+}
+
+/* Make text inputs transparent by default */
+input, textarea, select { background-color: transparent; }
+
+/* Chrome/Safari autofill paints a background; force it to match the card */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  transition: background-color 9999s ease-out 0s; /* keep our color */
+  box-shadow: inset 0 0 0 1000px #333333 !important; /* same as card BG */
+  border-bottom: 1px solid rgba(255,255,255,0.4);
+}
+
