@@ -61,6 +61,8 @@ model Clothes {
   name        String    @unique
   description String    @db.VarChar(1024) 
   price       Float
+  material    String?   @db.VarChar(255)
+  information String?   @db.VarChar(1024)
   mainImgId   Int?      @unique
   cartItems   CartItem[]
   Comments    Comment[]

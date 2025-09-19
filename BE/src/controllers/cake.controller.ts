@@ -21,7 +21,7 @@ export const clothesList = async (req: Request, res: Response) => {
 
 export const clothesCreate = async (req: Request, res: Response) => {
     console.log('req.body:', req.body);
-    const { name, description, price, categoryId, sizes, features } = req.body;
+    const { name, description, price, categoryId, sizes, features, material, information } = req.body;
     const parsedPrice = parseFloat(price);
     const parsedTypeId = parseInt(categoryId, 10);
     const parsedSizes = sizes ? JSON.parse(sizes) : [];
@@ -91,29 +91,31 @@ export const clothesCreate = async (req: Request, res: Response) => {
     }
 
     const cake = await prisma.clothes.create({
-    data: {
-        name,
-        description,
-        price: parsedPrice,
-        mainImg: { connect: { id: mainImage.id } },
-        extraImgs: { connect: extraImages.map(image => ({ id: image.id })) },
-        category: { connect: { id: parsedTypeId } },
-        sizes: {
-        create: parsedSizes.map((s: any) => ({
-            label: s.label,
-            quantity: s.quantity,
-        })),
+        data: {
+            name,
+            description,
+            price: parsedPrice,
+            material: material ?? null,
+            information: information ?? null,
+            mainImg: { connect: { id: mainImage.id } },
+            extraImgs: { connect: extraImages.map(image => ({ id: image.id })) },
+            category: { connect: { id: parsedTypeId } },
+            sizes: {
+                create: parsedSizes.map((s: any) => ({
+                    label: s.label,
+                    quantity: s.quantity,
+                })),
+            },
+            features: {
+                create: parsedFeatures.map((f: any) => ({
+                    value: f.value,
+                })),
+            },
         },
-        features: {
-        create: parsedFeatures.map((f: any) => ({
-            value: f.value,
-        })),
+        include: {
+            sizes: true,
+            features: true,
         },
-    },
-    include: {
-        sizes: true,
-        features: true,
-    },
     });
 
         res.status(201).json({ message: "Successfully create clothes", cake });
@@ -197,9 +199,15 @@ export const updateClothes = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'typeId cannot be null' });
         }
 
+
+        // Only allow updating fields that exist in the schema
+        const updateData: any = { ...req.body };
+        if ('material' in req.body) updateData.material = req.body.material;
+        if ('information' in req.body) updateData.information = req.body.information;
+
         const updatedCake = await prisma.clothes.update({
             where: { id: parseInt(id) },
-            data: { ...req.body },
+            data: updateData,
         });
 
         res.status(200).json(updatedCake);

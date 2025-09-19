@@ -41,25 +41,30 @@ const DashPdMProductsTable = ({ onEditProduct }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {products.map((product) => (
-                            <tr key={product.id} className="border-b last:border-b-0">
-                                <td className="py-4">{product.name}</td>
-                                <td className="py-4">{product.category?.name || '-'}</td>
-                                <td className="py-4">{product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '-'}</td>
-                                <td className="py-4">{product.stock ?? '-'}</td>
-                                <td className="py-4">
-                                    <div className="flex justify-center items-center space-x-4">
-                                        <IoPencil 
-                                            onClick={() => onEditProduct(product)} 
-                                            className="cursor-pointer text-green-500 hover:text-green-700 text-lg" 
-                                        />
-                                        <IoTrashOutline 
-                                            className="cursor-pointer text-red-500 hover:text-red-700 text-lg" 
-                                        />
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                        {products.map((product) => {
+                            const stock = Array.isArray(product.sizes)
+                                ? product.sizes.reduce((sum, s) => sum + (s.quantity || 0), 0)
+                                : '-';
+                            return (
+                                <tr key={product.id} className="border-b last:border-b-0">
+                                    <td className="py-4">{product.name}</td>
+                                    <td className="py-4">{product.category?.name || '-'}</td>
+                                    <td className="py-4">{product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '-'}</td>
+                                    <td className="py-4">{stock}</td>
+                                    <td className="py-4">
+                                        <div className="flex justify-center items-center space-x-4">
+                                            <IoPencil 
+                                                onClick={() => onEditProduct(product)} 
+                                                className="cursor-pointer text-green-500 hover:text-green-700 text-lg" 
+                                            />
+                                            <IoTrashOutline 
+                                                className="cursor-pointer text-red-500 hover:text-red-700 text-lg" 
+                                            />
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             )}
