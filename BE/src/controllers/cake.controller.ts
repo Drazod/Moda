@@ -21,9 +21,23 @@ export const clothesList = async (req: Request, res: Response) => {
 
 export const clothesCreate = async (req: Request, res: Response) => {
     console.log('req.body:', req.body);
-    const { name, description, price, categoryId, sizes, features, material, information } = req.body;
+    const { name, description, price, categoryId, categoryName, sizes, features, material, information } = req.body;
     const parsedPrice = parseFloat(price);
-    const parsedTypeId = parseInt(categoryId, 10);
+    let category;
+    // Flexible: allow category by id or name, create if not exist
+    if (categoryId) {
+        category = await prisma.category.findUnique({ where: { id: parseInt(categoryId, 10) } });
+        if (!category) {
+            return res.status(400).json({ message: 'Category ID does not exist.' });
+        }
+    } else if (categoryName) {
+        category = await prisma.category.findUnique({ where: { name: categoryName } });
+        if (!category) {
+            category = await prisma.category.create({ data: { name: categoryName } });
+        }
+    } else {
+        return res.status(400).json({ message: 'CategoryId or categoryName is required.' });
+    }
     const parsedSizes = sizes ? JSON.parse(sizes) : [];
     const parsedFeatures = features ? JSON.parse(features) : [];
 
@@ -99,7 +113,7 @@ export const clothesCreate = async (req: Request, res: Response) => {
             information: information ?? null,
             mainImg: { connect: { id: mainImage.id } },
             extraImgs: { connect: extraImages.map(image => ({ id: image.id })) },
-            category: { connect: { id: parsedTypeId } },
+            category: { connect: { id: category.id } },
             sizes: {
                 create: parsedSizes.map((s: any) => ({
                     label: s.label,

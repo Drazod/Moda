@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IoClose, IoCloudUploadOutline, IoAdd } from 'react-icons/io5';
 import axiosInstance from '../../../configs/axiosInstance';
 
@@ -9,6 +9,8 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
     const [name, setName] = useState(isEditMode && product ? product.name : '');
     const [price, setPrice] = useState(isEditMode && product ? product.price : '');
     const [categoryId, setCategoryId] = useState(isEditMode && product ? product.categoryId : '');
+    const [showCategoryList, setShowCategoryList] = useState(false);
+    const categoryInputRef = useRef(null);
     const [description, setDescription] = useState(isEditMode && product ? product.description : '');
     const [features, setFeatures] = useState(isEditMode && product ? (product.features?.map(f => f.value) || []) : []);
     const [featureInput, setFeatureInput] = useState('');
@@ -70,7 +72,13 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
             formData.append('name', name);
             formData.append('price', price);
             formData.append('description', description);
-            formData.append('categoryId', categoryId);
+            // Find if categoryId matches a category from the list
+            const matchedCategory = categories.find(cat => cat.name === categoryId);
+            if (matchedCategory) {
+                formData.append('categoryId', matchedCategory.id);
+            } else {
+                formData.append('categoryName', categoryId);
+            }
             formData.append('mainImage', mainImage);
             // Send sizes as a JSON string array of objects
             const validSizes = sizes.filter(s => s.quantity > 0).map(s => ({ label: s.label, quantity: s.quantity }));
@@ -113,12 +121,43 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
                         <input type="number" min="0" value={price} onChange={e => setPrice(e.target.value)} placeholder="price..." className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" />
 
                         <label className="mt-4 block text-sm font-medium">Category *</label>
-                        <select className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-                            <option value="">Select category</option>
-                            {categories.map(cat => (
-                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                            ))}
-                        </select>
+                        <div className="relative">
+                            <input
+                                ref={categoryInputRef}
+                                className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE] focus:outline-none focus:ring-2 focus:ring-gray-400"
+                                value={categoryId}
+                                onChange={e => {
+                                    setCategoryId(e.target.value);
+                                    setShowCategoryList(true);
+                                }}
+                                onFocus={() => setShowCategoryList(true)}
+                                onBlur={() => setTimeout(() => setShowCategoryList(false), 150)}
+                                placeholder="Type or select category"
+                                autoComplete="off"
+                            />
+                            {showCategoryList && categories.length > 0 && (
+                                <div className="absolute z-20 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-auto">
+                                    {categories
+                                        .filter(cat => cat.name.toLowerCase().includes(categoryId.toLowerCase()))
+                                        .map(cat => (
+                                            <div
+                                                key={cat.id}
+                                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-gray-800 text-base"
+                                                onMouseDown={() => {
+                                                    setCategoryId(cat.name);
+                                                    setShowCategoryList(false);
+                                                    if (categoryInputRef.current) categoryInputRef.current.blur();
+                                                }}
+                                            >
+                                                {cat.name}
+                                            </div>
+                                        ))}
+                                    {categories.filter(cat => cat.name.toLowerCase().includes(categoryId.toLowerCase())).length === 0 && (
+                                        <div className="px-4 py-2 text-gray-400">No matches</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         <label className="mt-4 block text-sm font-medium">Description *</label>
                         <textarea rows="4" value={description} onChange={e => setDescription(e.target.value)} placeholder="content..." className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]"></textarea>
