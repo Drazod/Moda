@@ -57,22 +57,41 @@ model Coupon{
 }
 
 model Clothes {
-  id              Int       @id @default(autoincrement())
-  name            String    @unique
-  description     String    @db.VarChar(1024) 
-  price           Float
-  mainImgId       Int?      @unique
-  cartItems      CartItem[]
-  Comments       Comment[]
-  categoryId          Int       
-  category            Category      @relation(fields: [categoryId], references: [id])
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String    @db.VarChar(1024) 
+  price       Float
+  mainImgId   Int?      @unique
+  cartItems   CartItem[]
+  Comments    Comment[]
+  categoryId  Int       
+  category    Category  @relation(fields: [categoryId], references: [id])
 
-  mainImg         Image?    @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
-  extraImgs       Image[]   @relation(name: "ExtraImages")
+  mainImg     Image?    @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
+  extraImgs   Image[]   @relation(name: "ExtraImages")
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  sizes       Size[]
+  features    Feature[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
+
+model Size {
+  id         Int      @id @default(autoincrement())
+  label      String   // ví dụ "M", "L", "XL"
+  quantity   Int
+  clothesId  Int
+  clothes    Clothes  @relation(fields: [clothesId], references: [id])
+}
+
+model Feature {
+  id         Int      @id @default(autoincrement())
+  value      String   // ví dụ "Cotton 100%"
+  clothesId  Int
+  clothes    Clothes  @relation(fields: [clothesId], references: [id])
+}
+
 
 model Image {
   id         Int      @id @default(autoincrement()) // Primary key
@@ -94,8 +113,9 @@ model User {
   name            String    
   email           String    @unique
   password        String    @db.VarChar(1024)
-  phone           String    @unique
-  address         String    @default("N/A") @db.VarChar(1024)
+  phone           String    
+  address         String    @db.VarChar(1024)
+
   code            String?   @unique
   role            Role      @default(USER)
   carts           Cart[]

@@ -41,7 +41,7 @@ export async function uploadImage(file: Express.Multer.File): Promise<string> {
         });
 
         blobStream.on("finish", () => {
-            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${storageRef.name}`;
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/images/${imageRef}`;
             console.log("File uploaded successfully:", publicUrl);
             resolve(publicUrl);
         });
@@ -137,7 +137,7 @@ export const deleteImageFromFirebaseAndPrisma = async (name: string, isMainImage
         } else {
             // If it's an extra image, disconnect it from the Cake model
             const imageRecord = await prisma.image.findUnique({
-                where: { url: `https://storage.googleapis.com/moda-938e0.firebasestorage.app/images/${name}` },
+                where: { url: `https://storage.googleapis.com/${bucket.name}/images/${name}` },
             });
 
             if (imageRecord) {
