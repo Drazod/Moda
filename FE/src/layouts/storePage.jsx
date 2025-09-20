@@ -1,4 +1,5 @@
-import React,{useState} from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/header"; // Assuming you have a header component
 import Footer from "../components/footer"; // Assuming you have a footer component
 import middle from "../assets/store/middle.png";
@@ -10,26 +11,45 @@ import bigright from "../assets/store/bigright.png";
 import smallright from "../assets/store/smallright.png";
 import down from "../assets/store/down.png";
 import alt from "../assets/store/alt.png";
-import {products} from "../utils/mockdata";
+import axiosInstance from '../configs/axiosInstance';
 
 const FashionTemplate = () => {
+  const navigate = useNavigate();
   const [openSections, setOpenSections] = useState({});
   const [priceRange, setPriceRange] = useState([0, 100]); 
   const [selectedCategory, setSelectedCategory] = useState("NEW"); 
   const [searchTerm, setSearchTerm] = useState("");
-
-  const categories = [
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [categories, setCategories] = useState([
     "NEW",
     "SHIRT",
     "POLO SHIRTS",
-    "SHORTS",
+    "SHORT",
     "SUITS",
     "BEST SELLERS",
     "T-SHIRT",
     "JEANS",
     "JACKETS",
     "COATS",
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await axiosInstance.get('/clothes/list');
+        setProducts(res.data);
+      } catch (err) {
+        setError("Failed to load products.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
@@ -88,48 +108,48 @@ const FashionTemplate = () => {
   // Filter products based on selected filters
   const filteredProducts = products.filter((product) => {
     const { availability, gender, colors, collections, tags, ratings } = selectedFilters;
-  
+
     if (searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     // Handle category logic
     if (selectedCategory !== "NEW") {
-      const categoryWords = product.category?.toLowerCase().split(/\s+/) || [];
-      if (!categoryWords.includes(selectedCategory.toLowerCase())) {
+      const categoryName = product.category?.name?.toLowerCase() || "";
+      if (!categoryName.includes(selectedCategory.toLowerCase())) {
         return false; 
       }
     }
-  
-    // Check availability
-    if (availability.length && !availability.includes(product.availability)) {
+
+    // Check availability (if available in real data)
+    if (availability.length && product.availability && !availability.includes(product.availability)) {
       return false;
     }
-  
-    // Check gender
-    if (gender.length && !gender.includes(product.gender)) {
+
+    // Check gender (if available in real data)
+    if (gender.length && product.gender && !gender.includes(product.gender)) {
       return false;
     }
-  
-    // Check colors
-    if (colors.length && !colors.includes(product.colors)) {
+
+    // Check colors (if available in real data)
+    if (colors.length && product.colors && !colors.some(c => product.colors.includes(c))) {
       return false;
     }
-  
-    // Check collections
-    if (collections.length && !collections.includes(product.collection)) {
+
+    // Check collections (if available in real data)
+    if (collections.length && product.collection && !collections.includes(product.collection)) {
       return false;
     }
-  
-    // Check tags
-    if (tags.length && !tags.some((tag) => product.tags.includes(tag))) {
+
+    // Check tags (if available in real data)
+    if (tags.length && product.tags && !tags.some((tag) => product.tags.includes(tag))) {
       return false;
     }
-  
-    // Check ratings
-    if (ratings.length && !ratings.includes(product.rating)) {
+
+    // Check ratings (if available in real data)
+    if (ratings.length && product.rating && !ratings.includes(product.rating)) {
       return false;
     }
-  
+
     return true; // Product passes all filters
   });
   
@@ -394,23 +414,35 @@ const FashionTemplate = () => {
 
           {/* Product Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {filteredProducts.map((product) => (
-                <div key={product.id} className="">
+            {loading ? (
+              <div className="col-span-3 text-center text-xl text-gray-500 py-12">Loading...</div>
+            ) : error ? (
+              <div className="col-span-3 text-center text-xl text-red-500 py-12">{error}</div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="col-span-3 text-center text-xl text-gray-400 py-12">No products found.</div>
+            ) : (
+              filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="cursor-pointer hover:shadow-lg transition rounded-lg p-2"
+                  onClick={() => navigate(`/product?id=${product.id}`)}
+                >
                   <div className="relative">
                     <img
-                      src={product.image}
+                      src={product.mainImg?.url || product.image || ''}
                       alt={product.name}
                       className="w-full h-auto mb-4 object-cover"
                     />
                   </div>
 
-                  <p className="text-sm text-gray-500">{product.category}</p>
+                  <p className="text-sm text-gray-500">{product.category?.name || '-'}</p>
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-bold text-gray-700">{product.name}</h3>
-                    <span className="text-lg font-semibold text-gray-600">{product.price}VND</span>
+                    <span className="text-lg font-semibold text-gray-600">{product.price} VND</span>
                   </div>
                 </div>
-              ))}
+              ))
+            )}
           </div>
         </div>
       </section>

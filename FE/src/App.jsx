@@ -1,4 +1,5 @@
 import React from "react";
+import { CartProvider } from "./context/CartContext";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Welcome from "./layouts/welcomePage";
 import Home from "./layouts/homePage";
@@ -26,7 +27,8 @@ const App = () => {
   usePresenceHeartbeat(20000);
   return (
 
-      <Routes>
+  <CartProvider>
+  <Routes>
         <Route path="/" element={<Welcome/>}/>
         <Route path="/home" element={<Home/>}/>
         <Route path="/store" element={<Store/>}/>
@@ -64,7 +66,8 @@ const App = () => {
           <Route path="products-manage" element={<DashPdM_Main />} />
           <Route path="update-notices" element={<DashUptN_Main />} />
         </Route>
-      </Routes>
+  </Routes>
+  </CartProvider>
   );
 };
 

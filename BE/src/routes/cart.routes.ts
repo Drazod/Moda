@@ -292,6 +292,8 @@ cartRoute.put('/update', authMiddleware, updateCartItemInCart);
 
 /**
  * @swagger
+/**
+ * @swagger
  * /cart/delete:
  *   delete:
  *     summary: Remove a cart item from the cart
@@ -305,9 +307,9 @@ cartRoute.put('/update', authMiddleware, updateCartItemInCart);
  *           schema:
  *             type: object
  *             properties:
- *               cartItemId:
+ *               itemId:
  *                 type: integer
- *                 description: The ID of the cart item to delete
+ *                 description: The ID of the product/item (ClothesId) to delete from the cart
  *     responses:
  *       200:
  *         description: Cart item deleted successfully

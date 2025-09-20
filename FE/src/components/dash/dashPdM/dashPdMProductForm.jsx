@@ -87,7 +87,7 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
             const featureObjs = features.map(f => ({ value: f }));
             formData.append('features', JSON.stringify(featureObjs));
             extraImages.forEach(img => formData.append('extraImages', img));
-            formData.append('materials', materials);
+            formData.append('material', materials);
             formData.append('information', information);
 
             await axiosInstance.post('/clothes/create', formData, {

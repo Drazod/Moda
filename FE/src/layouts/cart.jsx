@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { createVNPayPayment } from "../utils/vnpay";
+import { useCart } from "../context/CartContext";
 import VoucherPanel from "../components/cart/voucherPanel";
 
 const bg = "#E6DAC4";          // modal bg
@@ -7,22 +9,8 @@ const railBg = "#BFAF92";       // subtotal rail
 const darkBtn = "#434237";      // checkout button
 
 export default function CartModal({ open, onClose }) {
-  const [items, setItems] = useState([
-    {
-      id: 1,
-      name: "Vegan Chocolate Chip Cookie Dough",
-      price: 12.99,
-      qty: 1,
-      image: "/images/demo/cookie1.png",
-    },
-    {
-      id: 2,
-      name: "Vegan Peanut Butter Cookie Dough",
-      price: 11.05,
-      qty: 2,
-      image: "/images/demo/cookie2.png",
-    },
-  ]);
+  const { items, removeFromCart, updateQty } = useCart();
+  console.log(items);
 
   const [form, setForm] = useState({
     name: "",
@@ -39,25 +27,53 @@ export default function CartModal({ open, onClose }) {
     [items]
   );
 
-  const inc = (id) =>
-    setItems((prev) =>
-      prev.map((it) => (it.id === id ? { ...it, qty: it.qty + 1 } : it))
-    );
+  // Find cartId from items if present (assumes all items have same cartId)
+  const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
 
-  const dec = (id) =>
-    setItems((prev) =>
-      prev.map((it) =>
-        it.id === id ? { ...it, qty: Math.max(1, it.qty - 1) } : it
-      )
-    );
+  const handleCheckout = async () => {
+    if (!cartId) {
+      alert("No cart ID found. Please add items to cart.");
+      return;
+    }
+    try {
+      const paymentUrl = await createVNPayPayment({
+        orderId: cartId,
+        amount: subtotal,
+        orderDescription: `Payment for cart #${cartId}`,
+        orderType: "other",
+        language: "vn",
+        // Optionally: pass bankCode from form/payment selection
+        address: form.address,
+      });
+      window.location.href = paymentUrl;
+    } catch (err) {
+      alert("Failed to initiate payment. Please try again.");
+    }
+  };
 
-  const removeItem = (id) =>
-    setItems((prev) => prev.filter((it) => it.id !== id));
+  const inc = (id, color, size) => {
+    const item = items.find(
+      (it) => it.id === id && it.selectedColor === color && it.selectedSize === size
+    );
+    if (item) updateQty(id, color, size, item.qty + 1);
+  };
+  const dec = (id, color, size) => {
+    const item = items.find(
+      (it) => it.id === id && it.selectedColor === color && it.selectedSize === size
+    );
+    if (item && item.qty > 1) updateQty(id, color, size, item.qty - 1);
+  };
+  const removeItem = (id, color, size) => {
+    removeFromCart(id, color, size);
+  };
 
   const handleForm = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   if (!open) return null;
+
+  // Calculate total quantity of items in the cart
+  const totalQty = items.reduce((sum, it) => sum + it.qty, 0);
 
   return (
     <div className="fixed inset-0 z-[100] font-Jsans">
@@ -71,7 +87,7 @@ export default function CartModal({ open, onClose }) {
         {/* header */}
         <div className="flex items-center justify-between px-6 pt-6">
           <h3 className="text-2xl font-medium tracking-[0.02em] text-[#353535]">
-            Your cart <span className="opacity-40">(3)</span>
+            Your cart <span className="opacity-40">({totalQty})</span>
           </h3>
           <button
             onClick={onClose}
@@ -87,7 +103,7 @@ export default function CartModal({ open, onClose }) {
           {/* LEFT – items list */}
           <div className="space-y-4 font-medium text-base">
             {items.map((it, i) => (
-              <div key={it.id} className="pb-2">
+              <div key={it.id + (it.selectedColor || '') + (it.selectedSize || '')} className="pb-2">
                 <div className="grid grid-cols-[80px_1fr_auto] items-center gap-2">
                   <img
                     src={it.image}
@@ -95,13 +111,17 @@ export default function CartModal({ open, onClose }) {
                     className="h-20 w-20 rounded object-cover"
                   />
                   <div>
-                    <p className=" leading-snug ">
-                      {it.name}
-                    </p>
+                    <p className=" leading-snug ">{it.name}</p>
+                    {it.selectedColor && (
+                      <div className="text-xs text-gray-500">Color: {it.selectedColor}</div>
+                    )}
+                    {it.selectedSize && (
+                      <div className="text-xs text-gray-500">Size: {it.selectedSize}</div>
+                    )}
                   </div>
 
                   <button
-                    onClick={() => removeItem(it.id)}
+                    onClick={() => removeItem(it.id, it.selectedColor, it.selectedSize)}
                     className="ml-auto h-8 w-8 rounded-full hover:bg-black/10 "
                     aria-label="Remove"
                     title="Remove"
@@ -111,14 +131,12 @@ export default function CartModal({ open, onClose }) {
 
                   {/* price & qty line */}
                   <div className="col-start-2">
-                    <p className="">
-                      ${it.price.toFixed(2)}
-                    </p>
+                    <p className="">${it.price.toFixed(2)}</p>
                   </div>
                   <div className="col-start-3 flex items-center justify-end">
                     <div className="flex items-center rounded-full border border-black/20 bg-[#efe5d6] px-2">
                       <button
-                        onClick={() => dec(it.id)}
+                        onClick={() => dec(it.id, it.selectedColor, it.selectedSize)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Decrease"
                       >
@@ -126,7 +144,7 @@ export default function CartModal({ open, onClose }) {
                       </button>
                       <div className="w-9 text-center">{it.qty}</div>
                       <button
-                        onClick={() => inc(it.id)}
+                        onClick={() => inc(it.id, it.selectedColor, it.selectedSize)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Increase"
                       >
@@ -258,6 +276,7 @@ export default function CartModal({ open, onClose }) {
               <button
                 className="flex-1 rounded-full py-3 text-[15px] font-semibold text-white hover:opacity-95"
                 style={{ background: darkBtn }}
+                onClick={handleCheckout}
               >
                 Check Out
               </button>

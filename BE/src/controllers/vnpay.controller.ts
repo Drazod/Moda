@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { prisma } from "..";
 import querystring from 'querystring';
 import crypto from 'crypto';
 
@@ -11,7 +12,13 @@ const VNPayConfig = {
 
 // Generate payment URL
 export const createPayment = async (req: Request, res: Response) => {
-  const { orderId, amount, orderDescription, orderType, language, bankCode } = req.body;
+  const { orderId, amount, orderDescription, orderType, language, bankCode, address, couponCode } = req.body;
+
+  // Get userId from authentication middleware
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ message: "User not authenticated" });
+  }
 
   const ipAddr = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
 
@@ -58,7 +65,7 @@ export const createPayment = async (req: Request, res: Response) => {
 };
 
 // Handle return URL response
-export const handleReturn = (req: Request, res: Response) => {
+export const handleReturn = async (req: Request, res: Response) => {
     console.log(req.query);
     const vnp_Params = { ...req.query } as Record<string, string | number>; 
     const secureHash = vnp_Params['vnp_SecureHash']; 
@@ -72,25 +79,83 @@ export const handleReturn = (req: Request, res: Response) => {
         return result;
     }, {} as Record<string, string | number>);
 
-
     // Create a signature using the sorted parameters
     const signData = querystring.stringify(sortedParams, '&', '=', {
       encodeURIComponent: (str: string) => str, // Avoid additional encoding
     });
     const hmac = crypto.createHmac('sha512', VNPayConfig.hashSecret);
     const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
-  
+
     if (secureHash === signed){
       const responseCode = vnp_Params['vnp_ResponseCode'];
       if (responseCode === '00') {
+        // Payment successful, create Transaction and Shipping
+        // You may need to adjust how you get userId, address, couponCode, etc.
+        const orderId = Number(vnp_Params['vnp_TxnRef']); // This should be your cart id
+        const amount = Number(vnp_Params['vnp_Amount']) / 100; // Convert back to normal unit
+        // You may want to get userId and address from session, db, or FE
+        // For demo, try to get from query (not secure for production)
+        // Fetch userId, address, and couponCode from the cart using the cart id
+        let userId: number | undefined = undefined;
+        let address: string | undefined = undefined;
+        let couponCode: string | undefined = undefined;
+        try {
+          const cart = await prisma.cart.findUnique({
+            where: { id: orderId },
+            include: { user: true },
+          });
+          if (cart) {
+            userId = cart.userId;
+            if (cart.user && cart.user.address) {
+              address = cart.user.address;
+            }
+            // If you store couponCode on the cart, fetch it here as well
+            // couponCode = cart.couponCode;
+          }
+        } catch (err) {
+          console.error('Error fetching cart/user for address/coupon:', err);
+        }
+        if (!userId) {
+          return res.redirect('http://localhost:3000/payment-error?message=NoUser');
+        }
+        let transaction;
+        try {
+          transaction = await prisma.transaction.create({
+            data: {
+              amount,
+              method: 'vnpay',
+              userId,
+              couponCode: couponCode || undefined,
+            },
+          });
+          if (address) {
+            await prisma.shipping.create({
+              data: {
+                address,
+                userId,
+                transId: transaction.id,
+                State: 'ORDERED',
+              },
+            });
+          }
+          // Optionally, update cart state to ORDERED
+          await prisma.cart.update({
+            where: { id: orderId },
+            data: { state: 'ORDERED' },
+          });
+        } catch (err) {
+          console.error('Error creating transaction/shipping:', err);
+          // Optionally redirect to error page
+          return res.redirect('http://localhost:3000/payment-error?message=DBError');
+        }
         // Payment successful, redirect to success page
-        res.redirect(`http://localhost:3000/payment-success?orderId=${vnp_Params['vnp_TxnRef']}`);
+        return res.redirect(`http://localhost:3000/payment-success?orderId=${orderId}`);
       } else {
         // Payment failed, redirect to failure page
-        res.redirect(`http://localhost:3000/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
+        return res.redirect(`http://localhost:3000/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
       }
     } else {
       // Invalid signature, redirect to an error page
-      res.redirect('http://localhost:3000/payment-error?message=InvalidSignature');
+      return res.redirect('http://localhost:3000/payment-error?message=InvalidSignature');
     }
-  };
+};
