@@ -43,7 +43,7 @@ export const getCartItemById = async (req: Request, res: Response) => {
 }
 
 export const createCartItem = async (req: Request, res: Response) => {
-    const { cartId, cakeId, quantity } = req.body;
+    const { cartId, cakeId, quantity, sizeId } = req.body;
     try {
         const clothes = await prisma.clothes.findUnique({ where: { id: cakeId } });
         
@@ -57,6 +57,7 @@ export const createCartItem = async (req: Request, res: Response) => {
             data: {
                 cartId,
                 ClothesId: clothes.id,
+                sizeId,
                 quantity,
                 totalprice
             },

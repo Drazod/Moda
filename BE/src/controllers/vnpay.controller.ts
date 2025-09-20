@@ -138,13 +138,23 @@ export const handleReturn = async (req: Request, res: Response) => {
               },
             });
           }
-          // Optionally, update cart state to ORDERED
+
+          // Decrement size quantity for each item in the cart
+          const cartItems = await prisma.cartItem.findMany({ where: { cartId: orderId } });
+          for (const item of cartItems) {
+            await prisma.size.update({
+              where: { id: item.sizeId },
+              data: { quantity: { decrement: item.quantity } },
+            });
+          }
+
+          // Update cart state to ORDERED
           await prisma.cart.update({
             where: { id: orderId },
             data: { state: 'ORDERED' },
           });
         } catch (err) {
-          console.error('Error creating transaction/shipping:', err);
+          console.error('Error creating transaction/shipping or updating sizes:', err);
           // Optionally redirect to error page
           return res.redirect('http://localhost:3000/payment-error?message=DBError');
         }

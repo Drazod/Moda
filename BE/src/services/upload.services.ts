@@ -103,7 +103,19 @@ export const uploadToFirebase = async (file: Express.Multer.File): Promise<strin
         });
 
         fileStream.on('error', (err) => reject(err));
-        fileStream.on('finish', () => resolve(imageName));
+        fileStream.on('finish', async () => {
+            try {
+                // Get metadata to retrieve download token if present
+                const [metadata] = await storageRef.getMetadata();
+                let url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/images%2F${encodeURIComponent(imageName)}?alt=media`;
+                if (metadata.metadata && metadata.metadata.firebaseStorageDownloadTokens) {
+                    url += `&token=${metadata.metadata.firebaseStorageDownloadTokens}`;
+                }
+                resolve(url);
+            } catch (err) {
+                reject(err);
+            }
+        });
 
         fileStream.end(file.buffer);
     });

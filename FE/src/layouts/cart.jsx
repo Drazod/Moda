@@ -51,17 +51,39 @@ export default function CartModal({ open, onClose }) {
     }
   };
 
+  // Minimum quantity required (set to 1 if not specified)
+  const getMinQty = (item) => (item.minQty ? item.minQty : 1);
+  // Get max quantity for this size (if available)
+  const getMaxQty = (item) => {
+    if (item.sizeId && item.sizeStock) return item.sizeStock;
+    if (item.maxQty) return item.maxQty;
+    return undefined;
+  };
+
   const inc = (id, color, size) => {
     const item = items.find(
       (it) => it.id === id && it.selectedColor === color && it.selectedSize === size
     );
-    if (item) updateQty(id, color, size, item.qty + 1);
+    if (!item) return;
+    const minQty = getMinQty(item);
+    const maxQty = getMaxQty(item);
+    if (typeof maxQty === 'number' && item.qty >= maxQty) {
+      alert(`Only ${maxQty} left in stock for this size.`);
+      return;
+    }
+    if (item.qty < minQty) {
+      alert(`Minimum quantity required is ${minQty}`);
+      return;
+    }
+    updateQty(id, color, size, item.qty + 1);
   };
   const dec = (id, color, size) => {
     const item = items.find(
       (it) => it.id === id && it.selectedColor === color && it.selectedSize === size
     );
-    if (item && item.qty > 1) updateQty(id, color, size, item.qty - 1);
+    if (!item) return;
+    const minQty = getMinQty(item);
+    if (item.qty > minQty) updateQty(id, color, size, item.qty - 1);
   };
   const removeItem = (id, color, size) => {
     removeFromCart(id, color, size);
@@ -139,6 +161,8 @@ export default function CartModal({ open, onClose }) {
                         onClick={() => dec(it.id, it.selectedColor, it.selectedSize)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Decrease"
+                        disabled={it.qty <= getMinQty(it)}
+                        style={it.qty <= getMinQty(it) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         –
                       </button>
@@ -147,6 +171,8 @@ export default function CartModal({ open, onClose }) {
                         onClick={() => inc(it.id, it.selectedColor, it.selectedSize)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Increase"
+                        disabled={typeof getMaxQty(it) === 'number' ? it.qty >= getMaxQty(it) : false}
+                        style={typeof getMaxQty(it) === 'number' && it.qty >= getMaxQty(it) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                       >
                         +
                       </button>

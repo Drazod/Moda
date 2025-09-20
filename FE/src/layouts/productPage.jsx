@@ -22,6 +22,11 @@ const ProductDetail = () => {
   const [activeTab, setActiveTab] = useState("description");
   const { addToCart } = useCart();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // Prepare image URLs array: first is mainImg, then extraImgs
+  const imageUrls = [
+    product?.mainImg?.url,
+    ...(product?.extraImgs ? product.extraImgs.map(img => img.url) : [])
+  ].filter(Boolean);
 
   useEffect(() => {
     if (!productId) {
@@ -45,16 +50,16 @@ const ProductDetail = () => {
   }, [productId]);
 
   const handleNextImage = () => {
-    if (!product || !product.images || product.images.length === 0) return;
+    if (!imageUrls.length) return;
     setCurrentImageIndex((prevIndex) =>
-      prevIndex === product.images.length - 1 ? 0 : prevIndex + 1
+      prevIndex === imageUrls.length - 1 ? 0 : prevIndex + 1
     );
   };
 
   const handlePrevImage = () => {
-    if (!product || !product.images || product.images.length === 0) return;
+    if (!imageUrls.length) return;
     setCurrentImageIndex((prevIndex) =>
-      prevIndex === 0 ? product.images.length - 1 : prevIndex - 1
+      prevIndex === 0 ? imageUrls.length - 1 : prevIndex - 1
     );
   };
 
@@ -104,11 +109,11 @@ const ProductDetail = () => {
           {/* Left: Product Images */}
           <div className="lg:col-span-2">
             <div className="relative w-full flex items-center justify-center">
-              {/* Image */}
+              {/* Main Image */}
               <img
-                src={product.images && product.images.length > 0 ? product.images[currentImageIndex] : ''}
+                src={imageUrls[currentImageIndex]}
                 alt="Product Main"
-                className="w-[85%] h-auto object-contain"
+                className="w-[80%] h-auto object-contain"
               />
               {/* Left Arrow */}
               <button
@@ -126,13 +131,13 @@ const ProductDetail = () => {
               </button>
             </div>
             <div className="flex ml-16 space-x-4 mt-4">
-              {product.images && product.images.slice(1).map((image, index) => (
+              {product.extraImgs && product.extraImgs.map((img, index) => (
                 <img
                   key={index}
-                  src={image}
+                  src={img.url}
                   alt={`Thumbnail ${index+1}`}
-                  className="h-full w-auto  cursor-pointer border border-gray-300 hover:border-black"
-                  onClick={() => setCurrentImageIndex(index+1)}
+                  className="h-[150px] w-auto cursor-pointer border border-gray-300 hover:border-black"
+                  onClick={() => setCurrentImageIndex(index + 1)}
                 />
               ))}
             </div>
@@ -216,9 +221,18 @@ const ProductDetail = () => {
             <button
               className="mt-6 bg-black text-white py-3 px-6 w-full rounded-lg hover:bg-gray-800 transition"
               onClick={() => {
+                // Find sizeId if available
+                let sizeId = undefined;
+                if (Array.isArray(product.sizes)) {
+                  if (typeof product.sizes[0] === "object" && product.sizes[0].label) {
+                    const found = product.sizes.find(s => s.label === selectedSize);
+                    if (found && found.id) sizeId = found.id;
+                  }
+                }
                 addToCart(product, {
                   selectedColor,
                   selectedSize,
+                  sizeId,
                   qty: 1,
                 });
               }}

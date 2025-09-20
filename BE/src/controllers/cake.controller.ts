@@ -62,31 +62,30 @@ export const clothesCreate = async (req: Request, res: Response) => {
     }
 
     try {
-        const mainImageFile  = files.mainImage[0];
-        const mainImageUrl = await uploadToFirebase(mainImageFile);
 
-        // Lưu ảnh chính vào bảng Image
+        // MAIN IMAGE
+        const mainImageFile = files.mainImage[0];
+        const mainImageName = Date.now() + '_' + mainImageFile.originalname;
+        const mainImageUrl = await uploadToFirebase({ ...mainImageFile, originalname: mainImageName });
         const mainImage = await prisma.image.create({
             data: {
-                name: mainImageUrl,
-                url: `https://storage.googleapis.com/moda-938e0.firebasestorage.app/images/${mainImageUrl}`,
+                name: mainImageName,
+                url: mainImageUrl,
             },
         });
 
-        // const extraImagesFiles = files.extraImages;
-        const extraImageUrls = await Promise.all(
-            files.extraImages.map(file => uploadToFirebase(file))
-        );
-
+        // EXTRA IMAGES
         const extraImages = await Promise.all(
-            files.extraImages.map((file, index) =>
-                prisma.image.create({
+            files.extraImages.map(async (file) => {
+                const extraImageName = Date.now() + '_' + file.originalname;
+                const extraImageUrl = await uploadToFirebase({ ...file, originalname: extraImageName });
+                return prisma.image.create({
                     data: {
-                        name: extraImageUrls[index],
-                        url: `https://storage.googleapis.com/moda-938e0.firebasestorage.app/images/${extraImageUrls[index]}`,
+                        name: extraImageName,
+                        url: extraImageUrl,
                     },
-                })
-            )
+                });
+            })
         );
 
     // Parse sizes và features nếu có
@@ -159,7 +158,8 @@ export const clothesDetail = async (req: Request, res: Response) => {
             include: {
                 category: true,  // Include the type to get information about the type of this specific cake
                 mainImg: true,
-                extraImgs: true
+                extraImgs: true,
+                sizes: true
             },
         });
 
@@ -319,7 +319,7 @@ export const updateImage = async (req: Request, res: Response) => {
             const newImage = await prisma.image.create({
                 data: {
                     name: imageUrl,
-                    url: `https://storage.googleapis.com/moda-938e0.firebasestorage.app/images/${imageUrl}`,
+                    url: imageUrl,
                 },
             });
 
@@ -338,7 +338,7 @@ export const updateImage = async (req: Request, res: Response) => {
                 const newImage = await prisma.image.create({
                     data: {
                         name: imageUrl,
-                        url: `https://storage.googleapis.com/moda-938e0.firebasestorage.app/images/${imageUrl}`,
+                        url: imageUrl,
                     },
                 });
 

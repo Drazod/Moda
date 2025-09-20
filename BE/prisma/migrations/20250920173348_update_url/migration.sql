@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `Image` MODIFY `url` VARCHAR(500) NOT NULL;

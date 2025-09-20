@@ -56,11 +56,12 @@ export function CartProvider({ children }) {
   // Helper to sync cart to backend
   const syncCartToBackend = useCallback(async (newItems) => {
     try {
-      // Post each item individually to /cart
+      // Post each item individually to /cart, including sizeId if present
       for (const it of newItems) {
         await axiosInstance.post("/cart/add", {
           cakeId: it.id,
-          quantity: it.qty
+          quantity: it.qty,
+          ...(it.sizeId ? { sizeId: it.sizeId } : {})
         });
       }
     } catch (err) {
@@ -74,7 +75,8 @@ export function CartProvider({ children }) {
         (it) =>
           it.id === product.id &&
           it.selectedColor === options.selectedColor &&
-          it.selectedSize === options.selectedSize
+          it.selectedSize === options.selectedSize &&
+          it.sizeId === options.sizeId
       );
       let updated;
       if (idx !== -1) {
@@ -90,6 +92,7 @@ export function CartProvider({ children }) {
             image: product.images && product.images[0],
             selectedColor: options.selectedColor,
             selectedSize: options.selectedSize,
+            sizeId: options.sizeId,
             qty: options.qty || 1,
           },
         ];
@@ -108,6 +111,7 @@ export function CartProvider({ children }) {
                 price: item.Clothes?.price || 0,
                 qty: item.quantity,
                 image: item.Clothes?.mainImgId ? `/path/to/images/${item.Clothes.mainImgId}` : undefined,
+                sizeId: item.sizeId,
               }));
               setItems(mapped);
             }

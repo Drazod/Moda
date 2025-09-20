@@ -24,9 +24,11 @@ model CartItem {
   id              Int       @id @default(autoincrement())
   cartId          Int
   ClothesId       Int
+  sizeId          Int
   totalprice      Float     @default(0)
   quantity        Int
   Clothes         Clothes      @relation(fields: [ClothesId], references: [id])
+  Size            Size         @relation(fields: [sizeId], references: [id])
   cart            Cart      @relation(fields: [cartId], references: [id])
 
   createdAt       DateTime  @default(now())
@@ -85,6 +87,7 @@ model Size {
   quantity   Int
   clothesId  Int
   clothes    Clothes  @relation(fields: [clothesId], references: [id])
+  cartItems  CartItem[]
 }
 
 model Feature {
@@ -98,7 +101,7 @@ model Feature {
 model Image {
   id         Int      @id @default(autoincrement()) // Primary key
   name       String
-  url        String   @unique
+  url        String   @db.VarChar(500) @unique
   ClothesMain   Clothes?    @relation(name: "MainImage")
   ClothesExtras Clothes[]   @relation(name: "ExtraImages")
 }
