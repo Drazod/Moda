@@ -10,7 +10,6 @@ const darkBtn = "#434237";      // checkout button
 
 export default function CartModal({ open, onClose }) {
   const { items, removeFromCart, updateQty } = useCart();
-  console.log(items);
 
   const [form, setForm] = useState({
     name: "",
@@ -65,6 +64,23 @@ export default function CartModal({ open, onClose }) {
     if (!item) return;
     const minQty = getMinQty(item);
     const maxQty = getMaxQty(item);
+    // Check localStorage for allowed quantity for this product and size
+    let allowedQty = undefined;
+    let totalQtyForThisSize = 0;
+    try {
+      const cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+      if (item.id && item.sizeId && cartSizeQuantities[item.id] && typeof cartSizeQuantities[item.id][item.sizeId] === 'number') {
+        allowedQty = cartSizeQuantities[item.id][item.sizeId];
+      }
+      // Sum all cart items with same id and sizeId
+      totalQtyForThisSize = items.filter(
+        (it) => it.id === item.id && it.sizeId === item.sizeId
+      ).reduce((sum, it) => sum + it.qty, 0);
+    } catch {}
+    if (typeof allowedQty === 'number' && totalQtyForThisSize >= allowedQty) {
+      alert(`You cannot add more than ${allowedQty} for this size.`);
+      return;
+    }
     if (typeof maxQty === 'number' && item.qty >= maxQty) {
       alert(`Only ${maxQty} left in stock for this size.`);
       return;
@@ -166,8 +182,48 @@ export default function CartModal({ open, onClose }) {
                         onClick={() => inc(it.cartItemId)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Increase"
-                        disabled={typeof getMaxQty(it) === 'number' ? it.qty >= getMaxQty(it) : false}
-                        style={typeof getMaxQty(it) === 'number' && it.qty >= getMaxQty(it) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        disabled={
+                          (() => {
+                            const maxQty = getMaxQty(it);
+                            let allowedQty;
+                            let totalQtyForThisSize = 0;
+                            try {
+                              const cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+                                allowedQty = cartSizeQuantities[it.id][it.sizeId];
+                              }
+                              totalQtyForThisSize = items.filter(
+                                (itm) => itm.id === it.id && itm.sizeId === it.sizeId
+                              ).reduce((sum, itm) => sum + itm.qty, 0);
+                            } catch {}
+                            if (typeof allowedQty === 'number' && totalQtyForThisSize >= allowedQty) return true;
+                            if (typeof maxQty === 'number' && it.qty >= maxQty) return true;
+                            return false;
+                          })()
+                        }
+                        style={
+                          (() => {
+                            const maxQty = getMaxQty(it);
+                            let allowedQty;
+                            let totalQtyForThisSize = 0;
+                            try {
+                              const cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+                                allowedQty = cartSizeQuantities[it.id][it.sizeId];
+                              }
+                              totalQtyForThisSize = items.filter(
+                                (itm) => itm.id === it.id && itm.sizeId === it.sizeId
+                              ).reduce((sum, itm) => sum + itm.qty, 0);
+                            } catch {}
+                            if (
+                              (typeof allowedQty === 'number' && totalQtyForThisSize >= allowedQty) ||
+                              (typeof maxQty === 'number' && it.qty >= maxQty)
+                            ) {
+                              return { opacity: 0.5, cursor: 'not-allowed' };
+                            }
+                            return {};
+                          })()
+                        }
                       >
                         +
                       </button>

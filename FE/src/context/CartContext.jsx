@@ -32,7 +32,6 @@ export function CartProvider({ children }) {
           const res = await axiosInstance.get("/cart/view");
           if (Array.isArray(res.data?.cartItems)) {
             // Map backend cartItems to frontend format
-            console.log(res.data.cartItems);
             const mapped = res.data.cartItems.map(item => ({
               id: item.ClothesId,
               cartId: item.cartId,
@@ -41,9 +40,25 @@ export function CartProvider({ children }) {
               price: item.Clothes?.price || 0,
               qty: item.quantity,
               image: item.Clothes?.mainImgId ? `/path/to/images/${item.Clothes.mainImgId}` : undefined,
-              // Add more fields as needed
+              sizeId: item.sizeId,
+              selectedColor: item.selectedColor,
+              selectedSize: item.selectedSize,
             }));
-            setItems(mapped);
+            // Clamp each item's qty to allowed per-size stock from localStorage
+            let cartSizeQuantities = {};
+            try {
+              cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+            } catch {}
+            const clamped = mapped.map(it => {
+              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+                const allowed = cartSizeQuantities[it.id][it.sizeId];
+                if (it.qty > allowed) {
+                  return { ...it, qty: allowed };
+                }
+              }
+              return it;
+            });
+            setItems(clamped);
           }
         } catch (err) {
           // Optionally: show notification
@@ -139,7 +154,21 @@ export function CartProvider({ children }) {
             selectedColor: item.selectedColor,
             selectedSize: item.selectedSize,
           }));
-          setItems(mapped);
+          // Clamp each item's qty to allowed per-size stock from localStorage
+          let cartSizeQuantities = {};
+          try {
+            cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+          } catch {}
+          const clamped = mapped.map(it => {
+            if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+              const allowed = cartSizeQuantities[it.id][it.sizeId];
+              if (it.qty > allowed) {
+                return { ...it, qty: allowed };
+              }
+            }
+            return it;
+          });
+          setItems(clamped);
         }
       });
     }, 300);

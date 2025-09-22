@@ -38,6 +38,24 @@ const ProductDetail = () => {
     axiosInstance.get(`/clothes/${productId}`)
       .then(res => {
         setProduct(res.data);
+        // Store size quantities in localStorage
+        if (Array.isArray(res.data.sizes)) {
+          let cartSizeQuantities = {};
+          try {
+            cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+          } catch {
+            cartSizeQuantities = {};
+          }
+          if (res.data.id) {
+            cartSizeQuantities[res.data.id] = {};
+            res.data.sizes.forEach(size => {
+              if (size.id && typeof size.quantity === 'number') {
+                cartSizeQuantities[res.data.id][size.id] = size.quantity;
+              }
+            });
+            localStorage.setItem('cartSizeQuantities', JSON.stringify(cartSizeQuantities));
+          }
+        }
         // Set default color and size if available
         if (res.data.colors && res.data.colors.length > 0) setSelectedColor(res.data.colors[0]);
         if (res.data.sizes && res.data.sizes.length > 0) setSelectedSize(res.data.sizes[0].label || res.data.sizes[0]);
