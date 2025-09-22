@@ -7,8 +7,10 @@ import cartItemRoute from "./cartItem.routes";
 import userRoute from "./user.routes";
 import vnpayRoutes from "./vnpay.routes"; // Add this line
 import uploadRoute from "./upload.routes"; // Add this line
+
 import adminRoute from "./admin.routes"; // Add this line
 import metricRoute from "./metric.routes";
+import searchRoute from "./search.routes";
 
 
 const route = Router();
@@ -23,5 +25,7 @@ route.use('/vnpay', vnpayRoutes);
 route.use('/file', uploadRoute);
 route.use('/admin', adminRoute);
 route.use('/metrics', metricRoute);
+
+route.use('/search', searchRoute);
 
 export default route;

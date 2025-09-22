@@ -1,3 +1,17 @@
+export const userTransactionHistory = async (req: Request, res: Response) => {
+    if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+
+    const userId = req.user.id;
+    try {
+        const transactions = await prisma.transaction.findMany({
+            where: { userId },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.status(200).json({ message: "User transaction history", transactions });
+    } catch (error) {
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
 import { Request, Response } from 'express';
 import { prisma } from '..';
 
