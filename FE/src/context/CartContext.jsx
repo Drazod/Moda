@@ -39,10 +39,12 @@ export function CartProvider({ children }) {
               name: item.Clothes?.name || '',
               price: item.Clothes?.price || 0,
               qty: item.quantity,
-              image: item.Clothes?.mainImgId ? `/path/to/images/${item.Clothes.mainImgId}` : undefined,
+              image: item.Clothes?.mainImg.url,
               sizeId: item.sizeId,
+              label: item.Size.label,
               selectedColor: item.selectedColor,
               selectedSize: item.selectedSize,
+              
             }));
             // Clamp each item's qty to allowed per-size stock from localStorage
             let cartSizeQuantities = {};
@@ -85,6 +87,39 @@ export function CartProvider({ children }) {
             quantity: it.qty,
             ...(it.sizeId ? { sizeId: it.sizeId } : {})
           });
+          // After adding a new item (no cartItemId), fetch canonical cart and update state
+          const res = await axiosInstance.get("/cart/view");
+          if (Array.isArray(res.data?.cartItems)) {
+            const mapped = res.data.cartItems.map(item => ({
+              id: item.ClothesId,
+              cartId: item.cartId,
+              cartItemId: item.id,
+              name: item.Clothes?.name || '',
+              price: item.Clothes?.price || 0,
+              qty: item.quantity,
+              image: item.Clothes?.mainImg.url,
+              sizeId: item.sizeId,
+              label: item.Size.label,
+              selectedColor: item.selectedColor,
+              selectedSize: item.selectedSize,
+              
+            }));
+            // Clamp each item's qty to allowed per-size stock from localStorage
+            let cartSizeQuantities = {};
+            try {
+              cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
+            } catch {}
+            const clamped = mapped.map(it => {
+              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+                const allowed = cartSizeQuantities[it.id][it.sizeId];
+                if (it.qty > allowed) {
+                  return { ...it, qty: allowed };
+                }
+              }
+              return it;
+            });
+            setItems(clamped);
+          }
         }
       }
     } catch (err) {
@@ -134,12 +169,10 @@ export function CartProvider({ children }) {
           },
         ];
       }
-  // Don't call syncCartToBackend here! (sync is now handled in useEffect)
       return updated;
     });
-    // Use a callback to get the latest state after setItems
+    // After optimistic update, fetch canonical cart from backend and replace local cart
     setTimeout(() => {
-      // Always fetch canonical cart from backend after add
       axiosInstance.get("/cart/view").then(res => {
         if (Array.isArray(res.data?.cartItems)) {
           const mapped = res.data.cartItems.map(item => ({

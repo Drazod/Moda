@@ -232,7 +232,7 @@ export const viewCartItemInCart = async (req: Request, res: Response) => {
     else {
       const cartItems = await prisma.cartItem.findMany({
         where: { cartId: cart.id },
-        include: { Clothes: true, Size: true },
+        include: { Clothes: { include: { mainImg: true } }, Size: true }
       });
       return res.status(200).json({ cartItems });
     }

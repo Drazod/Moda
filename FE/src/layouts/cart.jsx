@@ -134,7 +134,7 @@ export default function CartModal({ open, onClose }) {
         {/* body */}
         <div className="grid grid-cols-1 gap-10 px-6 pb-6 pt-4 lg:grid-cols-[1fr_1fr]">
           {/* LEFT – items list */}
-          <div className="space-y-4 font-medium text-base">
+          <div className="space-y-4 font-medium text-base overflow-y-auto" style={{ maxHeight: '400px' }}>
             {items.map((it, i) => (
               <div key={it.id + (it.selectedColor || '') + (it.selectedSize || '')} className="pb-2">
                 <div className="grid grid-cols-[80px_1fr_auto] items-center gap-2">
@@ -145,6 +145,9 @@ export default function CartModal({ open, onClose }) {
                   />
                   <div>
                     <p className=" leading-snug ">{it.name}</p>
+                    {!it.selectedSize && it.sizeId && (
+                      <div className="text-xs text-gray-500">Size: {it.label}</div>
+                    )}
                     {it.selectedColor && (
                       <div className="text-xs text-gray-500">Color: {it.selectedColor}</div>
                     )}
