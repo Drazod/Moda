@@ -36,6 +36,7 @@ export function CartProvider({ children }) {
             const mapped = res.data.cartItems.map(item => ({
               id: item.ClothesId,
               cartId: item.cartId,
+              cartItemId: item.id,
               name: item.Clothes?.name || '',
               price: item.Clothes?.price || 0,
               qty: item.quantity,
@@ -56,20 +57,41 @@ export function CartProvider({ children }) {
   // Helper to sync cart to backend
   const syncCartToBackend = useCallback(async (newItems) => {
     try {
-      // Post each item individually to /cart, including sizeId if present
       for (const it of newItems) {
-        await axiosInstance.post("/cart/add", {
-          cakeId: it.id,
-          quantity: it.qty,
-          ...(it.sizeId ? { sizeId: it.sizeId } : {})
-        });
+        if (it.cartItemId) {
+          await axiosInstance.post("/cart/add", {
+            cartItemId: it.cartItemId,
+            cakeId: it.id,
+            quantity: it.qty
+          });
+        } else {
+          await axiosInstance.post("/cart/add", {
+            cakeId: it.id,
+            quantity: it.qty,
+            ...(it.sizeId ? { sizeId: it.sizeId } : {})
+          });
+        }
       }
     } catch (err) {
       // Optionally: show notification
     }
   }, []);
 
+  // Always sync cart to backend when items change (except on initial mount)
+  const isFirstSync = useRef(true);
+  useEffect(() => {
+    if (isFirstSync.current) {
+      isFirstSync.current = false;
+      return;
+    }
+    syncCartToBackend(items);
+  }, [items, syncCartToBackend]);
+
   const addToCart = (product, options = {}) => {
+    if (!product || !product.id) {
+      alert("Cannot add to cart: product id is missing.");
+      return;
+    }
     setItems((prev) => {
       const idx = prev.findIndex(
         (it) =>
@@ -97,41 +119,39 @@ export function CartProvider({ children }) {
           },
         ];
       }
-      syncCartToBackend(updated);
-      // After first add, fetch canonical cart from backend to get cartId
-      if (prev.length === 0) {
-        setTimeout(async () => {
-          try {
-            const res = await axiosInstance.get("/cart/view");
-            if (Array.isArray(res.data?.cartItems)) {
-              const mapped = res.data.cartItems.map(item => ({
-                id: item.ClothesId,
-                cartId: item.cartId,
-                name: item.Clothes?.name || '',
-                price: item.Clothes?.price || 0,
-                qty: item.quantity,
-                image: item.Clothes?.mainImgId ? `/path/to/images/${item.Clothes.mainImgId}` : undefined,
-                sizeId: item.sizeId,
-              }));
-              setItems(mapped);
-            }
-          } catch {}
-        }, 300);
-      }
+  // Don't call syncCartToBackend here! (sync is now handled in useEffect)
       return updated;
     });
+    // Use a callback to get the latest state after setItems
+    setTimeout(() => {
+      // Always fetch canonical cart from backend after add
+      axiosInstance.get("/cart/view").then(res => {
+        if (Array.isArray(res.data?.cartItems)) {
+          const mapped = res.data.cartItems.map(item => ({
+            id: item.ClothesId,
+            cartId: item.cartId,
+            cartItemId: item.id,
+            name: item.Clothes?.name || '',
+            price: item.Clothes?.price || 0,
+            qty: item.quantity,
+            image: item.Clothes?.mainImgId ? `/path/to/images/${item.Clothes.mainImgId}` : undefined,
+            sizeId: item.sizeId,
+            selectedColor: item.selectedColor,
+            selectedSize: item.selectedSize,
+          }));
+          setItems(mapped);
+        }
+      });
+    }, 300);
   };
 
-  const removeFromCart = (id, color, size) => {
+  const removeFromCart = (id, color, size, cartItemId) => {
     setItems((prev) => {
-      const updated = prev.filter(
-        (it) =>
-          !(it.id === id && it.selectedColor === color && it.selectedSize === size)
-      );
-      // Call DELETE /cart for this item
+      const updated = prev.filter((it) => it.cartItemId !== cartItemId);
+      // Call DELETE /cart for this item using cartItemId if present
       (async () => {
         try {
-          await axiosInstance.delete("/cart/delete", { data: { cakeId: id, quantity: 0 } });
+          await axiosInstance.delete("/cart/delete", { data: { cartItemId } });
         } catch (err) {
           // Optionally: show notification
         }
@@ -141,14 +161,13 @@ export function CartProvider({ children }) {
     });
   };
 
-  const updateQty = (id, color, size, qty) => {
+  const updateQty = (cartItemId, qty) => {
     setItems((prev) => {
       const updated = prev.map((it) =>
-        it.id === id && it.selectedColor === color && it.selectedSize === size
+        it.cartItemId === cartItemId
           ? { ...it, qty }
           : it
       );
-      syncCartToBackend(updated);
       return updated;
     });
   };

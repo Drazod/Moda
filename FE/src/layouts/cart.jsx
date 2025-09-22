@@ -60,10 +60,8 @@ export default function CartModal({ open, onClose }) {
     return undefined;
   };
 
-  const inc = (id, color, size) => {
-    const item = items.find(
-      (it) => it.id === id && it.selectedColor === color && it.selectedSize === size
-    );
+  const inc = (cartItemId) => {
+    const item = items.find((it) => it.cartItemId === cartItemId);
     if (!item) return;
     const minQty = getMinQty(item);
     const maxQty = getMaxQty(item);
@@ -75,20 +73,17 @@ export default function CartModal({ open, onClose }) {
       alert(`Minimum quantity required is ${minQty}`);
       return;
     }
-    updateQty(id, color, size, item.qty + 1);
+    updateQty(cartItemId, item.qty + 1);
   };
-  const dec = (id, color, size) => {
-    const item = items.find(
-      (it) => it.id === id && it.selectedColor === color && it.selectedSize === size
-    );
+  const dec = (cartItemId) => {
+    const item = items.find((it) => it.cartItemId === cartItemId);
     if (!item) return;
     const minQty = getMinQty(item);
-    if (item.qty > minQty) updateQty(id, color, size, item.qty - 1);
+    if (item.qty > minQty) updateQty(cartItemId, item.qty - 1);
   };
-  const removeItem = (id, color, size) => {
-    removeFromCart(id, color, size);
+  const removeItem = (id, color, size, cartItemId) => {
+    removeFromCart(id, color, size, cartItemId);
   };
-
   const handleForm = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
@@ -143,7 +138,7 @@ export default function CartModal({ open, onClose }) {
                   </div>
 
                   <button
-                    onClick={() => removeItem(it.id, it.selectedColor, it.selectedSize)}
+                    onClick={() => removeItem(it.id, it.selectedColor, it.selectedSize, it.cartItemId)}
                     className="ml-auto h-8 w-8 rounded-full hover:bg-black/10 "
                     aria-label="Remove"
                     title="Remove"
@@ -158,7 +153,7 @@ export default function CartModal({ open, onClose }) {
                   <div className="col-start-3 flex items-center justify-end">
                     <div className="flex items-center rounded-full border border-black/20 bg-[#efe5d6] px-2">
                       <button
-                        onClick={() => dec(it.id, it.selectedColor, it.selectedSize)}
+                        onClick={() => dec(it.cartItemId)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Decrease"
                         disabled={it.qty <= getMinQty(it)}
@@ -168,7 +163,7 @@ export default function CartModal({ open, onClose }) {
                       </button>
                       <div className="w-9 text-center">{it.qty}</div>
                       <button
-                        onClick={() => inc(it.id, it.selectedColor, it.selectedSize)}
+                        onClick={() => inc(it.cartItemId)}
                         className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                         aria-label="Increase"
                         disabled={typeof getMaxQty(it) === 'number' ? it.qty >= getMaxQty(it) : false}

@@ -164,7 +164,8 @@ export const deleteCart = async (req: Request, res: Response) => {
 
 
 export const addCartItemToCart = async (req: Request, res: Response) => {
-  const { cakeId, quantity, sizeId } = req.body;
+  const { cartItemId, cakeId, quantity, sizeId } = req.body;
+  if (!cakeId) return res.status(400).json({ message: "cakeId is required" });
   if (!req.user) return res.status(401).json({ message: "User not authenticated" });
 
   const userId = req.user.id;
@@ -177,22 +178,40 @@ export const addCartItemToCart = async (req: Request, res: Response) => {
     let cart = await prisma.cart.findFirst({ where: { userId: userId, state: State.PENDING } });
     if (!cart) cart = await prisma.cart.create({ data: { userId } });
 
-    // Check for existing cart item with same product and size
-    const existingItem = await prisma.cartItem.findFirst({
-      where: { cartId: cart.id, ClothesId: clothes.id, sizeId },
-    });
-
-    if (existingItem) {
+    // If cartItemId is provided, update only that cart item
+    if (cartItemId) {
+      console.log("Updating cart item:", cartItemId);
+      const cartItem = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+      if (!cartItem || cartItem.cartId !== cart.id) {
+        return res.status(404).json({ message: "Cart item not found or does not belong to your cart" });
+      }
       const updatedItem = await prisma.cartItem.update({
-        where: { id: existingItem.id },
+        where: { id: cartItemId },
         data: { quantity, totalprice: clothes.price * quantity },
       });
       return res.status(200).json({ message: "Cart updated", data: updatedItem });
     } else {
-      const newItem = await prisma.cartItem.create({
-        data: { cartId: cart.id, ClothesId: clothes.id, sizeId, quantity, totalprice: clothes.price * quantity },
+      console.log("Adding new item to cart");
+      // If not, check if a cart item with the same ClothesId and sizeId already exists
+      const existingItem = await prisma.cartItem.findFirst({
+        where: { cartId: cart.id, ClothesId: clothes.id, sizeId },
       });
-      return res.status(201).json({ message: "Item added to cart", data: newItem });
+      if (existingItem) {
+        const updatedItem = await prisma.cartItem.update({
+          where: { id: existingItem.id },
+          data: {
+            quantity: existingItem.quantity + 1,
+            totalprice: clothes.price * (existingItem.quantity + 1),
+          },
+        });
+        return res.status(200).json({ message: "Cart item quantity incremented", data: updatedItem });
+      } else {
+        // Otherwise, create a new cart item
+        const newItem = await prisma.cartItem.create({
+          data: { cartId: cart.id, ClothesId: clothes.id, sizeId, quantity, totalprice: clothes.price * quantity },
+        });
+        return res.status(201).json({ message: "Item added to cart", data: newItem });
+      }
     }
   } catch (error) {
     console.error("Error adding to cart:", error);
@@ -266,7 +285,8 @@ export const updateCartItemInCart = async (req: Request, res: Response) => {
 }
 
 export const deleteCartItemFromCart = async (req: Request, res: Response) => {
-  const { itemId } = req.body;
+  const { cartItemId } = req.body;
+  if (!cartItemId) return res.status(400).json({ message: "cartItemId is required" });
 
   if (!req.user) return res.status(401).json({ message: "User not authenticated" });
   const userId = req.user.id;
@@ -280,18 +300,10 @@ export const deleteCartItemFromCart = async (req: Request, res: Response) => {
 
     if (!cart) return res.status(404).json({ message: "Cart not found" });
 
-    // Find the cart item by ClothesId (item id) and cartId
-    const cartItem = await prisma.cartItem.findFirst({
-      where: { ClothesId: itemId, cartId: cart.id },
-    });
-
-    if (!cartItem) return res.status(404).json({ message: "Cart item not found" });
-
-    // Delete the CartItem by its id
-    await prisma.cartItem.delete({
-      where: { id: cartItem.id },
-    });
-
+    // Delete the CartItem by its id directly
+    const cartItem = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+    if (!cartItem || cartItem.cartId !== cart.id) return res.status(404).json({ message: "Cart item not found" });
+    await prisma.cartItem.delete({ where: { id: cartItemId } });
     res.status(200).json({ message: "Cart item deleted successfully" });
   } catch (error) {
     console.error("Error deleting cart item:", error);

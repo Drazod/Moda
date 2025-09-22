@@ -219,7 +219,37 @@ const ProductDetail = () => {
             )}
             {/* Add to Cart Button */}
             <button
-              className="mt-6 bg-black text-white py-3 px-6 w-full rounded-lg hover:bg-gray-800 transition"
+              className={`mt-6 py-3 px-6 w-full rounded-lg transition text-white
+                ${(() => {
+                  // Per-size quantity check
+                  if (Array.isArray(product.sizes) && typeof product.sizes[0] === "object" && product.sizes[0].label) {
+                    const found = product.sizes.find(s => s.label === selectedSize);
+                    if (found && typeof found.quantity === "number" && found.quantity === 0) return 'bg-gray-400';
+                  }
+                  if (typeof product.quantity === "number" && product.quantity === 0) return 'bg-gray-400';
+                  if (typeof product.stock === "number" && product.stock === 0) return 'bg-gray-400';
+                  return 'bg-black hover:bg-gray-800';
+                })()}`}
+              disabled={(() => {
+                // Per-size quantity check
+                if (Array.isArray(product.sizes) && typeof product.sizes[0] === "object" && product.sizes[0].label) {
+                  const found = product.sizes.find(s => s.label === selectedSize);
+                  if (found && typeof found.quantity === "number") return found.quantity === 0;
+                }
+                // Global stock check
+                if (typeof product.quantity === "number") return product.quantity === 0;
+                if (typeof product.stock === "number") return product.stock === 0;
+                return false;
+              })()}
+              title={(() => {
+                if (Array.isArray(product.sizes) && typeof product.sizes[0] === "object" && product.sizes[0].label) {
+                  const found = product.sizes.find(s => s.label === selectedSize);
+                  if (found && typeof found.quantity === "number" && found.quantity === 0) return "Out of stock for this size";
+                }
+                if (typeof product.quantity === "number" && product.quantity === 0) return "Out of stock";
+                if (typeof product.stock === "number" && product.stock === 0) return "Out of stock";
+                return undefined;
+              })()}
               onClick={() => {
                 // Find sizeId if available
                 let sizeId = undefined;
@@ -237,7 +267,15 @@ const ProductDetail = () => {
                 });
               }}
             >
-              Add to cart
+              {(() => {
+                if (Array.isArray(product.sizes) && typeof product.sizes[0] === "object" && product.sizes[0].label) {
+                  const found = product.sizes.find(s => s.label === selectedSize);
+                  if (found && typeof found.quantity === "number" && found.quantity === 0) return "Out of stock";
+                }
+                if (typeof product.quantity === "number" && product.quantity === 0) return "Out of stock";
+                if (typeof product.stock === "number" && product.stock === 0) return "Out of stock";
+                return "Add to cart";
+              })()}
             </button>
           </div>
         </div>
