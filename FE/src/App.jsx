@@ -1,3 +1,5 @@
+import OtpVerificationPage from "./layouts/OtpVerificationPage";
+
 import React from "react";
 import { CartProvider } from "./context/CartContext";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -10,6 +12,9 @@ import ProfilePage from "./layouts/profilePage";
 import LogInPage from "./layouts/loginPage";
 import Register from "./layouts/registerPage";
 import Setting from "./layouts/settingPage";
+import Transactions from "./layouts/transactionHistoryPage";
+import ResetPasswordPage from "./layouts/ResetPasswordPage";
+ 
 // import Settings from "./layouts/settingPage";
 // dash's import
 import DashLayout from "./layouts/dash/dashLayout";
@@ -39,6 +44,8 @@ const App = () => {
             <LogInPage />
           </PublicOnly>
         } />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-otp" element={<OtpVerificationPage />} />
         <Route path="/register" element={
           <PublicOnly>
             <Register />
@@ -52,6 +59,11 @@ const App = () => {
         <Route path="/setting" element={
           <RequireAuth>
             <Setting />
+          </RequireAuth>
+        } />
+        <Route path="/transactions" element={
+          <RequireAuth>
+            <Transactions />
           </RequireAuth>
         } />
         {/* dash's Route */}

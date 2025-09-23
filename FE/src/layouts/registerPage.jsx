@@ -35,32 +35,9 @@ export default function RegisterPage() {
 
     try {
       // 1) Create account
-      const res = await axiosInstance.post('/auth/register', payload);
-
-      // Some APIs return { user, token }, others return just the user.
-      const userFromRegister = res.data?.user ?? res.data;
-      const tokenFromRegister = res.data?.token;
-
-      if (userFromRegister && tokenFromRegister) {
-        // store in AuthContext (this also persists token to localStorage in your AuthProvider)
-        login(userFromRegister, tokenFromRegister);
-        navigate('/', { replace: true });
-        return;
-      }
-
-      // 2) Fallback: immediately sign in to get a token
-      const signIn = await axiosInstance.post('/auth/login', {
-        email: payload.email,
-        password: payload.password,
-      });
-
-      if (signIn.data?.user && signIn.data?.token) {
-        login(signIn.data.user, signIn.data.token);
-        navigate('/', { replace: true });
-        return;
-      }
-
-      throw new Error('Signup succeeded but no token was returned.');
+      await axiosInstance.post('/auth/register', payload);
+      // After successful registration, redirect to OTP verification page with email in navigation state
+      navigate('/verify-otp', { replace: true, state: { email: payload.email } });
     } catch (err) {
       const msg = err?.response?.data?.message || err.message || 'Sign up failed.';
       setSubmitError(msg);

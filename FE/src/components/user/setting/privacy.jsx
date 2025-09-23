@@ -3,7 +3,7 @@ import axiosInstance from  "../../../configs/axiosInstance";
 import { useAuth } from "../../../context/AuthContext";
 
 export default function PrivacyForm() {
-  const { loading: authLoading } = useAuth(); // wait until token is ready (optional)
+  const { loading: authLoading, logout } = useAuth(); // wait until token is ready (optional)
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
@@ -32,8 +32,10 @@ export default function PrivacyForm() {
       setError("Please fill in all fields.");
       return;
     }
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+    // Enforce strong password: at least 8 chars, 1 uppercase, 1 lowercase, 1 number
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!strongPassword.test(newPassword)) {
+      setError("New password must be at least 8 characters, include uppercase, lowercase, and a number.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -47,15 +49,17 @@ export default function PrivacyForm() {
 
     setSaving(true);
     try {
-      // 🔁 Preferred: single endpoint that verifies `currentPassword` and updates to `newPassword`.
-      // Adjust to your backend route: e.g. '/user/change-password' or '/auth/change-password'
-      await axiosInstance.post("/user/change-password", {
-        currentPassword,
+      // Use BE-required keys: oldPassword, newPassword
+      await axiosInstance.put("/auth/changePass", {
+        oldPassword: currentPassword,
         newPassword,
       });
 
-      setOk("Password updated successfully.");
+      setOk("Password updated successfully. You will be logged out.");
       setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setTimeout(() => {
+        logout();
+      }, 1500);
     } catch (err) {
       // Nice error message
       const msg =

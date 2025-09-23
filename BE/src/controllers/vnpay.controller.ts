@@ -148,6 +148,19 @@ export const handleReturn = async (req: Request, res: Response) => {
             });
           }
 
+          // Create transaction details for purchased items (for user history)
+          for (const item of cartItems) {
+            await prisma.transactionDetail.create({
+              data: {
+                transactionId: transaction.id,
+                clothesId: item.ClothesId,
+                sizeId: item.sizeId,
+                quantity: item.quantity,
+                price: item.totalprice,
+              },
+            });
+          }
+
           // Update cart state to ORDERED
           await prisma.cart.update({
             where: { id: orderId },

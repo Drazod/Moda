@@ -214,7 +214,7 @@ const onSubmit = async (values, { setSubmitting }) => {
                           </label>
 
                           <div className="flex items-center justify-between text-sm">
-                            <a href="/forgot-password" className="opacity-90 hover:opacity-100">Forgot password</a>
+                            <a href="/reset-password" className="opacity-90 hover:opacity-100">Forgot password</a>
                             <button
                               type="submit"
                               disabled={isSubmitting}

@@ -48,7 +48,7 @@ userRoute.post('/update', authMiddleware, userUpdate);
  *                 transactions:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Transaction'
+ *                     $ref: '#/components/schemas/TransactionHistory'
  *       500:
  *         description: Internal server error
  */

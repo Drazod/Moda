@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { Login, Register, changePassword, someFunction, changeIdentity } from '../controllers/auth.controller';
+import { verifyOtp } from '../controllers/auth.controller';
+
 import authMiddleware from '../middlewares/authentication';
 
 const userRoute: Router = Router();
@@ -52,6 +54,33 @@ const userRoute: Router = Router();
  *         description: Internal server error
  */
 userRoute.post('/register', Register);
+
+/**
+ * @swagger
+ * /auth/verify-otp:
+ *   post:
+ *     summary: Verify OTP for email activation
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid or expired OTP
+ *       500:
+ *         description: Internal server error
+ */
+userRoute.post('/verify-otp', verifyOtp);
 
 /**
  * @swagger
@@ -137,7 +166,7 @@ userRoute.post('/login', Login);
  *       500:
  *         description: Internal server error
  */
-userRoute.put('/:id/changePass', changePassword);
+userRoute.put('/changePass', authMiddleware, changePassword);
 
 /**
  * @swagger

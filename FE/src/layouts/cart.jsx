@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { createVNPayPayment } from "../utils/vnpay";
 import { useCart } from "../context/CartContext";
 import VoucherPanel from "../components/cart/voucherPanel";
+import { useAuth } from "../context/AuthContext";
 
 const bg = "#E6DAC4";          // modal bg
 const fieldBg = "#CDC2AF";      // input bg
@@ -10,7 +11,7 @@ const darkBtn = "#434237";      // checkout button
 
 export default function CartModal({ open, onClose }) {
   const { items, removeFromCart, updateQty } = useCart();
-
+  const { user } = useAuth();
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -18,6 +19,16 @@ export default function CartModal({ open, onClose }) {
     message: "",
     payment: "store",
   });
+  useEffect(() => {
+  if (open && user) {
+    setForm((f) => ({
+      ...f,
+      name: user.name || "",
+      address: user.address || "",
+      phone: user.phone || "",
+    }));
+  }
+}, [open, user]);
   const [showVouchers, setShowVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
 

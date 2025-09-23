@@ -25,9 +25,11 @@ const Sidebar = () => {
                 </button>
             </a>
 
-          <button className="hover:text-pink-800 flex">
-            <CiReceipt size={43} />
-          </button> 
+          <a href="/transactions">
+            <button className="hover:text-pink-800 flex">
+              <CiReceipt size={43} />
+            </button>
+          </a>
         </nav>
 
         <div className="mt-auto mb-4">

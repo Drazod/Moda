@@ -6,6 +6,7 @@ import "../index.css";
 import { useAuth } from "../context/AuthContext";
 import NotificationCard from "../components/user/notificationCard";
 import RecentOrdersCard from "../components/user/recentOrderCard";
+
 import OrderStatusCard from "../components/user/orderStatusCard";
 
 import axiosInstance from '../configs/axiosInstance';
@@ -14,7 +15,21 @@ import { useNavigate } from "react-router-dom";
 export default function ProfilePage() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
+  const [transactions, setTransactions] = useState([]);
 
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const res = await axiosInstance.get('/user/transactions');
+        if (Array.isArray(res.data?.transactions)) {
+          setTransactions(res.data.transactions);
+        }
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+      }
+    };
+    fetchTransactions();
+  }, []);
   const navigate = useNavigate();
   const handleLogout = async () => {
     await logout();
@@ -82,13 +97,11 @@ export default function ProfilePage() {
       </div>
       <div className="flex-1 mx-4 grid grid-cols-1 md:grid-cols-3 gap-10">
         <RecentOrdersCard
-          orders={[
-            { id: "#1234", date: "17 Sept", price: "200.000 VND" },
-            { id: "#1235", date: "18 Sept", price: "200.000 VND" },
-            { id: "#1236", date: "19 Sept", price: "200.000 VND" },
-            { id: "#1237", date: "20 Sept", price: "200.000 VND" },
-            { id: "#1238", date: "21 Sept", price: "200.000 VND" },
-          ]}
+          orders={transactions.map(tx => ({
+            id: tx.orderId,
+            date: (typeof tx.date === 'string' && tx.date.includes(',')) ? tx.date.split(',')[1].trim() : tx.date,
+            price: tx.price,
+          }))}
         />
 
         <OrderStatusCard

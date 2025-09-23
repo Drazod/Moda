@@ -21,7 +21,6 @@ export default function InformationForm() {
     name: "",
     phone: "",
     address: "",
-    birthdate: "",
   });
 
   useEffect(() => {
@@ -69,13 +68,12 @@ export default function InformationForm() {
       name: formData.name?.trim(),
       phone: formData.phone?.trim(),
       address: formData.address?.trim(),
-      birthdate: formData.birthdate || null, // send null if empty (or omit if your API prefers)
     };
 
     try {
-      // PUT to one clear endpoint; adjust if your API uses another route
-      await axiosInstance.put("/user/profile", payload);
-      alert("Profile updated successfully!");
+    // Consistent POST usage: assign response, destructure data, use message
+    const { data } = await axiosInstance.post("/user/update", payload);
+    alert(data?.message || "Profile updated successfully!");
     } catch (e) {
       console.error("Error updating profile:", e);
       setSubmitError(
@@ -158,18 +156,6 @@ export default function InformationForm() {
             type="text"
             name="address"
             value={formData.address || ""}
-            onChange={handleInputChange}
-            className="w-2/3 bg-transparent border-b border-gray-400 focus:outline-none p-2 text-gray-600"
-          />
-        </div>
-
-        {/* Birthdate */}
-        <div>
-          <label className="block text-black font-bold">Birthdate</label>
-          <input
-            type="date"
-            name="birthdate"
-            value={formData.birthdate || ""}
             onChange={handleInputChange}
             className="w-2/3 bg-transparent border-b border-gray-400 focus:outline-none p-2 text-gray-600"
           />

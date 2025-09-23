@@ -39,7 +39,7 @@ export async function getPresenceCounts() {
   const totalConnects = customersOnline + guestsOnline;
 
   // optional “load” estimate vs a capacity you define
-  const capacity = Number(process.env.MAX_EXPECTED_CONNECTIONS || 100);
+  const capacity = Number(process.env.MAX_EXPECTED_CONNECTIONS || 1000);
   const webLoadPct = capacity > 0 ? Math.min(100, Math.round((totalConnects / capacity) * 100)) : null;
 
   return { customersOnline, guestsOnline, totalConnects, webLoadPct };
