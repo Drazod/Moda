@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 -- CreateTable
 CREATE TABLE `Notice` (
     `id` VARCHAR(191) NOT NULL,
@@ -26,3 +27,6 @@ CREATE TABLE `Log` (
 
 -- AddForeignKey
 ALTER TABLE `Notice` ADD CONSTRAINT `Notice_imageId_fkey` FOREIGN KEY (`imageId`) REFERENCES `Image`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+=======
+-- This is a placeholder migration to resolve drift.
+>>>>>>> origin/main

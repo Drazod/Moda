@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /*
   Warnings:
 
@@ -18,3 +19,6 @@ ALTER TABLE `Log` DROP PRIMARY KEY,
 ALTER TABLE `Notice` DROP PRIMARY KEY,
     MODIFY `id` INTEGER NOT NULL AUTO_INCREMENT,
     ADD PRIMARY KEY (`id`);
+=======
+-- This is a placeholder migration to resolve drift.
+>>>>>>> origin/main

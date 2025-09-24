@@ -1,28 +1,76 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
+import axiosInstance from '../../../configs/axiosInstance'; // Adjust path if needed
+
+const STATUS_OPTIONS = ["ORDERED", "SHIPPING", "COMPLETE"];
 
 const DashOMTable = () => {
-    const orders = [
-        { id: 1234, customer: 'Nguyen Van A', date: 'Sep 17, 2024', status: 'Completed', price: '200.000' },
-        { id: 1235, customer: 'Nguyen Van A', date: 'Sep 18, 2024', status: 'Completed', price: '200.000' },
-        { id: 1236, customer: 'Nguyen Van A', date: 'Sep 19, 2024', status: 'Completed', price: '200.000' },
-        { id: 1237, customer: 'Nguyen Van A', date: 'Sep 20, 2024', status: 'Completed', price: '200.000' },
-        { id: 1238, customer: 'Nguyen Van A', date: 'Sep 21, 2024', status: 'Completed', price: '200.000' },
-        { id: 1239, customer: 'Nguyen Van A', date: 'Dec 10, 2024', status: 'Prepared', price: '200.000' },
-        { id: 1240, customer: 'Nguyen Van A', date: 'Dec 11, 2024', status: 'On going', price: '200.000' },
-        { id: 1241, customer: 'Nguyen Van A', date: 'Dec 12, 2024', status: 'On going', price: '200.000' },
-    ];
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [editingStatusId, setEditingStatusId] = useState(null);
+
+    useEffect(() => {
+        fetchOrders();
+    }, []);
+
+    const fetchOrders = async () => {
+        try {
+            setLoading(true);
+            const res = await axiosInstance.get('/order/admin-list');
+            if (Array.isArray(res.data?.orders)) {
+                setOrders(res.data.orders);
+            }
+        } catch (err) {
+            setError('Failed to fetch orders');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const getStatusClass = (status) => {
         switch (status) {
-            case 'Completed':
+            case 'COMPLETED':
                 return 'bg-green-100 text-green-700';
-            case 'Prepared':
+            case 'ORDERED':
                 return 'bg-yellow-100 text-yellow-700';
-            case 'On going':
+            case 'SHIPPING':
                 return 'bg-orange-100 text-orange-700';
             default:
                 return 'bg-gray-100 text-gray-700';
+        }
+    };
+
+    const formatDate = (dateStr) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+
+    const formatPrice = (price) => {
+        if (typeof price === 'number') {
+            return price.toLocaleString('vi-VN');
+        }
+        return price;
+    };
+
+    const handleStatusChange = async (orderId, newStatus) => {
+        try {
+            await axiosInstance.put(`/shipping/${orderId}/state`, {
+                orderId,
+                state: newStatus,
+            });
+            setOrders((prev) =>
+                prev.map((order) =>
+                    order.orderId === orderId ? { ...order, status: newStatus } : order
+                )
+            );
+            setEditingStatusId(null);
+        } catch {
+            alert('Failed to update status');
         }
     };
 
@@ -50,23 +98,55 @@ const DashOMTable = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {orders.map((order) => (
-                        <tr key={order.id} className="border-b last:border-b-0">
-                            <td className="py-4 font-semibold">{order.id}</td>
-                            <td className="py-4">{order.customer}</td>
-                            <td className="py-4">{order.date}</td>
-                            <td className="py-4">
-                                <span className={`px-3 py-1 text-sm rounded-full ${getStatusClass(order.status)}`}>
-                                    {order.status}
-                                </span>
-                            </td>
-                            <td className="py-4 text-right">{order.price}</td>
+                    {loading ? (
+                        <tr>
+                            <td colSpan={5} className="py-8 text-center text-gray-400">Loading...</td>
                         </tr>
-                    ))}
+                    ) : error ? (
+                        <tr>
+                            <td colSpan={5} className="py-8 text-center text-red-500">{error}</td>
+                        </tr>
+                    ) : orders.length === 0 ? (
+                        <tr>
+                            <td colSpan={5} className="py-8 text-center text-gray-400">No orders found.</td>
+                        </tr>
+                    ) : (
+                        orders.map((order) => (
+                            <tr key={order.orderId} className="border-b last:border-b-0">
+                                <td className="py-4 font-semibold">#{order.orderId}</td>
+                                <td className="py-4">{order.customerName}</td>
+                                <td className="py-4">{formatDate(order.date)}</td>
+                                <td className="py-4">
+                                    {editingStatusId === order.orderId ? (
+                                        <select
+                                            className="px-3 py-1 text-sm rounded-full border"
+                                            value={order.status}
+                                            onChange={e => handleStatusChange(order.orderId, e.target.value)}
+                                            onBlur={() => setEditingStatusId(null)}
+                                            autoFocus
+                                        >
+                                            {STATUS_OPTIONS.map(opt => (
+                                                <option key={opt} value={opt}>{opt}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <span
+                                            className={`px-3 py-1 text-sm rounded-full cursor-pointer ${getStatusClass(order.status)}`}
+                                            onClick={() => setEditingStatusId(order.orderId)}
+                                            title="Click to change status"
+                                        >
+                                            {order.status}
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="py-4 text-right">{formatPrice(order.price)}</td>
+                            </tr>
+                        ))
+                    )}
                 </tbody>
             </table>
             
-            {/* Pagination */}
+            {/* Pagination (static for now) */}
             <div className="flex justify-center items-center mt-6 text-gray-600">
                 <span>&lt;&lt;</span>
                 <span className="mx-4 px-3 py-1 bg-orange-100 text-orange-600 rounded-md">1</span>
