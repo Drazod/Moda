@@ -84,7 +84,7 @@ export const createNotice = async (req: Request, res: Response) => {
       data: {
         userId,
         userName,
-        action: `${userName} (ID:${userId}) had created a notice ${title} (id=${notice.id})`,
+        action: ` had created a notice ${title} (id=${notice.id})`,
       },
     });
 
@@ -118,7 +118,7 @@ export const updateNoticeState = async (req: Request, res: Response) => {
       data: {
         userId,
         userName,
-        action: `${userName} (ID:${userId}) had updated notice ${notice.title} (id=${notice.id})`,
+        action: ` had updated notice ${notice.title} (id=${notice.id})`,
       },
     });
 

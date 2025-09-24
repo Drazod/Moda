@@ -15,6 +15,7 @@ model Cart {
   state           State     @default(PENDING)
   user            User      @relation(fields: [userId], references: [id])
   items           CartItem[]
+  couponCode      String?
   address         String? // <-- Add this line
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -47,12 +48,12 @@ model Comment{
 
 model Coupon{
   id              Int       @id @default(autoincrement())
-  code            String    @unique
+  couponCode            String    @unique
   description     String    @db.VarChar(1024) 
   discount        Float
   expiryDate      DateTime
   isActive        Boolean   @default(true)
-  users           User[]
+  stock           Int       @default(0) // Number of times this coupon can be used
   transactions    Transaction[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -122,17 +123,13 @@ model User {
   password        String    @db.VarChar(1024)
   phone           String    
   address         String    @db.VarChar(1024)
-
-  code            String?   @unique
   role            Role      @default(USER)
   carts           Cart[]
   comments        Comment[]
-  coupons         Coupon?  @relation(fields: [code], references: [code])
   shippings       Shipping[]
   transactions    Transaction[]
   updatedAt       DateTime  @updatedAt
   createdAt       DateTime  @default(now())
-
   otpCode         String?
   otpExpiry       DateTime?
   isVerified      Boolean   @default(false)
@@ -157,7 +154,7 @@ model Transaction{
   userId          Int
   couponCode      String?
   user            User      @relation(fields: [userId], references: [id])
-  coupon          Coupon?   @relation(fields: [couponCode], references: [code])
+  coupon          Coupon?   @relation(fields: [couponCode], references: [couponCode])
   transactionDetails TransactionDetail[]
   shipping        Shipping[]
   createdAt       DateTime  @default(now())

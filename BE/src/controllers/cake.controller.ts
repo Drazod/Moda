@@ -142,7 +142,7 @@ export const clothesCreate = async (req: Request, res: Response) => {
     data: {
         userId,
         userName,
-        action: `${userName} (ID:${userId}) had created clothes ${name} (id=${cake.id})`,
+        action: `had created clothes ${name} (id=${cake.id})`,
     },
     });
         res.status(201).json({ message: "Successfully create clothes", cake });
@@ -286,7 +286,7 @@ export const updateClothes = async (req: Request, res: Response) => {
       data: {
         userId,
         userName,
-        action: `${userName} (ID:${userId}) updated clothes ${updatedCake.name} (id=${updatedCake.id})`,
+        action: ` updated clothes ${updatedCake.name} (id=${updatedCake.id})`,
       },
     });
 
@@ -356,7 +356,7 @@ export const deleteClothes = async (req: Request, res: Response) => {
     data: {
         userId,
         userName,
-        action: `${userName} (ID:${userId}) had deleted clothes ${cake.name} (id=${cake.id})`,
+        action: ` had deleted clothes ${cake.name} (id=${cake.id})`,
     },
     });
         res.status(200).json({ message: 'Clothes deleted successfully' });

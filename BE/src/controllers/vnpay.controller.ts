@@ -23,7 +23,10 @@ export const createPayment = async (req: Request, res: Response) => {
   const ipAddr = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || '';
   await prisma.cart.update({
     where: { id: orderId },
-    data: { address: address }
+    data: {
+      address: address,
+      couponCode: couponCode
+    }
   });
   const date = new Date();
   const createDate = date.toISOString().replace(/[-:T.]/g, '').slice(0, 14);
@@ -110,8 +113,7 @@ export const handleReturn = async (req: Request, res: Response) => {
           if (cart) {
             userId = cart.userId;
             address = cart.address || (cart.user && cart.user.address) || "";
-            // If you store couponCode on the cart, fetch it here as well
-            // couponCode = cart.couponCode;
+            couponCode = cart.couponCode || undefined;
           }
         } catch (err) {
           console.error('Error fetching cart/user for address/coupon:', err);

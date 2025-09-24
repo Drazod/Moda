@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `Cart` ADD COLUMN `couponCode` VARCHAR(191) NULL;
+
+-- AlterTable
+ALTER TABLE `Coupon` ADD COLUMN `stock` INTEGER NOT NULL DEFAULT 0;

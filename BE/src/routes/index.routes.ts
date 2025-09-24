@@ -17,7 +17,7 @@ import searchRoute from "./search.routes";
 
 import shippingRoute from "./shipping.routes";
 import orderRoute from "./order.routes";
-
+import couponRoute from "./coupon.routes";
 
 const route = Router();
 
@@ -35,9 +35,8 @@ route.use('/report', reportRoute);
 route.use('/notice', noticeRoute);
 route.use('/log', logRoute);
 route.use('/search', searchRoute);
-
 route.use('/shipping', shippingRoute);
-
+route.use('/coupon', couponRoute);
 route.use('/order', orderRoute);
 
 export default route;

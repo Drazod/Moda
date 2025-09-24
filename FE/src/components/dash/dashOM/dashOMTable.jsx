@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { FaChevronDown } from 'react-icons/fa';
 import axiosInstance from '../../../configs/axiosInstance'; // Adjust path if needed
+import CustomStatusDropdown from './CustomStatusDropDown';
 
 const STATUS_OPTIONS = ["ORDERED", "SHIPPING", "COMPLETE"];
+
+
+const STATUS_FILTERS = ["ALL", ...STATUS_OPTIONS];
 
 const DashOMTable = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [editingStatusId, setEditingStatusId] = useState(null);
+    const [sortAsc, setSortAsc] = useState(true);
+    const [statusFilterIdx, setStatusFilterIdx] = useState(0); // 0 = ALL
+    const [search, setSearch] = useState("");
 
     useEffect(() => {
         fetchOrders();
@@ -30,7 +37,7 @@ const DashOMTable = () => {
 
     const getStatusClass = (status) => {
         switch (status) {
-            case 'COMPLETED':
+            case 'COMPLETE':
                 return 'bg-green-100 text-green-700';
             case 'ORDERED':
                 return 'bg-yellow-100 text-yellow-700';
@@ -74,16 +81,46 @@ const DashOMTable = () => {
         }
     };
 
+    // Filtering, searching, and sorting logic
+    let filteredOrders = orders;
+    const currentStatusFilter = STATUS_FILTERS[statusFilterIdx];
+    if (currentStatusFilter !== "ALL") {
+        filteredOrders = filteredOrders.filter((o) => o.status === currentStatusFilter);
+    }
+    if (search.trim() !== "") {
+        const s = search.trim().toLowerCase();
+        filteredOrders = filteredOrders.filter((o) =>
+            o.orderId.toString().includes(s) ||
+            (o.customerName && o.customerName.toLowerCase().includes(s))
+        );
+    }
+    filteredOrders = [...filteredOrders].sort((a, b) => sortAsc ? a.orderId - b.orderId : b.orderId - a.orderId);
+
     return (
         <div className="bg-white p-6 rounded-2xl shadow-sm w-full">
-            {/* Filter */}
-            <div className="flex justify-end space-x-4 mb-4">
-                <button className="bg-gray-100 px-4 py-2 rounded-full text-sm flex items-center">
-                    Ascending Id <FaChevronDown className="ml-2 text-xs" />
-                </button>
-                <button className="bg-gray-100 px-4 py-2 rounded-full text-sm flex items-center">
-                    Status <FaChevronDown className="ml-2 text-xs" />
-                </button>
+            {/* Filter & Search */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+                <input
+                    type="text"
+                    className="border px-3 py-2 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                    placeholder="Search by Order Id or Customer Name..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+                <div className="flex justify-end space-x-4 mt-2 sm:mt-0">
+                    <button
+                        className="bg-gray-100 px-4 py-2 rounded-full text-sm flex items-center"
+                        onClick={() => setSortAsc((asc) => !asc)}
+                    >
+                        {sortAsc ? "Ascending Id" : "Descending Id"} <FaChevronDown className="ml-2 text-xs" />
+                    </button>
+                    <button
+                        className="bg-gray-100 px-4 py-2 rounded-full text-sm flex items-center"
+                        onClick={() => setStatusFilterIdx((idx) => (idx + 1) % STATUS_FILTERS.length)}
+                    >
+                        Status: {currentStatusFilter} <FaChevronDown className="ml-2 text-xs" />
+                    </button>
+                </div>
             </div>
 
             {/* Table */}
@@ -106,29 +143,25 @@ const DashOMTable = () => {
                         <tr>
                             <td colSpan={5} className="py-8 text-center text-red-500">{error}</td>
                         </tr>
-                    ) : orders.length === 0 ? (
+                    ) : filteredOrders.length === 0 ? (
                         <tr>
                             <td colSpan={5} className="py-8 text-center text-gray-400">No orders found.</td>
                         </tr>
                     ) : (
-                        orders.map((order) => (
+                        filteredOrders.map((order) => (
                             <tr key={order.orderId} className="border-b last:border-b-0">
                                 <td className="py-4 font-semibold">#{order.orderId}</td>
                                 <td className="py-4">{order.customerName}</td>
                                 <td className="py-4">{formatDate(order.date)}</td>
                                 <td className="py-4">
                                     {editingStatusId === order.orderId ? (
-                                        <select
-                                            className="px-3 py-1 text-sm rounded-full border"
-                                            value={order.status}
-                                            onChange={e => handleStatusChange(order.orderId, e.target.value)}
-                                            onBlur={() => setEditingStatusId(null)}
-                                            autoFocus
-                                        >
-                                            {STATUS_OPTIONS.map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                        </select>
+                                    <CustomStatusDropdown
+                                    value={order.status}
+                                    options={STATUS_OPTIONS}
+                                    onChange={(newStatus) => handleStatusChange(order.orderId, newStatus)}
+                                    onBlur={() => setEditingStatusId(null)}
+                                    getStatusClass={getStatusClass}
+                                    />
                                     ) : (
                                         <span
                                             className={`px-3 py-1 text-sm rounded-full cursor-pointer ${getStatusClass(order.status)}`}
