@@ -7,7 +7,8 @@ import cartItemRoute from "./cartItem.routes";
 import userRoute from "./user.routes";
 import vnpayRoutes from "./vnpay.routes"; // Add this line
 import uploadRoute from "./upload.routes"; // Add this line
-
+import logRoute from "./log.routes";
+import noticeRoute from "./notice.routes";
 import adminRoute from "./admin.routes"; // Add this line
 import metricRoute from "./metric.routes";
 import searchRoute from "./search.routes";
@@ -25,7 +26,8 @@ route.use('/vnpay', vnpayRoutes);
 route.use('/file', uploadRoute);
 route.use('/admin', adminRoute);
 route.use('/metrics', metricRoute);
-
+route.use('/notice', noticeRoute);
+route.use('/log', logRoute);
 route.use('/search', searchRoute);
 
 export default route;

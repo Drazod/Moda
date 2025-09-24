@@ -130,7 +130,21 @@ export const clothesCreate = async (req: Request, res: Response) => {
             features: true,
         },
     });
+    const userId = req.user?.id;
+    const userName = req.user?.name;
 
+    if (!userId || !userName) {
+    return res.status(400).json({ error: "User info not found" });
+    }
+
+    // tạo log
+    await prisma.log.create({
+    data: {
+        userId,
+        userName,
+        action: `${userName} (ID:${userId}) had created clothes ${name} (id=${cake.id})`,
+    },
+    });
         res.status(201).json({ message: "Successfully create clothes", cake });
     } catch (error) {
         res.status(500).json({ message: 'Internal server error' });
@@ -197,38 +211,92 @@ export const clothesByKeyword = async (req: Request, res: Response) => {
 }
 
 export const updateClothes = async (req: Request, res: Response) => {
-    try {
-        const { id } = req.params;
-        // Check if cake exists before updating
-        const existingCake = await prisma.clothes.findUnique({
-            where: { id: parseInt(id) }
-        });
-
-        if (!existingCake) {
-            return res.status(404).json({ message: 'Clothes not found' });
-        }
-        
-        // Ensure typeId is provided if updating the type
-        if ('typeId' in req.body && req.body.typeId === null) {
-            return res.status(400).json({ message: 'typeId cannot be null' });
-        }
-
-
-        // Only allow updating fields that exist in the schema
-        const updateData: any = { ...req.body };
-        if ('material' in req.body) updateData.material = req.body.material;
-        if ('information' in req.body) updateData.information = req.body.information;
-
-        const updatedCake = await prisma.clothes.update({
-            where: { id: parseInt(id) },
-            data: updateData,
-        });
-
-        res.status(200).json(updatedCake);
-    } catch (error) {
-        res.status(500).json({ message: 'Internal server error' });
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: 'Invalid clothes ID' });
     }
-}
+
+    const existingCake = await prisma.clothes.findUnique({
+      where: { id },
+      include: { sizes: true, features: true },
+    });
+
+    if (!existingCake) {
+      return res.status(404).json({ message: 'Clothes not found' });
+    }
+
+    const {
+      name,
+      description,
+      price,
+      categoryId,
+      material,
+      information,
+      sizes,
+      features,
+    } = req.body;
+
+    const updateData: any = {
+      name,
+      description,
+      price: price ? parseFloat(price) : undefined,
+      material,
+      information,
+    };
+
+    if (categoryId) {
+      updateData.category = { connect: { id: parseInt(categoryId) } };
+    }
+
+    // Nested update for sizes
+    if (sizes) {
+      const parsedSizes = typeof sizes === 'string' ? JSON.parse(sizes) : sizes;
+      updateData.sizes = {
+        deleteMany: {},
+        create: parsedSizes.map((s: any) => ({
+          label: s.label,
+          quantity: s.quantity,
+        })),
+      };
+    }
+
+    // Nested update for features
+    if (features) {
+      const parsedFeatures = typeof features === 'string' ? JSON.parse(features) : features;
+      updateData.features = {
+        deleteMany: {},
+        create: parsedFeatures.map((f: any) => ({ value: f.value })),
+      };
+    }
+
+    const updatedCake = await prisma.clothes.update({
+      where: { id },
+      data: updateData,
+      include: { sizes: true, features: true },
+    });
+
+    const userId = req.user?.id;
+    const userName = req.user?.name;
+    if (!userId || !userName) {
+      return res.status(400).json({ error: 'User info not found' });
+    }
+
+    await prisma.log.create({
+      data: {
+        userId,
+        userName,
+        action: `${userName} (ID:${userId}) updated clothes ${updatedCake.name} (id=${updatedCake.id})`,
+      },
+    });
+
+    res.status(200).json(updatedCake);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 
 export const listClothesByCategory = async (req: Request, res: Response) => {
     try {
@@ -276,7 +344,21 @@ export const deleteClothes = async (req: Request, res: Response) => {
         await prisma.clothes.delete({
             where: { id: parseInt(id) }
         });
+    const userId = req.user?.id;
+    const userName = req.user?.name;
 
+    if (!userId || !userName) {
+    return res.status(400).json({ error: "User info not found" });
+    }
+
+    // tạo log
+    await prisma.log.create({
+    data: {
+        userId,
+        userName,
+        action: `${userName} (ID:${userId}) had deleted clothes ${cake.name} (id=${cake.id})`,
+    },
+    });
         res.status(200).json({ message: 'Clothes deleted successfully' });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
