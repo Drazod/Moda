@@ -86,7 +86,7 @@ model Size {
   label      String   // ví dụ "M", "L", "XL"
   quantity   Int
   clothesId  Int
-  clothes    Clothes  @relation(fields: [clothesId], references: [id])
+  clothes    Clothes  @relation(fields: [clothesId], references: [id], onDelete: Cascade)
   transactionDetails TransactionDetail[]
   cartItems  CartItem[]
 }
@@ -95,7 +95,7 @@ model Feature {
   id         Int      @id @default(autoincrement())
   value      String   // ví dụ "Cotton 100%"
   clothesId  Int
-  clothes    Clothes  @relation(fields: [clothesId], references: [id])
+  clothes    Clothes  @relation(fields: [clothesId], references: [id], onDelete: Cascade)
 }
 
 
@@ -105,6 +105,7 @@ model Image {
   url        String   @db.VarChar(500) @unique
   ClothesMain   Clothes?    @relation(name: "MainImage")
   ClothesExtras Clothes[]   @relation(name: "ExtraImages")
+  Notice Notice[]
 }
 
 
@@ -186,3 +187,25 @@ model TransactionDetail {
   size           Size         @relation(fields: [sizeId], references: [id])
   createdAt      DateTime     @default(now())
 }
+
+model Notice {
+  id        Int   @id @default(autoincrement())
+  title     String
+  subtitle  String?  
+  content   String
+  imageId   Int?
+  image     Image?   @relation(fields: [imageId], references: [id])
+  pages     Json
+  state     Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Log {
+  id        Int   @id @default(autoincrement())
+  userId    Int
+  userName  String
+  action    String
+  createdAt DateTime @default(now())
+}
+
