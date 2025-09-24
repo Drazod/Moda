@@ -7,12 +7,16 @@ import cartItemRoute from "./cartItem.routes";
 import userRoute from "./user.routes";
 import vnpayRoutes from "./vnpay.routes"; // Add this line
 import uploadRoute from "./upload.routes"; // Add this line
+
 import logRoute from "./log.routes";
 import noticeRoute from "./notice.routes";
 import adminRoute from "./admin.routes"; // Add this line
 import metricRoute from "./metric.routes";
 import reportRoute from "./report.routes";
 import searchRoute from "./search.routes";
+
+import shippingRoute from "./shipping.routes";
+import orderRoute from "./order.routes";
 
 
 const route = Router();
@@ -31,5 +35,9 @@ route.use('/report', reportRoute);
 route.use('/notice', noticeRoute);
 route.use('/log', logRoute);
 route.use('/search', searchRoute);
+
+route.use('/shipping', shippingRoute);
+
+route.use('/order', orderRoute);
 
 export default route;
