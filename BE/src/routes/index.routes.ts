@@ -10,6 +10,7 @@ import uploadRoute from "./upload.routes"; // Add this line
 
 import adminRoute from "./admin.routes"; // Add this line
 import metricRoute from "./metric.routes";
+import reportRoute from "./report.routes";
 import searchRoute from "./search.routes";
 
 
@@ -25,7 +26,7 @@ route.use('/vnpay', vnpayRoutes);
 route.use('/file', uploadRoute);
 route.use('/admin', adminRoute);
 route.use('/metrics', metricRoute);
-
+route.use('/report', reportRoute);
 route.use('/search', searchRoute);
 
 export default route;
