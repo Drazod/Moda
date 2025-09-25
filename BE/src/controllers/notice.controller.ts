@@ -1,11 +1,27 @@
 import { Request, Response } from "express";
 import { prisma } from "..";
 import { uploadToFirebase, deleteImageFromFirebaseAndPrisma } from '../services/upload.services';
+import { io } from '../index';
 
 // GET all notices
+// GET notices with optional filtering by page and userId
 export const getNotices = async (req: Request, res: Response) => {
   try {
-    const notices = await prisma.notice.findMany();
+    const { page } = req.query;
+    const userId = req.user?.id;
+
+    const where: any = {};
+    if (page) {
+      where.pages = { array_contains: [page] };
+    }
+    if (userId) {
+      where.userId = userId;
+    }
+
+    const notices = await prisma.notice.findMany({
+      where,
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(notices);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch notices" });
@@ -73,6 +89,13 @@ export const createNotice = async (req: Request, res: Response) => {
       },
       include: { image: true },
     });
+    // Emit websocket event for new notice (global or page-specific)
+    // If notice is global (no userId), emit to all; if userId, emit to that user's room
+    if (notice.userId) {
+      io.to(String(notice.userId)).emit('new-notice', notice);
+    } else {
+      io.emit('new-notice', notice);
+    }
 
     // log
     const userId = req.user?.id;
@@ -95,6 +118,41 @@ export const createNotice = async (req: Request, res: Response) => {
   }
 };
 
+
+// Helper: Create a notice for a specific user (call this from payment or order update logic)
+export const createOrderNoticeForUser = async ({
+  userId,
+  orderId,
+  type = "arrived",
+  customContent
+}: {
+  userId: number,
+  orderId: number,
+  type?: "arrived" | "shipped" | "refunded" | string,
+  customContent?: string
+}) => {
+  let title = "Your order had arrived";
+  let content = `Any question about refund <a href='/refund'>@click here</a>`;
+  if (type === "shipped") title = "Your order is being shipped";
+  if (type === "refunded") title = "Your order was refunded";
+  if (customContent) content = customContent;
+  const notice = await prisma.notice.create({
+    data: {
+      title,
+      subtitle: `Order #${orderId}`,
+      content,
+      pages: ["profile"],
+      state: true,
+      userId: userId // Make sure your Notice model has a userId field
+    }
+  });
+  // Emit websocket event for new user-specific notice
+  if (notice.userId) {
+    io.to(String(notice.userId)).emit('new-notice', notice);
+  } else {
+    io.emit('new-notice', notice);
+  }
+};
 
 // UPDATE notice state
 export const updateNoticeState = async (req: Request, res: Response) => {

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from "..";
 import querystring from 'querystring';
 import crypto from 'crypto';
+import { createOrderNoticeForUser } from './notice.controller';
 
 const VNPayConfig = {
   tmnCode: "RJOCMWWT",
@@ -13,7 +14,8 @@ const VNPayConfig = {
 // Generate payment URL
 export const createPayment = async (req: Request, res: Response) => {
   const { orderId, amount, orderDescription, orderType, language, bankCode, address, couponCode } = req.body;
-
+  console.log("drazod:", address);
+  console.log("drazod:", couponCode);
   // Get userId from authentication middleware
   const userId = req.user?.id;
   if (!userId) {
@@ -175,6 +177,16 @@ export const handleReturn = async (req: Request, res: Response) => {
           return res.redirect('http://localhost:3000/payment-error?message=DBError');
         }
         // Payment successful, redirect to success page
+        if (couponCode) {
+          await prisma.coupon.update({
+            where: { couponCode },
+            data: { stock: { decrement: 1 } },
+          });
+        }
+        // Create notice for user when payment is successful
+        if (userId && orderId) {
+          await createOrderNoticeForUser({ userId, orderId });
+        }
         return res.redirect(`http://localhost:3000/payment-success?orderId=${orderId}`);
       } else {
         // Payment failed, redirect to failure page

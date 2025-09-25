@@ -13,7 +13,7 @@
     "@emailjs/browser": "^4.4.1",
     "@reduxjs/toolkit": "^2.5.0",
     "aos": "^2.3.4",
-    "axios": "^1.7.9",
+    "axios": "^1.12.2",
     "emailjs": "^4.0.3",
     "formik": "^2.4.6",
     "framer-motion": "^11.14.1",
@@ -26,6 +26,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.0.2",
     "redux": "^5.0.1",
+    "socket.io-client": "^4.8.1",
     "styled-components": "^6.1.19",
     "web-vitals": "^4.2.4"
   },

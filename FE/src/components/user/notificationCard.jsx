@@ -1,40 +1,62 @@
-import React from "react";
 
-const Notification = () => {
-  return (
-    <section className="col-span-2 bg-[#BFAF92] rounded-2xl p-6 shadow-md z-10"> 
-        <h2 className="text-lg font-semibold mb-4">Notification</h2>
-        <div className="space-y-6 text-base text-[#1D1A05]"> <div> 
-            <p className="font-semibold">New Product</p> 
-            <p className="text-sm text-[#696F8C]">| Look at out last release </p>
-            <p className="mt-1 text-sm">
-                 Winter collection with good design 
-                <a href="#" className="text-blue-600">@click here</a>
-            </p> 
-            <p className="text-[#696F8C] text-xs">8 min ago</p> 
-        </div> 
-        <hr /> 
-        <div> 
-            <p className="font-semibold">Your order had arrived</p> 
-            <p className="text-sm text-[#696F8C]">| Order #1233 </p>
-            <p className="mt-1 text-sm">
-                Any question about refund 
-                <a href="#" className="text-blue-600">@click here</a>
-            </p> 
-            <p className="text-[#696F8C] text-xs">12 min ago</p> 
-        </div> 
-        <hr /> 
-        <div> 
-            <p className="font-semibold">New Voucher</p> 
-            <p className="text-sm text-[#696F8C]">Limited time </p>
-            <p>
-                <a href="#" className="text-blue-600">@Go shopping now</a>
-            </p>
-            <p className="text-[#696F8C] text-xs">18 min ago</p> 
-        </div> 
-    </div> 
-</section>
-  );
+
+import React, { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import axiosInstance from '../../configs/axiosInstance';
+
+const API_URL = "/notice"; // Relative to axiosInstance baseURL
+const SOCKET_URL = "http://localhost:4000"; // Replace with your actual Socket URL
+
+const NotificationCard = ({ userId, page }) => {
+    const [notices, setNotices] = useState([]);
+
+    useEffect(() => {
+        const params = {};
+        if (userId) params.userId = userId;
+        if (page) params.page = page;
+        axiosInstance
+            .get(API_URL, { params })
+            .then((res) => setNotices(Array.isArray(res.data) ? res.data : (res.data.notices || [])))
+            .catch(() => {});
+
+        const socket = io(SOCKET_URL, {
+            query: { userId },
+            transports: ["websocket"],
+        });
+        socket.on("new-notice", (notice) => {
+            if (!notice.userId || String(notice.userId) === String(userId)) {
+                setNotices((prev) => [notice, ...prev]);
+            }
+        });
+        return () => socket.disconnect();
+    }, [userId, page]);
+
+    return (
+        <section className="col-span-2 bg-[#BFAF92] rounded-2xl p-6 shadow-md z-10">
+            <h2 className="text-lg font-semibold mb-4">Notification</h2>
+            <div className="space-y-6 text-base text-[#1D1A05]">
+                {notices.length === 0 ? (
+                    <div className="text-sm text-gray-500">No notifications yet.</div>
+                ) : (
+                    notices.map((notice, idx) => (
+                        <React.Fragment key={notice.id}>
+                            <div>
+                                <p className="font-semibold">{notice.title}</p>
+                                {notice.subtitle && (
+                                    <p className="text-sm text-[#696F8C]">| {notice.subtitle}</p>
+                                )}
+                                <p className="mt-1 text-sm">
+                                    <span dangerouslySetInnerHTML={{ __html: notice.content }} />
+                                </p>
+                                <p className="text-[#696F8C] text-xs">{notice.createdAt ? new Date(notice.createdAt).toLocaleString() : ""}</p>
+                            </div>
+                            {idx !== notices.length - 1 && <hr />}
+                        </React.Fragment>
+                    ))
+                )}
+            </div>
+        </section>
+    );
 };
 
-export default Notification;
+export default NotificationCard;

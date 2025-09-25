@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import { PORT, SERVER_URL, firebaseConfig } from './configs';
 import { PrismaClient } from '@prisma/client';
 import route from './routes/index.routes';
@@ -16,6 +17,9 @@ import { initializeApp, cert } from 'firebase-admin/app';
 import { getStorage } from 'firebase-admin/storage';
 
 const app = express();
+const server = http.createServer(app);
+import { initSocket } from './socket';
+export const io = initSocket(server);
 
 import serviceAccount from '../khanh-bakery.json';
 
@@ -50,7 +54,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(route);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server ready at: ${SERVER_URL}`);
     console.log(`Server is running on port ${PORT}`);
 });

@@ -43,13 +43,19 @@ const noticeRoute: Router = Router();
  * @swagger
  * /notice:
  *   get:
- *     summary: Get all notices
+ *     summary: Get notices (optionally filter by page)
  *     tags: [Notice]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: string
+ *         description: Page to filter notices for (e.g., 'user', 'admin', 'welcome page')
  *     responses:
  *       200:
  *         description: A list of notices
  */
-noticeRoute.get("/", getNotices);
+noticeRoute.get("/", authMiddleware, getNotices);
 
 /**
  * @swagger

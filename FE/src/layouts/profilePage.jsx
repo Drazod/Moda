@@ -93,7 +93,7 @@ export default function ProfilePage() {
             <BiLogOutCircle className="mr-2" /> Log out
           </button>
         </section>
-        <NotificationCard />
+        <NotificationCard userId={profile?.id} page="profile" />
       </div>
       <div className="flex-1 mx-4 grid grid-cols-1 md:grid-cols-3 gap-10">
         <RecentOrdersCard

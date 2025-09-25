@@ -3,6 +3,7 @@ import { createVNPayPayment } from "../utils/vnpay";
 import { useCart } from "../context/CartContext";
 import VoucherPanel from "../components/cart/voucherPanel";
 import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../configs/axiosInstance";
 
 const bg = "#E6DAC4";          // modal bg
 const fieldBg = "#CDC2AF";      // input bg
@@ -30,7 +31,7 @@ export default function CartModal({ open, onClose }) {
   }
 }, [open, user]);
   const [showVouchers, setShowVouchers] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState(null);
+  const [selectedVoucher, setSelectedVoucher] = useState("");
 
   const subtotal = useMemo(
     () => items.reduce((s, it) => s + it.price * it.qty, 0),
@@ -45,8 +46,9 @@ export default function CartModal({ open, onClose }) {
       alert("No cart ID found. Please add items to cart.");
       return;
     }
+    console.log("[DEBUG] couponCode before VNPay:", selectedVoucher);
     try {
-      const paymentUrl = await createVNPayPayment({
+      const res = await axiosInstance.post("/vnpay/create-payment", {
         orderId: cartId,
         amount: subtotal,
         orderDescription: `Payment for cart #${cartId}`,
@@ -54,7 +56,9 @@ export default function CartModal({ open, onClose }) {
         language: "vn",
         // Optionally: pass bankCode from form/payment selection
         address: form.address,
+        couponCode: selectedVoucher,
       });
+      const paymentUrl = res.data.paymentUrl;
       window.location.href = paymentUrl;
     } catch (err) {
       alert("Failed to initiate payment. Please try again.");
@@ -385,8 +389,8 @@ export default function CartModal({ open, onClose }) {
     {showVouchers && (
       <VoucherPanel
         onClose={() => setShowVouchers(false)}
-        onApply={(voucherName) => {
-          setSelectedVoucher(voucherName);   // 👈 store voucher name
+        onApply={(couponCode) => {
+          setSelectedVoucher(couponCode);   // store coupon code
           setShowVouchers(false);
         }}
       />

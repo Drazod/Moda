@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axiosInstance from '../../../configs/axiosInstance';
+import { IoPencil, IoTrashOutline } from 'react-icons/io5';
 
 const DashUptNVouchersTable = () => {
     const [coupons, setCoupons] = useState([]);
@@ -32,7 +33,7 @@ const DashUptNVouchersTable = () => {
             couponCode: coupon.couponCode,
             description: coupon.description,
             discount: coupon.discount,
-            expiryDate: coupon.expiryDate ? coupon.expiryDate.slice(0, 10) : '',
+            expiryDate: coupon.expiryDate ? new Date(coupon.expiryDate).toISOString().slice(0, 10) : '',
             stock: coupon.stock,
         });
         setIsActive(coupon.isActive);
@@ -46,6 +47,7 @@ const DashUptNVouchersTable = () => {
                 discount: Number(form.discount),
                 stock: Number(form.stock),
                 isActive,
+                expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : undefined,
             });
             setEditingId(null);
             setForm({ couponCode: '', description: '', discount: '', expiryDate: '', stock: '' });
@@ -114,8 +116,8 @@ const DashUptNVouchersTable = () => {
                                 <td className="py-4 text-right">{c.stock}</td>
                                 <td className="py-4 text-right">{c.isActive ? 'Yes' : 'No'}</td>
                                 <td className="py-4 text-right">
-                                    <button className="text-blue-500 mr-2" onClick={() => handleEdit(c)}>Edit</button>
-                                    <button className="text-red-500" onClick={() => handleDelete(c.id)}>Delete</button>
+                                    <button className="cursor-pointer text-green-500 hover:text-green-700 text-lg mr-2" onClick={() => handleEdit(c)}><IoPencil /></button>
+                                    <button className="cursor-pointer text-red-500 hover:text-red-700 text-lg" onClick={() => handleDelete(c.id)}><IoTrashOutline /></button>
                                 </td>
                             </tr>
                         ))}
