@@ -151,15 +151,15 @@ export const createNotice = async (req: Request, res: Response) => {
 export const createOrderNoticeForUser = async ({
   userId,
   orderId,
-  type = "arrived",
+  type = "ordered",
   customContent
 }: {
   userId: number,
   orderId: number,
-  type?: "arrived" | "shipped" | "refunded" | string,
+  type?: "ordered" | "shipped" | "refunded" | string,
   customContent?: string
 }) => {
-  let title = "Your order had arrived";
+  let title = "Your order has been placed";
   let content = `Any question about refund <a href='/refund'>@click here</a>`;
   if (type === "shipped") title = "Your order is being shipped";
   if (type === "refunded") title = "Your order was refunded";

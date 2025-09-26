@@ -62,7 +62,7 @@ export default function VoucherPanel({ onClose, onApply }) {
                   <p className="text-xs text-gray-500">Stock: {v.stock}</p>
                 </div>
                 <button
-                  onClick={() => onApply(v.couponCode)}
+                  onClick={() => onApply(v.couponCode, v.discount)}
                   className="rounded-full border border-black/30 px-4 py-1 text-[20px] font-medium hover:bg-black/10"
                 >
                   Apply

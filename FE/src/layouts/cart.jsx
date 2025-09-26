@@ -32,7 +32,9 @@ export default function CartModal({ open, onClose }) {
 }, [open, user]);
   const [showVouchers, setShowVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState("");
+  const [voucherDiscount, setVoucherDiscount] = useState(null);
 
+  console.log(voucherDiscount)
   const subtotal = useMemo(
     () => items.reduce((s, it) => s + it.price * it.qty, 0),
     [items]
@@ -50,7 +52,7 @@ export default function CartModal({ open, onClose }) {
     try {
       const res = await axiosInstance.post("/vnpay/create-payment", {
         orderId: cartId,
-        amount: subtotal,
+        amount: total,
         orderDescription: `Payment for cart #${cartId}`,
         orderType: "other",
         language: "vn",
@@ -106,6 +108,13 @@ export default function CartModal({ open, onClose }) {
     }
     updateQty(cartItemId, item.qty + 1);
   };
+  const total = useMemo(() => {
+    if (!voucherDiscount) return subtotal;
+    if (voucherDiscount < 1) {
+      return subtotal * (1 - voucherDiscount);
+    }
+    return Math.max(subtotal * (100 - voucherDiscount) / 100, 0);
+  }, [subtotal, voucherDiscount]);
   const dec = (cartItemId) => {
     const item = items.find((it) => it.cartItemId === cartItemId);
     if (!item) return;
@@ -360,7 +369,7 @@ export default function CartModal({ open, onClose }) {
             <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Sub Total</span>
               <span className="font-semibold">
-                ${subtotal.toFixed(2)}
+                VND{total.toFixed(2)}
               </span>
             </div>
 
@@ -389,8 +398,9 @@ export default function CartModal({ open, onClose }) {
     {showVouchers && (
       <VoucherPanel
         onClose={() => setShowVouchers(false)}
-        onApply={(couponCode) => {
+        onApply={(couponCode, discount) => {
           setSelectedVoucher(couponCode);   // store coupon code
+          setVoucherDiscount(discount);      // store voucher discount
           setShowVouchers(false);
         }}
       />
@@ -398,3 +408,6 @@ export default function CartModal({ open, onClose }) {
     </div>
   );
 }
+
+
+
