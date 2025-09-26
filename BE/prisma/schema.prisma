@@ -196,7 +196,7 @@ model Notice {
   imageId   Int?
   image     Image?   @relation(fields: [imageId], references: [id])
   pages     Json
-  userId    Int      // <-- Add this line
+  userId    Int?      // <-- Add this line
   user      User?  @relation(fields: [userId], references: [id])
   state     Boolean   @default(false)
   createdAt DateTime  @default(now())

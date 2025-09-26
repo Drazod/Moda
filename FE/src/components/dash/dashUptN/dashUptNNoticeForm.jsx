@@ -24,8 +24,8 @@ const DashUptNNoticeForm = ({ mode, notice, onClose, onCreated }) => {
     };
 
     const handlePageChange = (e) => {
-        const value = e.target.value;
-        setForm((prev) => ({ ...prev, pages: [value] }));
+        const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+        setForm((prev) => ({ ...prev, pages: selectedOptions }));
     };
 
     const handleImageChange = (e) => {
@@ -50,7 +50,7 @@ const DashUptNNoticeForm = ({ mode, notice, onClose, onCreated }) => {
             data.append('content', form.content);
             data.append('pages', JSON.stringify(form.pages));
             if (form.subtitle) data.append('subtitle', form.subtitle);
-            data.append('state', form.state);
+            data.append('state', form.state ? 'true' : 'false');
             if (form.pages.includes('welcome page') && image) {
                 data.append('image', image);
             }
@@ -89,13 +89,22 @@ const DashUptNNoticeForm = ({ mode, notice, onClose, onCreated }) => {
                             <textarea name="content" value={form.content} onChange={handleChange} rows="4" placeholder="content..." className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" required></textarea>
                         </div>
                         <div>
-                            <label className="text-sm font-medium">Page</label>
-                            <select name="pages" value={form.pages[0] || ''} onChange={handlePageChange} className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" required>
-                                <option value="">Select page</option>
-                                <option value="welcome page">Welcome Page</option>
-                                <option value="home page">Home Page</option>
+                            <label className="text-sm font-medium">Page(s)</label>
+                            <select
+                                name="pages"
+                                multiple
+                                value={form.pages}
+                                onChange={handlePageChange}
+                                className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]"
+                                required
+                                size={4}
+                            >
+                                <option value="welcomepage">Welcome Page</option>
+                                <option value="homepage">Home Page</option>
+                                <option value="profile">Profile Page</option>
                                 <option value="others">Others</option>
                             </select>
+                            <div className="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple pages.</div>
                         </div>
                         <div className="flex items-center gap-2">
                             <input name="state" type="checkbox" checked={form.state} onChange={handleChange} id="notice-state" />

@@ -24,9 +24,16 @@ const NotificationCard = ({ userId, page }) => {
             transports: ["websocket"],
         });
         socket.on("new-notice", (notice) => {
-            if (!notice.userId || String(notice.userId) === String(userId)) {
+            // Show if for this user OR for this page
+            const isForUser = !notice.userId || String(notice.userId) === String(userId);
+            const isForPage = Array.isArray(notice.pages) && notice.pages.includes(page);
+            if (isForUser || isForPage) {
                 setNotices((prev) => [notice, ...prev]);
             }
+        });
+
+        socket.on("remove-notice", (noticeId) => {
+            setNotices((prev) => prev.filter((n) => n.id !== noticeId));
         });
         return () => socket.disconnect();
     }, [userId, page]);

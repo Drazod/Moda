@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getNotices, createNotice, updateNoticeState } from "../controllers/notice.controller";
+import { getNotices, createNotice, updateNoticeState, getAdminNotices } from "../controllers/notice.controller";
 import authMiddleware from "../middlewares/authentication";
 import authorize from "../middlewares/authorization";
 import multer from 'multer';
@@ -56,6 +56,18 @@ const noticeRoute: Router = Router();
  *         description: A list of notices
  */
 noticeRoute.get("/", authMiddleware, getNotices);
+
+/**
+ * @swagger
+ * /notice/admin:
+ *   get:
+ *     summary: Get all global/page notices (not user-specific)
+ *     tags: [Notice]
+ *     responses:
+ *       200:
+ *         description: A list of global/page notices
+ */
+noticeRoute.get("/admin", authMiddleware, authorize(["ADMIN"]), getAdminNotices);
 
 /**
  * @swagger

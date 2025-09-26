@@ -1,9 +1,24 @@
+
 import { Request, Response } from "express";
 import { prisma } from "..";
 import { uploadToFirebase, deleteImageFromFirebaseAndPrisma } from '../services/upload.services';
 import { io } from '../index';
 
-// GET all notices
+// GET all notices for admin (exclude user-specific)
+export const getAdminNotices = async (req: Request, res: Response) => {
+  try {
+    const notices = await prisma.notice.findMany({
+      where: {
+        userId: { equals: null as any } // Only global/page notices, not user-specific
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.json({ notices });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Failed to fetch admin notices', details: err });
+  }
+};
 // GET notices with optional filtering by page and userId
 export const getNotices = async (req: Request, res: Response) => {
   try {
@@ -14,8 +29,13 @@ export const getNotices = async (req: Request, res: Response) => {
     if (page) {
       where.pages = { array_contains: [page] };
     }
+    // Only return notices with state=true
+    where.state = true;
     if (userId) {
-      where.userId = userId;
+      where.OR = [
+        { userId: userId },
+        { userId: { equals: null as any } }
+      ];
     }
 
     const notices = await prisma.notice.findMany({
@@ -32,6 +52,14 @@ export const getNotices = async (req: Request, res: Response) => {
 export const createNotice = async (req: Request, res: Response) => {
   try {
     const { title, subtitle, content, pages, state } = req.body;
+
+    // Parse state to boolean if it's a string
+    let parsedState: boolean = false;
+    if (typeof state === 'boolean') {
+      parsedState = state;
+    } else if (typeof state === 'string') {
+      parsedState = state === 'true' || state === '1';
+    }
 
     // Kiểm tra các trường bắt buộc
     if (!title || !content || !pages) {
@@ -84,7 +112,7 @@ export const createNotice = async (req: Request, res: Response) => {
         subtitle: subtitle ?? null,
         content,
         pages: parsedPages,
-        state: state ?? false,
+        state: parsedState,
         ...(mainImage ? { image: { connect: { id: mainImage.id } } } : {}),
       },
       include: { image: true },
@@ -171,7 +199,20 @@ export const updateNoticeState = async (req: Request, res: Response) => {
       where: { id },
       data: { state },
     });
-
+    if (notice.state) {
+      if (notice.userId) {
+        io.to(String(notice.userId)).emit('new-notice', notice);
+      } else {
+        io.emit('new-notice', notice);
+      }
+    } else {
+      // Optionally emit a remove event, e.g.:
+      if (notice.userId) {
+        io.to(String(notice.userId)).emit('remove-notice', notice.id);
+      } else {
+        io.emit('remove-notice', notice.id);
+      }
+    }
     await prisma.log.create({
       data: {
         userId,

@@ -15,8 +15,18 @@ const DashUptNNoticesList = ({ onEditNotice }) => {
         try {
             setLoading(true);
             setError(null);
-            const res = await axiosInstance.get('/notice');
-            setNotices(res.data || []);
+            const res = await axiosInstance.get('/notice/admin');
+            console.log(res.data);
+            // Ensure notices is always an array
+            let data = res.data;
+            if (!Array.isArray(data)) {
+                if (data && Array.isArray(data.notices)) {
+                    data = data.notices;
+                } else {
+                    data = [];
+                }
+            }
+            setNotices(data);
         } catch (err) {
             setError('Failed to fetch notices');
         } finally {
@@ -25,6 +35,16 @@ const DashUptNNoticesList = ({ onEditNotice }) => {
     };
 
     const getStatusClass = (state) => state ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+
+    // Toggle state handler
+    const handleToggleState = async (notice) => {
+        try {
+            await axiosInstance.put(`/notice/${notice.id}/state`, { state: !notice.state });
+            fetchNotices();
+        } catch (err) {
+            alert('Failed to update state');
+        }
+    };
 
     return (
         <div className="space-y-2">
@@ -39,7 +59,13 @@ const DashUptNNoticesList = ({ onEditNotice }) => {
                     <div key={notice.id} className="flex justify-between items-center p-3 bg-white rounded-lg shadow-sm">
                         <p>{notice.title}</p>
                         <div className="flex items-center space-x-4">
-                            <span className={`px-3 py-1 text-sm rounded-full ${getStatusClass(notice.state)}`}>{notice.state ? 'Active' : 'Disable'}</span>
+                            <span
+                                className={`px-3 py-1 text-sm rounded-full cursor-pointer ${getStatusClass(notice.state)}`}
+                                title="Click to toggle state"
+                                onClick={() => handleToggleState(notice)}
+                            >
+                                {notice.state ? 'Active' : 'Disable'}
+                            </span>
                             <IoPencil 
                                 onClick={() => onEditNotice(notice)} 
                                 className="cursor-pointer text-green-500 hover:text-green-700 text-lg"
