@@ -1,10 +1,61 @@
+
+import { sendOtpEmail } from '../utils/email';
 import { Request, Response } from 'express';
 import { prisma } from "..";// adjust import to where you export prisma
 import { Prisma } from '@prisma/client';
 import { getPresenceCounts } from '../services/presence.services';
+import { hashSync } from 'bcryptjs';
 
 type Range = { from: Date; to: Date };
 const ONE_DAY = 24 * 60 * 60 * 1000;
+
+
+// 2. Secure admin creation endpoint (only SUPER_ADMIN can create)
+export const createAdminAccount = async (req: Request, res: Response) => {
+  try {
+    const requester = req.user;
+    if (!requester || requester.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Forbidden: Only super admins can create admin accounts.' });
+    }
+    const { name, email, password, phone, address } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Missing required fields.' });
+    }
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ error: 'User already exists.' });
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const newAdmin = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashSync(password, 10),
+        role: 'ADMIN',
+        isVerified: false,
+        phone: phone || 'N/A',
+        address: address || 'N/A',
+        otpCode: otp,
+        otpExpiry
+      }
+    });
+    // 3. Log admin creation
+    await prisma.log.create({
+      data: {
+        userId: requester.id,
+        userName: requester.name,
+        action: `created admin account for ${name} (${email})`,
+      }
+    });
+    // Send OTP email for verification
+    await sendOtpEmail(email, otp);
+    res.status(201).json({ message: 'Admin account created. Please check email for OTP.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create admin account.' });
+  }
+};
+
 
 function parseRange(q: any): Range {
   const now = new Date();
@@ -180,3 +231,19 @@ export async function getAdminOverview(req: Request, res: Response) {
     res.status(500).json({ message: 'Internal server error' });
   }
 }
+// Admin: Get list of users with id, name, role, isVerified
+export const getAllUsersForAdmin = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        isVerified: true,
+      }
+    });
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+};

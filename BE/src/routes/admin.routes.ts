@@ -1,9 +1,8 @@
-// src/routes/admin.overview.route.ts
+// src/routes/admin.routes.ts
 import { Router } from 'express';
-import { getAdminOverview } from '../controllers/admin.controller';
+import { getAdminOverview, getAllUsersForAdmin, createAdminAccount } from '../controllers/admin.controller';
 import authMiddleware from '../middlewares/authentication';
 import authorize from '../middlewares/authorization';
-import router from './vnpay.routes';
 
 const adminRoute: Router = Router();
 
@@ -13,6 +12,12 @@ adminRoute.get(
   authorize(['ADMIN']), // adjust if you have 'HOST' etc.
   getAdminOverview
 );
+
+// Admin: Get list of users (id, name, role, isVerified)
+adminRoute.get('/users', authMiddleware, authorize(['ADMIN']), getAllUsersForAdmin);
+
+// Secure admin creation endpoint (only SUPER_ADMIN)
+adminRoute.post('/create-admin', authMiddleware, authorize(['SUPER_ADMIN']), createAdminAccount);
 
 export default adminRoute;
 

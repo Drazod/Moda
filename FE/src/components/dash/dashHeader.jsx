@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react'; // Update
+import React, { useState, useEffect, useRef } from 'react';
 import { FaChevronDown, FaBell } from 'react-icons/fa';
 import adminAvatar from '../../assets/dash/dashUser/dashUser_Logo.jpg';
+import { useAuth } from '../../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 const DashHeader = () => {
-  
-  // Update
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -46,16 +47,19 @@ const DashHeader = () => {
               className="w-10 h-10 rounded-full object-cover"
             />
             <div>
-              <p className="font-semibold text-sm">Zod Father</p>
-              <p className="text-xs text-gray-500">Product manager</p>
+              <p className="font-semibold text-sm">{user?.name || 'Unknown'}</p>
+              <p className="text-xs text-gray-500">{user?.role || 'Role'}</p>
             </div>
             <FaChevronDown className={`text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </div>
 
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
-              <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-              <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
+              <a href="/dash-board/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+              <a href="/dash-board/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
+              {user?.role === 'host' && (
+                <a href="/dash-board/create-admin" className="block px-4 py-2 text-sm text-green-700 hover:bg-green-100">Create Admin</a>
+              )}
               <div className="border-t my-1"></div>
               <a href="#" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Logout</a>
             </div>

@@ -9,6 +9,11 @@ const DashUM_Main = () => {
   // state - edit user
   const [selectedUser, setSelectedUser] = useState(null);
 
+  // filter/sort state
+  const [filterDays, setFilterDays] = useState(30);
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [filterStatus, setFilterStatus] = useState('all');
+
   // open popup
   const handleEditUser = (user) => {
     setSelectedUser(user);
@@ -19,27 +24,32 @@ const DashUM_Main = () => {
   const handleClosePopup = () => {
     setIsPopupOpen(false);
     setSelectedUser(null);
-  };    
+  };
 
   return (
     <>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">User manage</h2>
         <div className="flex items-center space-x-4">
-            <button className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center text-sm">
+            <button className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center text-sm" onClick={() => setFilterDays(30)}>
                 Last 30 days <FaChevronDown className="ml-2 text-xs" />
             </button>
-            <button className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center text-sm">
-                Ascending Id <FaChevronDown className="ml-2 text-xs" />
+            <button className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center text-sm" onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>
+                {sortOrder === 'asc' ? 'Ascending Id' : 'Descending Id'} <FaChevronDown className="ml-2 text-xs" />
             </button>
-            <button className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center text-sm">
+            <button className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center text-sm" onClick={() => setFilterStatus(filterStatus === 'all' ? 'verified' : 'all')}>
                 Status <FaChevronDown className="ml-2 text-xs" />
             </button>
         </div>
       </div>
       
       {/* Component table */}
-      <DashUMTable onEditUser={handleEditUser} />
+      <DashUMTable
+        onEditUser={handleEditUser}
+        filterDays={filterDays}
+        sortOrder={sortOrder}
+        filterStatus={filterStatus}
+      />
 
       {/* Render component popup */}
       {isPopupOpen && <DashUMEditPopup user={selectedUser} onClose={handleClosePopup} />}

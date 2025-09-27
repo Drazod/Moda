@@ -28,6 +28,9 @@ import RequireAdmin from "./utils/RequireAdmin.jsx";
 import RequireAuth from "./utils/RequireAuth";
 import PublicOnly from "./utils/PublicOnly";
 import usePresenceHeartbeat from '../src/hooks/usePresenceHeartbeat';
+import AdminProfile from './layouts/dash/adminProfile.jsx';
+import AdminSettings from './layouts/dash/adminSettings.jsx';
+import CreateAdminAccount from './layouts/dash/createAdminAccount.jsx';
 const App = () => {
   usePresenceHeartbeat(20000);
   return (
@@ -68,7 +71,10 @@ const App = () => {
         } />
         {/* dash's Route */}
         <Route path="/dash-board" element={
-          <RequireAdmin><DashLayout /></RequireAdmin>
+          <RequireAdmin>
+            <DashLayout />
+
+          </RequireAdmin>
         }>
           <Route index element={<DashBoard_Main />} />
           {/* Other routes for dash's properties*/}
@@ -77,6 +83,11 @@ const App = () => {
           <Route path="users-manage" element={<DashUM_Main />} />
           <Route path="products-manage" element={<DashPdM_Main />} />
           <Route path="update-notices" element={<DashUptN_Main />} />
+          <Route path="profile" element={<AdminProfile />} />
+          <Route path="settings" element={<AdminSettings />} />
+          <Route path="create-admin" element={<CreateAdminAccount />} />
+          {/* Admin pages */}
+
         </Route>
   </Routes>
   </CartProvider>

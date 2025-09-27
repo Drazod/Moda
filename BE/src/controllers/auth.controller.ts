@@ -1,4 +1,5 @@
 
+
 import { NextFunction, Request, Response } from "express";
 import { prisma } from "..";
 import jwt from "jsonwebtoken";
@@ -22,6 +23,28 @@ export const Register = async (req: Request, res: Response, next: NextFunction) 
         });
 
         if (user) {
+            // If user exists and is disabled (add your state field, e.g. isActive or isVerified)
+            if (user.isVerified === false) { // or use your own state field
+                // Reactivate account
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        name,
+                        password: hashSync(password, 10),
+                        phone,
+                        address: address || "N/A",
+                        otpCode: otp,
+                        otpExpiry: otpExpiry,
+                        isVerified: false // or your own state field
+                    }
+                });
+                const { sendOtpEmail } = await import('../utils/email');
+                await sendOtpEmail(email, otp);
+                return res.status(200).json({ message: "Account reactivated. Please check your email for the OTP code." });
+            }
+            // If user is active, block registration
             return res.status(400).json({ message: "User already exists" });
         }
 
@@ -35,10 +58,10 @@ export const Register = async (req: Request, res: Response, next: NextFunction) 
                 email,
                 password: hashSync(password, 10),
                 phone,
-                address: "N/A",
+                address: address || "N/A",
                 otpCode: otp,
                 otpExpiry: otpExpiry,
-                isVerified: false
+                isVerified: false // or your own state field
             },
         });
 
