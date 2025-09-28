@@ -105,11 +105,13 @@ export default function ProfilePage() {
         />
 
         <OrderStatusCard
-          items={[
-            { id: "#1239", item: "Shirt, Jean", date: "10/12/2024", price: "200.000 VND", status: "prepare" },
-            { id: "#1240", item: "Shirt, Jean", date: "11/12/2024", price: "200.000 VND", status: "ongoing" },
-            { id: "#1241", item: "Shirt, Jean", date: "12/12/2024", price: "200.000 VND", status: "completed" },
-          ]}
+          items={transactions.map(tx => ({
+            id: tx.orderId,
+            item: tx.items ? tx.items.join(', ') : '',
+            date: (typeof tx.date === 'string' && tx.date.includes(',')) ? tx.date.split(',')[1].trim() : tx.date,
+            price: tx.price,
+            status: tx.status || 'unknown',
+          }))}
         />
       </div>
     </div>

@@ -56,12 +56,15 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                     .filter(Boolean)
                     .join(', ');
             }
+            // Get state from first associated shipping record, if available
+            let state = t.shipping && t.shipping.length > 0 ? t.shipping[0].State : undefined;
             return {
                 orderId: `#${t.id}`,
                 detail,
                 date,
                 time,
-                price: formatPrice(t.amount)
+                price: formatPrice(t.amount),
+                state // Transaction state from shipping
             };
         });
 
