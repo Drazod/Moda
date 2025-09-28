@@ -3,11 +3,11 @@ import { Formik, Form, Field } from 'formik';
 import axiosInstance from '../configs/axiosInstance';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import Facebook from '../assets/login/facebook.png';
-import Instagram from '../assets/login/instagram.png';
-import YouTube from '../assets/login/youtube.png';
-import TikTok from '../assets/login/tiktok.png';
-import ImageBG from '../assets/login/imageBG.png';
+import Facebook from '../assets/login/Facebook.png';
+import Instagram from '../assets/login/Instagram.png';
+import YouTube from '../assets/login/YouTube.png';
+import TikTok from '../assets/login/TikTok.png';
+import ImageBG from '../assets/login/ImageBG.png';
 import GroupImg from '../assets/login/GroupImage.png';
 import { useNavigate } from 'react-router-dom';
 
