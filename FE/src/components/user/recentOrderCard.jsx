@@ -6,7 +6,7 @@ export default function RecentOrdersCard({ orders = [] }) {
      {/* Header above card */}
       <div className="flex items-center justify-between px-1 md:px-2 mb-2">
         <h3 className="text-lg font-semibold">Recently order</h3>
-        <button className="text-sm font-medium text-[#7f76c2]">show full</button>
+  <a href="/transactions" className="text-sm font-medium text-[#7f76c2]">show full</a>
       </div>
 
       {/* Card box */}

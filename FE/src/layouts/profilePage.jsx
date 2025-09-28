@@ -107,10 +107,10 @@ export default function ProfilePage() {
         <OrderStatusCard
           items={transactions.map(tx => ({
             id: tx.orderId,
-            item: tx.items ? tx.items.join(', ') : '',
+            item: tx.detail ? tx.detail : '',
             date: (typeof tx.date === 'string' && tx.date.includes(',')) ? tx.date.split(',')[1].trim() : tx.date,
             price: tx.price,
-            status: tx.status || 'unknown',
+            status: tx.state || 'unknown',
           }))}
         />
       </div>
