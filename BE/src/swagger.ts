@@ -10,7 +10,7 @@ const options = {
     },
     servers: [
       {
-        url: "http://moda-production.up.railway.app",
+        url: "https://moda-production.up.railway.app",
       },
     ],
     components: {

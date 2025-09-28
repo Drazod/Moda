@@ -8,7 +8,7 @@ const VNPayConfig = {
   tmnCode: "RJOCMWWT",
   hashSecret: "FPP5WJL2BAZHHJP479I8R969UO80Q0S7",
   vnpUrl: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html', // Sandbox URL
-  returnUrl: 'http://moda-production.up.railway.app/vnpay/payment-return', // Update with your return URL
+  returnUrl: 'https://moda-production.up.railway.app/vnpay/payment-return', // Update with your return URL
 };
 
 // Generate payment URL
