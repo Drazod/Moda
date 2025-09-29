@@ -209,33 +209,19 @@ export const changePassword = async (req: Request, res: Response) => {
             }
         });
         console.log('Password history stored for user ID:', req.user.id);
-        // Try to send email notification
+        // Try to send email notification (non-blocking)
         try {
             const { sendPasswordChangeNotification } = require('../utils/email');
             await sendPasswordChangeNotification(user.email, user.name, rollbackToken);
+            console.log('Password change email sent successfully for user ID:', req.user.id);
+            res.status(200).json({ message: "Password changed successfully. Confirmation email sent." });
         } catch (emailError) {
             console.error('Failed to send password change email:', emailError);
-            // Rollback password change if email fails
-            await prisma.user.update({
-                where: {
-                    id: req.user.id
-                },
-                data: {
-                    password: originalPassword
-                }
-            });
-            // Clean up password history
-            await prisma.passwordHistory.deleteMany({
-                where: {
-                    rollbackToken: rollbackToken
-                }
-            });
-            return res.status(500).json({ 
-                message: "Password change failed due to email notification error. Please try again." 
+            // Don't rollback - password change was successful, just email failed
+            res.status(200).json({ 
+                message: "Password changed successfully. Email notification failed but your password is updated." 
             });
         }
-
-        res.status(200).json({ message: "Password changed successfully. Confirmation email sent." });
     } catch (error) {
         console.error('Password change error:', error);
         res.status(500).json({ message: "Internal server error" });
