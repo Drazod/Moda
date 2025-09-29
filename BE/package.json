@@ -4,9 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "start": "ts-node src/index.ts"
-  },
-  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon --exec ts-node src/index.ts",
     "clear": "rmdir /s /q build",
@@ -39,6 +36,7 @@
     "cors": "^2.8.5",
     "firebase": "^12.2.1",
     "firebase-admin": "^13.5.0",
+    "googleapis": "^160.0.0",
     "ioredis": "^5.7.0",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
@@ -49,4 +47,3 @@
     "swagger-ui-express": "^5.0.1"
   }
 }
-
