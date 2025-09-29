@@ -198,7 +198,7 @@ export const changePassword = async (req: Request, res: Response) => {
                 password: hashSync(newPassword, 10)
             }
         });
-
+        console.log('Password updated in database for user ID:', req.user.id);
         // Store password history for rollback
         await prisma.passwordHistory.create({
             data: {
@@ -208,7 +208,7 @@ export const changePassword = async (req: Request, res: Response) => {
                 tokenExpiry: tokenExpiry
             }
         });
-
+        console.log('Password history stored for user ID:', req.user.id);
         // Try to send email notification
         try {
             const { sendPasswordChangeNotification } = require('../utils/email');
