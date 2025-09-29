@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 // Gmail API configuration
 const oauth2Client = new google.auth.OAuth2(
@@ -22,17 +23,22 @@ const createGmailTransporter = async () => {
       const accessToken = await oauth2Client.getAccessToken();
       
       console.log('Gmail API access token obtained successfully');
-      return nodemailer.createTransport({
-        service: 'gmail',
+      
+      const transportOptions: SMTPTransport.Options = {
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: {
           type: 'OAuth2',
-          user: process.env.EMAIL_USER,
-          clientId: process.env.GMAIL_CLIENT_ID,
-          clientSecret: process.env.GMAIL_CLIENT_SECRET,
-          refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-          accessToken: accessToken.token,
+          user: process.env.EMAIL_USER!,
+          clientId: process.env.GMAIL_CLIENT_ID!,
+          clientSecret: process.env.GMAIL_CLIENT_SECRET!,
+          refreshToken: process.env.GMAIL_REFRESH_TOKEN!,
+          accessToken: accessToken.token!,
         },
-      });
+      };
+      
+      return nodemailer.createTransport(transportOptions);
     } catch (error) {
       console.error('Failed to create Gmail API transporter:', error);
       console.log('Falling back to Gmail app password method...');
