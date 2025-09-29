@@ -1,69 +1,21 @@
-import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
-// Gmail API configuration
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GMAIL_CLIENT_ID,
-  process.env.GMAIL_CLIENT_SECRET,
-  'https://developers.google.com/oauthplayground' // redirect URL
-);
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+// Simple Gmail transporter with app password (avoids OAuth2 memory issues)
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465, // Use port 465 for SSL
+  secure: true, // Use SSL
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // Use Gmail App Password
+  },
+  connectionTimeout: 60000, // 60 seconds
+  greetingTimeout: 30000, // 30 seconds
+  socketTimeout: 60000, // 60 seconds
 });
-
-// Create transporter using Gmail API
-const createGmailTransporter = async () => {
-  // Check if Gmail API credentials are available
-  if (process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && process.env.GMAIL_REFRESH_TOKEN) {
-    console.log('Attempting to use Gmail API...');
-    
-    try {
-      const accessToken = await oauth2Client.getAccessToken();
-      
-      console.log('Gmail API access token obtained successfully');
-      
-      const transportOptions: SMTPTransport.Options = {
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          type: 'OAuth2',
-          user: process.env.EMAIL_USER!,
-          clientId: process.env.GMAIL_CLIENT_ID!,
-          clientSecret: process.env.GMAIL_CLIENT_SECRET!,
-          refreshToken: process.env.GMAIL_REFRESH_TOKEN!,
-          accessToken: accessToken.token!,
-        },
-      };
-      
-      return nodemailer.createTransport(transportOptions);
-    } catch (error) {
-      console.error('Failed to create Gmail API transporter:', error);
-      console.log('Falling back to Gmail app password method...');
-    }
-  } else {
-    console.log('Gmail API credentials not found, using app password method...');
-  }
-  
-  // Fallback to app password method
-  if (!process.env.EMAIL_PASS) {
-    throw new Error('Neither Gmail API credentials nor app password found. Please check environment variables.');
-  }
-  
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-};
 
 export async function sendOtpEmail(to: string, otp: string) {
   try {
-    const transporter = await createGmailTransporter();
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to,
@@ -82,7 +34,6 @@ export async function sendOtpEmail(to: string, otp: string) {
 
 export async function sendPasswordChangeNotification(to: string, name: string, rollbackToken: string) {
   try {
-    const transporter = await createGmailTransporter();
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to,
