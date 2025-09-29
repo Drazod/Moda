@@ -1,4 +1,4 @@
-import React,{useEffect} from "react";
+import React,{useEffect, useState} from "react";
 import Header from "../components/header";
 import Footer from "../components/footer";
 import featurepic from "../assets/homepage/featurepic.png";
@@ -13,9 +13,12 @@ import product3 from "../assets/homepage/product3.png";
 import product4 from "../assets/homepage/product4.png";
 import { BsArrowRight } from "react-icons/bs";
 import Contact from "../components/homePage/contact";
+import VoucherPanel from "../components/cart/voucherPanel";
 import AOS from "aos";
 import "aos/dist/aos.css";
 const Home = () => {
+  const [showVoucherPanel, setShowVoucherPanel] = useState(false);
+
   useEffect(() => {
     AOS.init({
       duration: 1000,
@@ -23,6 +26,12 @@ const Home = () => {
       easing: "ease-in-out", 
     });
   }, []);
+
+  const handleVoucherApply = (voucher) => {
+    // Handle voucher application logic here
+    console.log('Applied voucher:', voucher);
+    setShowVoucherPanel(false);
+  };
   return (
   <div className="relative-container noise-overlay min-h-screen flex flex-col">
     <Header />
@@ -36,7 +45,7 @@ const Home = () => {
           </h1>
           <div className="mt-10">
             <a
-              href="#shop"
+              href="/store"
               className=" text-black border-[0.5px] border-black py-2 px-6 rounded-full hover:bg-gray-700"
             >
                 <span>TRY ON NOW</span>
@@ -80,8 +89,8 @@ const Home = () => {
             <div className="space-x-32 flex flex-col lg:flex-row">
               <h3 className="text-4xl font-karla font-bold leading-tight">Choose the best</h3>
               <p className="lg:w-1/2 text-xl font-Jsans text-gray-700">
-                Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.
-                Nulla consequat massa quis enim.
+                Discover premium quality fashion that speaks to your unique style.
+                Every piece is carefully curated for the modern trendsetter.
               </p>
             </div>
 
@@ -131,10 +140,10 @@ const Home = () => {
           </div>
           <div>
             <p className="font-Jsans text-base text-[#434237] font-medium">
-                Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.
+                Step into a world of endless possibilities with our exclusive collection.
             </p>
           </div>
-          <div className="flex flex-col items-center space-x-4 lg:col-span-2">
+          <div className="flex flex-col items-center space-x-4 lg:col-span-2 cursor-pointer" onClick={() => setShowVoucherPanel(true)}>
             <div className=" p-4  w-full h-[211px] flex items-center justify-center"
                 style={{
                   backgroundImage: `url(${discount})`,
@@ -146,7 +155,7 @@ const Home = () => {
             <div>
               <p className="text-4xl font-karla text-[#353535] font-bold">take your discount</p>
               <p className="mt-2 font-Jsans text-base text-[#434237] font-medium">
-                Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.
+                Save big on your favorite styles. Limited time offers on premium fashion.
               </p>
             </div>
           </div>
@@ -159,25 +168,25 @@ const Home = () => {
               title: "NEW STREET STYLE",
               image: product1,
               description:
-                "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.",
+                "Urban fashion that makes a statement. Bold designs for the city explorer.",
             },
             {
               title: "YOUR WINTER LOOK",
               image: product2,
               description:
-                "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.",
+                "Cozy elegance meets modern style. Stay warm while looking effortlessly chic.",
             },
             {
               title: "EVERYDAY WEAR SUITABLE",
               image: product3,
               description:
-                "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.",
+                "Comfortable basics that transition seamlessly from day to night.",
             },
             {
               title: "OLD BUT GOLD",
               image: product4,
               description:
-                "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem.",
+                "Timeless classics reimagined. Vintage-inspired pieces with contemporary flair.",
             },
           ].map((product, index) => (
             <div
@@ -198,7 +207,7 @@ const Home = () => {
                 <p className=" font-Jsans text-[#434237] text-base">{product.description}</p>
                 <div>
                   <a
-                    href="#shop"
+                    href="/store"
                     className="text-base text-black font-Jsans font-bold  hover:text-gray-700"
                   >
                     SHOP NOW
@@ -221,15 +230,23 @@ const Home = () => {
       <section className="border-t border-[#434237] mx-10 py-8 px-12 font-Jsans">
         <div className="container  text-left">
           <p className="text-[#434237] text-sm font-light leading-relaxed">
-          1. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim.
+          1. Free shipping on orders over $50. Express delivery available nationwide.
           </p>
           <p className="text-[#434237] text-sm font-light leading-relaxed">
-          2. Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim.
+          2. Easy returns within 30 days. Customer satisfaction is our top priority.
           </p>
         </div>
       </section>
     </div>
     <Footer/>
+    
+    {/* Voucher Panel Modal */}
+    {showVoucherPanel && (
+      <VoucherPanel 
+        onClose={() => setShowVoucherPanel(false)} 
+        onApply={handleVoucherApply}
+      />
+    )}
   </div>
   );
 };

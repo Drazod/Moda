@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { OpenAI } from 'openai';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { prisma } from '..';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
@@ -28,7 +29,36 @@ export const semanticSearch = async (req: Request, res: Response) => {
     // Set a score threshold (e.g., 0.75 for cosine similarity)
     const SCORE_THRESHOLD = 0.35;
     const filteredMatches = (results.matches || []).filter(match => match.score !== undefined && match.score >= SCORE_THRESHOLD);
-    res.status(200).json({ results: filteredMatches });
+    
+    // Extract product IDs from search results
+    const productIds = filteredMatches.map(match => 
+      parseInt(match.metadata?.id as string)
+    ).filter(id => !isNaN(id));
+
+    if (productIds.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    // Fetch full product details from database in the same format as clothesList
+    const products = await prisma.clothes.findMany({
+      where: {
+        id: { in: productIds }
+      },
+      include: {
+        category: true,
+        mainImg: true,
+        extraImgs: true,
+        sizes: true,
+        features: true,
+      },
+    });
+
+    // Sort products by search relevance (maintain Pinecone order)
+    const sortedProducts = productIds.map(id => 
+      products.find(product => product.id === id)
+    ).filter(Boolean);
+
+    res.status(200).json(sortedProducts);
   } catch (error) {
     console.error('Semantic search error:', error);
     res.status(500).json({ message: 'Internal server error' });

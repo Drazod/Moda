@@ -44,7 +44,7 @@ function OrderStatusCard({ items = [] }) {
         className="col-span-2 rounded-2xl shadow z-10"
         style={{ background: "#BFAF92" }}
       >
-        <div className="space-y-3 px-5 pb-5 pt-3">
+        <div className="space-y-3 px-5 pb-3 pt-3">
           {paginatedItems.map((o) => {
             const status = o.status || "prepare";
             const pretty = statusMap[status] || statusMap.prepare;
@@ -110,12 +110,12 @@ function OrderStatusCard({ items = [] }) {
         </div>
         {/* Dot-style pagination controls */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-[-8px]">
+          <div className="flex justify-center items-center gap-4 pb-3 ">
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => setPage(i + 1)}
-                className={`w-2 h-2 rounded-full focus:outline-none transition-all duration-150 ${page === i + 1 ? 'border-2 border-black bg-white shadow' : 'bg-white/60'} flex items-center justify-center`}
+                className={`w-2 h-2 rounded-full focus:outline-none transition-all duration-150 ${page === i + 1 ? ' bg-white shadow' : 'bg-white/60'} flex items-center justify-center`}
                 aria-label={`Go to page ${i + 1}`}
               >
                 {/* Empty for dot, border for active */}

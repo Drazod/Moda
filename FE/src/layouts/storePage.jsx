@@ -19,6 +19,7 @@ const FashionTemplate = () => {
   const [priceRange, setPriceRange] = useState([0, 100]); 
   const [selectedCategory, setSelectedCategory] = useState("NEW"); 
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAiSearchMode, setIsAiSearchMode] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -105,11 +106,42 @@ const FashionTemplate = () => {
   };
   
   
+  // AI Search function
+  const performAiSearch = async (query) => {
+    if (!query.trim()) return;
+    
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axiosInstance.post('/search/semantic-search', { query });
+      setProducts(res.data);
+    } catch (err) {
+      setError("AI search failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    if (isAiSearchMode && value) {
+      // Debounce AI search
+      clearTimeout(window.aiSearchTimeout);
+      window.aiSearchTimeout = setTimeout(() => {
+        performAiSearch(value);
+      }, 800);
+    }
+  };
+
   // Filter products based on selected filters
   const filteredProducts = products.filter((product) => {
     const { availability, gender, colors, collections, tags, ratings } = selectedFilters;
 
-    if (searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+    // Skip text search filtering if in AI mode (AI already filtered)
+    if (!isAiSearchMode && searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
     // Handle category logic
@@ -374,7 +406,7 @@ const FashionTemplate = () => {
           {/* Sort & Search */}
           <div className="container h-[50px] mx-auto mb-6 flex flex-col lg:flex-row items-center lg:justify-between space-y-4 lg:space-y-0">
             {/* Search Box */}
-            <div className="flex h-[50px] items-center bg-[#BFAF92] px-4 py-2 w-full lg:w-1/3">
+            <div className="flex h-[50px] items-center bg-[#BFAF92] px-4 py-2 w-full lg:w-1/2 relative">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -387,11 +419,25 @@ const FashionTemplate = () => {
               </svg>
               <input
                 type="text"
-                placeholder="Search"
+                placeholder={isAiSearchMode ? "AI Search (e.g., 'red summer dress')" : "Search"}
                 className="bg-transparent text-gray-700 placeholder-gray-600 focus:outline-none w-full ml-2"
-                value={searchTerm} // Bind the searchTerm state
-                onChange={(e) => setSearchTerm(e.target.value)} // Update the state on change
+                value={searchTerm}
+                onChange={handleSearchChange}
               />
+              <button
+                onClick={() => {
+                  setIsAiSearchMode(!isAiSearchMode);
+                  setSearchTerm("");
+                }}
+                className={`ml-2 px-3 py-1 text-xs font-medium rounded transition-colors ${
+                  isAiSearchMode 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                title={isAiSearchMode ? "Switch to Normal Search" : "Switch to AI Search"}
+              >
+                {isAiSearchMode ? "🤖 AI" : "🔍"}
+              </button>
             </div>
 
             {/* Sort Categories */}

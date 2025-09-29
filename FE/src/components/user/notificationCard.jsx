@@ -41,7 +41,7 @@ const NotificationCard = ({ userId, page }) => {
     return (
         <section className="col-span-2 bg-[#BFAF92] rounded-2xl p-6 shadow-md z-10">
             <h2 className="text-lg font-semibold mb-4">Notification</h2>
-            <div className="space-y-6 text-base text-[#1D1A05]">
+            <div className="space-y-6 text-base text-[#1D1A05] max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-300/60 dark:[&::-webkit-scrollbar-track]:bg-neutral-700/50 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500/60">
                 {notices.length === 0 ? (
                     <div className="text-sm text-gray-500">No notifications yet.</div>
                 ) : (
