@@ -1,11 +1,27 @@
 import { fork } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 function runEmailWorker(args: {to:string; subject:string; html:string; fromName?: string;}): Promise<{id?:string}> {
   return new Promise((resolve, reject) => {
-    const workerPath = path.join(__dirname, 'email.worker.js'); // build xong sẽ là .js
+    // Determine worker script path depending on runtime (ts-node vs compiled)
+    const jsPath = path.join(__dirname, 'email.worker.js');
+    const tsPath = path.join(__dirname, 'email.worker.ts');
+    let workerPath = jsPath;
+    if (!fs.existsSync(jsPath)) {
+      if (fs.existsSync(tsPath)) {
+        // Run TypeScript worker through ts-node/register
+        workerPath = tsPath;
+        process.env.TS_NODE_TRANSPILE_ONLY = process.env.TS_NODE_TRANSPILE_ONLY || 'true';
+        process.env.TS_NODE_COMPILER_OPTIONS = process.env.TS_NODE_COMPILER_OPTIONS || '{"module":"commonjs"}';
+      } else {
+        return reject(new Error(`Email worker script not found (.js nor .ts) at: ${jsPath}`));
+      }
+    }
+    const execArgv = workerPath.endsWith('.ts') ? ['-r', 'ts-node/register'] : [];
     const child = fork(workerPath, [JSON.stringify(args)], {
       stdio: ['ignore', 'pipe', 'pipe', 'ipc']
+      , execArgv
     });
 
     let out = '';
@@ -16,14 +32,20 @@ function runEmailWorker(args: {to:string; subject:string; html:string; fromName?
 
     child.on('exit', (code) => {
       if (code === 0) {
-        try {
+        try {          
           const parsed = JSON.parse(out || '{}');
           resolve({ id: parsed.id });
         } catch {
           resolve({ id: undefined });
         }
       } else {
-        reject(new Error(err || `worker exited ${code}`));
+        const meta = {
+          code,
+          workerPath,
+          stderr: err.trim(),
+          stdout: out.trim(),
+        };
+        reject(new Error(err || `worker exited ${code}` + ' :: ' + JSON.stringify(meta)));
       }
     });
   });
