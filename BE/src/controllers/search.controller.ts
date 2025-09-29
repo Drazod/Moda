@@ -30,9 +30,9 @@ export const semanticSearch = async (req: Request, res: Response) => {
     const SCORE_THRESHOLD = 0.35;
     const filteredMatches = (results.matches || []).filter(match => match.score !== undefined && match.score >= SCORE_THRESHOLD);
     
-    // Extract product IDs from search results
+    // Extract product IDs from search results (IDs are stored as Pinecone vector IDs)
     const productIds = filteredMatches.map(match => 
-      parseInt(match.metadata?.id as string)
+      parseInt(match.id)
     ).filter(id => !isNaN(id));
 
     if (productIds.length === 0) {
