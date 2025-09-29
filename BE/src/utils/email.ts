@@ -1,139 +1,163 @@
 import { google } from 'googleapis';
 import nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import SMTPPool from 'nodemailer/lib/smtp-pool';  
 
-// Gmail API configuration
+
+const {
+  EMAIL_USER,
+  GMAIL_CLIENT_ID,
+  GMAIL_CLIENT_SECRET,
+  GMAIL_REFRESH_TOKEN,
+  SERVER_URL,
+  NODE_ENV,
+} = process.env;
+
+// ----- OAuth2 client -----
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GMAIL_CLIENT_ID,
-  process.env.GMAIL_CLIENT_SECRET,
+  GMAIL_CLIENT_ID,
+  GMAIL_CLIENT_SECRET,
+  // Playground dùng để test; prod nên dùng redirect URI của app bạn
   'https://developers.google.com/oauthplayground'
 );
+oauth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
-oauth2Client.setCredentials({
-  refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-});
+// ----- Helpers -----
+function assertEnv() {
+  const missing = [
+    ['EMAIL_USER', EMAIL_USER],
+    ['GMAIL_CLIENT_ID', GMAIL_CLIENT_ID],
+    ['GMAIL_CLIENT_SECRET', GMAIL_CLIENT_SECRET],
+    ['GMAIL_REFRESH_TOKEN', GMAIL_REFRESH_TOKEN],
+  ].filter(([, v]) => !v).map(([k]) => k);
 
-// Create transporter with Gmail API (avoids SMTP port issues)
-async function createTransporter() {
-  console.log('🔧 Creating Gmail transporter...');
-  console.log('📧 Email User:', process.env.EMAIL_USER ? 'Set' : 'Missing');
-  console.log('🔑 Gmail Client ID:', process.env.GMAIL_CLIENT_ID ? 'Set' : 'Missing');
-  console.log('🔒 Gmail Client Secret:', process.env.GMAIL_CLIENT_SECRET ? 'Set' : 'Missing');
-  console.log('🔄 Gmail Refresh Token:', process.env.GMAIL_REFRESH_TOKEN ? 'Set' : 'Missing');
-  
-  try {
-    console.log('🔐 Getting OAuth2 access token...');
-    const accessToken = await oauth2Client.getAccessToken();
-    console.log('✅ Access token obtained:', accessToken.token ? 'Success' : 'Failed');
-    
-    const transportOptions: SMTPTransport.Options = {
+  if (missing.length) {
+    throw new Error(`Thiếu biến môi trường: ${missing.join(', ')}`);
+  }
+}
+
+async function getAccessTokenString(): Promise<string> {
+  const at = await oauth2Client.getAccessToken();
+  const token = typeof at === 'string' ? at : at?.token;
+  if (!token) throw new Error('Không lấy được OAuth2 access token');
+  return token;
+}
+
+function fromHeader(display = 'Your App') {
+  return `"${display}" <${EMAIL_USER}>`; // Gmail yêu cầu from phải khớp account
+}
+
+function nowVN() {
+  return new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
+// ----- Singleton transporter với pool -----
+let transporterPromise: Promise<nodemailer.Transporter> | null = null;
+let lastTokenAt = 0;
+const TOKEN_TTL_MS = 45 * 60 * 1000; // làm mới trước khi token 1h hết hạn
+
+async function getTransporter(): Promise<nodemailer.Transporter> {
+  assertEnv();
+  const now = Date.now();
+  const needNew = !transporterPromise || (now - lastTokenAt > TOKEN_TTL_MS);
+
+  if (!needNew) return transporterPromise!;
+
+  transporterPromise = (async () => {
+    console.log('🔐 Lấy OAuth2 access token…');
+    const accessToken = await getAccessTokenString();
+    lastTokenAt = now;
+
+    const transportOptions: SMTPPool.Options = {
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
+      pool: true,           // Giữ 1 connection ấm
+      maxConnections: 1,
+      maxMessages: 100,     // thỉnh thoảng recycle kết nối
       auth: {
         type: 'OAuth2',
-        user: process.env.EMAIL_USER!,
-        clientId: process.env.GMAIL_CLIENT_ID!,
-        clientSecret: process.env.GMAIL_CLIENT_SECRET!,
-        refreshToken: process.env.GMAIL_REFRESH_TOKEN!,
-        accessToken: accessToken.token!,
+        user: EMAIL_USER!,
+        clientId: GMAIL_CLIENT_ID!,
+        clientSecret: GMAIL_CLIENT_SECRET!,
+        refreshToken: GMAIL_REFRESH_TOKEN!,
+        accessToken,
       },
+      // Tắt logger để tránh noise/heap ở prod
+      logger: NODE_ENV !== 'production' ? false : false,
     };
-    
-    console.log('🚀 Creating nodemailer transporter with OAuth2...');
+
+    console.log('🚀 Tạo transporter (OAuth2)…');
     const transporter = nodemailer.createTransport(transportOptions);
-    console.log('✅ Transporter created successfully');
+    console.log('🧪 Verify SMTP…');
+    await transporter.verify();
+    console.log('✅ Transporter sẵn sàng');
     return transporter;
-  } catch (error) {
-    console.error('❌ Gmail API setup failed:', error);
-    console.error('🔍 Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      code: error instanceof Error ? (error as any).code : 'Unknown',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
-    });
-    throw error;
-  }
+  })();
+
+  return transporterPromise;
 }
 
+// Đóng pool khi app tắt (tốt cho Docker/Render)
+function setupMailerShutdown() {
+  const close = async () => {
+    try {
+      const t = await transporterPromise;
+      if (t && 'close' in t) (t as any).close();
+    } catch {}
+  };
+  process.on('SIGTERM', close);
+  process.on('SIGINT', close);
+}
+setupMailerShutdown();
+
+// ----- Public API: gửi OTP -----
 export async function sendOtpEmail(to: string, otp: string) {
-  console.log('📨 Starting OTP email send...');
-  console.log('📧 Recipient:', to);
-  console.log('🔢 OTP:', otp ? 'Generated' : 'Missing');
-  
-  try {
-    console.log('🔧 Getting transporter...');
-    const transporter = await createTransporter();
-    
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to,
-      subject: 'Your OTP Code',
-      text: `Your OTP code is: ${otp}. It will expire in 10 minutes.`,
-    };
-    
-    console.log('📤 Sending OTP email...');
-    console.log('📋 Mail options:', {
-      from: mailOptions.from,
-      to: mailOptions.to,
-      subject: mailOptions.subject
-    });
-    
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ OTP email sent successfully!');
-    console.log('📨 Message ID:', info.messageId);
-    console.log('📮 Response:', info.response);
-    return info;
-  } catch (error) {
-    console.error('❌ OTP email error:', error);
-    console.error('🔍 Error type:', typeof error);
-    console.error('🔍 Error details:', error instanceof Error ? error.message : 'Unknown error');
-    throw error;
-  }
+  console.log('📨 Gửi OTP…');
+  if (!otp) throw new Error('Thiếu OTP');
+
+  const transporter = await getTransporter();
+  const mailOptions = {
+    from: fromHeader('Your App'),
+    to,
+    subject: 'Mã OTP của bạn',
+    text: `Mã OTP của bạn: ${otp}. Mã sẽ hết hạn sau 10 phút.`,
+    html: `<p>Mã OTP của bạn: <b>${otp}</b>.</p><p>Mã sẽ hết hạn sau 10 phút.</p>`,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log('✅ OTP sent', { id: info.messageId });
+  return { messageId: info.messageId };
 }
 
+// ----- Public API: thông báo đổi mật khẩu -----
 export async function sendPasswordChangeNotification(to: string, name: string, rollbackToken: string) {
-  console.log('🔐 Starting password change notification...');
-  console.log('📧 Recipient:', to);
-  console.log('👤 Name:', name);
-  console.log('🔑 Rollback token:', rollbackToken ? 'Generated' : 'Missing');
-  console.log('🌐 Server URL:', process.env.SERVER_URL ? 'Set' : 'Missing');
-  
-  try {
-    console.log('🔧 Getting transporter...');
-    const transporter = await createTransporter();
-    
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to,
-      subject: 'Password Changed Successfully',
-      html: `
-        <h2>Password Changed</h2>
-        <p>Hi ${name},</p>
-        <p>Your password has been successfully changed on ${new Date().toLocaleString()}.</p>
-        <p><strong>If you did not make this change, click the link below to restore your previous password:</strong></p>
-        <p><a href="${process.env.SERVER_URL}/auth/rollback-password?token=${rollbackToken}" style="background-color: #ff4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">RESTORE PREVIOUS PASSWORD</a></p>
-        <p>This link will expire in 24 hours.</p>
-        <br>
-        <p>Best regards,<br>Your Security Team</p>
-      `,
-    };
-    
-    console.log('📤 Sending password change notification...');
-    console.log('📋 Mail options:', {
-      from: mailOptions.from,
-      to: mailOptions.to,
-      subject: mailOptions.subject
-    });
-    
-    const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Password change notification sent successfully!');
-    console.log('📨 Message ID:', info.messageId);
-    console.log('📮 Response:', info.response);
-    return info;
-  } catch (error) {
-    console.error('❌ Password change notification error:', error);
-    console.error('🔍 Error type:', typeof error);
-    console.error('🔍 Error details:', error instanceof Error ? error.message : 'Unknown error');
-    throw error;
-  }
+  console.log('🔐 Gửi thông báo đổi mật khẩu…');
+  if (!SERVER_URL) throw new Error('Thiếu SERVER_URL');
+
+  const transporter = await getTransporter();
+  const rollbackUrl = `${SERVER_URL}/auth/rollback-password?token=${encodeURIComponent(rollbackToken)}`;
+
+  const mailOptions = {
+    from: fromHeader('Security'),
+    to,
+    subject: 'Đổi mật khẩu thành công',
+    html: `
+      <h2>Đổi mật khẩu</h2>
+      <p>Xin chào ${name},</p>
+      <p>Mật khẩu của bạn đã được đổi lúc ${nowVN()}.</p>
+      <p><strong>Nếu không phải bạn thực hiện</strong>, nhấn vào liên kết bên dưới để khôi phục mật khẩu trước đó:</p>
+      <p>
+        <a href="${rollbackUrl}" style="background-color:#ff4444;color:#fff;padding:10px 16px;text-decoration:none;border-radius:6px;display:inline-block">
+          Khôi phục mật khẩu trước đó
+        </a>
+      </p>
+      <p>Liên kết hết hạn sau 24 giờ.</p>
+      <br/>
+      <p>Trân trọng,<br/>Đội ngũ Bảo mật</p>
+    `,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log('✅ Password notice sent', { id: info.messageId });
+  return { messageId: info.messageId };
 }
