@@ -180,7 +180,17 @@ export const changePassword = async (req: Request, res: Response) => {
         if (!compareSync(oldPassword, user.password)) {
             return res.status(400).json({ message: "Old password is incorrect" });
         }
-        await prisma.user.update({
+
+        // Store original password for rollback
+        const originalPassword = user.password;
+        
+        // Generate rollback token (valid for 24 hours)
+        const rollbackToken = require('crypto').randomBytes(32).toString('hex');
+        const tokenExpiry = new Date();
+        tokenExpiry.setHours(tokenExpiry.getHours() + 24);
+        
+        // Update password in database
+        const updatedUser = await prisma.user.update({
             where: {
                 id: req.user.id
             },
@@ -188,8 +198,107 @@ export const changePassword = async (req: Request, res: Response) => {
                 password: hashSync(newPassword, 10)
             }
         });
-        res.status(200).json({ message: "Password changed" });
+
+        // Store password history for rollback
+        await prisma.passwordHistory.create({
+            data: {
+                userId: req.user.id,
+                previousPassword: originalPassword,
+                rollbackToken: rollbackToken,
+                tokenExpiry: tokenExpiry
+            }
+        });
+
+        // Try to send email notification
+        try {
+            const { sendPasswordChangeNotification } = require('../utils/email');
+            await sendPasswordChangeNotification(user.email, user.name, rollbackToken);
+        } catch (emailError) {
+            console.error('Failed to send password change email:', emailError);
+            // Rollback password change if email fails
+            await prisma.user.update({
+                where: {
+                    id: req.user.id
+                },
+                data: {
+                    password: originalPassword
+                }
+            });
+            // Clean up password history
+            await prisma.passwordHistory.deleteMany({
+                where: {
+                    rollbackToken: rollbackToken
+                }
+            });
+            return res.status(500).json({ 
+                message: "Password change failed due to email notification error. Please try again." 
+            });
+        }
+
+        res.status(200).json({ message: "Password changed successfully. Confirmation email sent." });
     } catch (error) {
+        console.error('Password change error:', error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export const rollbackPassword = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.query;
+        
+        if (!token) {
+            return res.status(400).json({ message: "Rollback token is required" });
+        }
+
+        // Find the password history entry
+        const passwordHistory = await prisma.passwordHistory.findUnique({
+            where: {
+                rollbackToken: token as string
+            },
+            include: {
+                user: true
+            }
+        });
+
+        if (!passwordHistory) {
+            return res.status(400).json({ message: "Invalid rollback token" });
+        }
+
+        // Check if token has expired
+        if (new Date() > passwordHistory.tokenExpiry) {
+            return res.status(400).json({ message: "Rollback token has expired" });
+        }
+
+        // Check if token has already been used
+        if (passwordHistory.isUsed) {
+            return res.status(400).json({ message: "Rollback token has already been used" });
+        }
+
+        // Restore previous password
+        await prisma.user.update({
+            where: {
+                id: passwordHistory.userId
+            },
+            data: {
+                password: passwordHistory.previousPassword
+            }
+        });
+
+        // Mark token as used
+        await prisma.passwordHistory.update({
+            where: {
+                rollbackToken: token as string
+            },
+            data: {
+                isUsed: true
+            }
+        });
+
+        res.status(200).json({ 
+            message: "Password has been successfully restored to your previous password. Please log in with your old password." 
+        });
+    } catch (error) {
+        console.error('Password rollback error:', error);
         res.status(500).json({ message: "Internal server error" });
     }
 }

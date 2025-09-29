@@ -129,6 +129,7 @@ model User {
   shippings       Shipping[]
   transactions    Transaction[]
   notices         Notice[]
+  passwordHistory PasswordHistory[]
   updatedAt       DateTime  @updatedAt
   createdAt       DateTime  @default(now())
   otpCode         String?
@@ -209,5 +210,16 @@ model Log {
   userName  String
   action    String
   createdAt DateTime @default(now())
+}
+
+model PasswordHistory {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  previousPassword String   @db.VarChar(1024)
+  rollbackToken   String    @unique
+  tokenExpiry     DateTime
+  isUsed          Boolean   @default(false)
+  user            User      @relation(fields: [userId], references: [id])
+  createdAt       DateTime  @default(now())
 }
 

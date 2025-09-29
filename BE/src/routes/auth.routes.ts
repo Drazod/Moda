@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Login, Register, changePassword, someFunction, changeIdentity } from '../controllers/auth.controller';
+import { Login, Register, changePassword, someFunction, changeIdentity, rollbackPassword } from '../controllers/auth.controller';
 import { verifyOtp } from '../controllers/auth.controller';
 
 import authMiddleware from '../middlewares/authentication';
@@ -167,6 +167,37 @@ userRoute.post('/login', Login);
  *         description: Internal server error
  */
 userRoute.put('/changePass', authMiddleware, changePassword);
+
+/**
+ * @swagger
+ * /auth/rollback-password:
+ *   get:
+ *     summary: Rollback password change using email token
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The rollback token from email
+ *     responses:
+ *       200:
+ *         description: Password successfully rolled back
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password has been successfully restored"
+ *       400:
+ *         description: Invalid, expired, or used token
+ *       500:
+ *         description: Internal server error
+ */
+userRoute.get('/rollback-password', rollbackPassword);
 
 /**
  * @swagger

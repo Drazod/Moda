@@ -2,12 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaChevronDown, FaBell } from 'react-icons/fa';
 import adminAvatar from '../../assets/dash/dashUser/dashUser_Logo.jpg';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const DashHeader = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -61,7 +71,12 @@ const DashHeader = () => {
                 <a href="/dash-board/create-admin" className="block px-4 py-2 text-sm text-green-700 hover:bg-green-100">Create Admin</a>
               )}
               <div className="border-t my-1"></div>
-              <a href="#" className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Logout</a>
+              <button 
+                onClick={handleLogout}
+                className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+              >
+                Logout
+              </button>
             </div>
           )}
         </div>
