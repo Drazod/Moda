@@ -23,14 +23,21 @@ const server = http.createServer(app);
 import { initSocket } from './socket';
 export const io = initSocket(server);
 
-import serviceAccount from '../khanh-bakery.json';
+const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const bucketName = process.env.FIREBASE_STORAGE_BUCKET || "moda-938e0.firebasestorage.app";
 
-initializeApp({
-    credential: cert(serviceAccount as any),
-    storageBucket: 'moda-938e0.firebasestorage.app'
-  });
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId,
+    clientEmail,
+    privateKey,
+  }),
+  storageBucket: bucketName,
+});
 
-export const bucket = getStorage().bucket('moda-938e0.firebasestorage.app');
+export const bucket = admin.storage().bucket();
 
 export const prisma = new PrismaClient({
     errorFormat: 'pretty',
