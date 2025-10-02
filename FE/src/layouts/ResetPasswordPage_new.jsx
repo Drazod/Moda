@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axiosInstance from '../configs/axiosInstance';
 
 export default function ResetPasswordPage() {
   const [step, setStep] = useState(1); // 1: email, 2: OTP, 3: new password
@@ -20,24 +21,15 @@ export default function ResetPasswordPage() {
     setError("");
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/forgot-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
+      const { data } = await axiosInstance.post('/auth/forgot-password', {
+        email: email.trim().toLowerCase()
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(data.message);
-        setStep(2);
-      } else {
-        setError(data.message || 'Failed to send OTP');
-      }
+      setSuccess(data.message);
+      setStep(2);
     } catch (error) {
-      setError('Network error. Please try again.');
+      console.error('Send OTP error:', error);
+      setError(error.response?.data?.message || 'Network error. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -50,25 +42,17 @@ export default function ResetPasswordPage() {
     setError("");
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/verify-reset-otp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, otp }),
+      const { data } = await axiosInstance.post('/auth/verify-reset-otp', {
+        email: email.trim().toLowerCase(),
+        otp: otp.trim()
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setResetToken(data.resetToken);
-        setSuccess(data.message);
-        setStep(3);
-      } else {
-        setError(data.message || 'Invalid OTP');
-      }
+      setResetToken(data.resetToken);
+      setSuccess(data.message);
+      setStep(3);
     } catch (error) {
-      setError('Network error. Please try again.');
+      console.error('Verify OTP error:', error);
+      setError(error.response?.data?.message || 'Invalid OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,26 +79,18 @@ export default function ResetPasswordPage() {
     }
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ resetToken, newPassword }),
+      const { data } = await axiosInstance.post('/auth/reset-password', {
+        resetToken,
+        newPassword
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess(data.message);
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      } else {
-        setError(data.message || 'Failed to reset password');
-      }
+      setSuccess(data.message);
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (error) {
-      setError('Network error. Please try again.');
+      console.error('Reset password error:', error);
+      setError(error.response?.data?.message || 'Failed to reset password. Please try again.');
     } finally {
       setLoading(false);
     }

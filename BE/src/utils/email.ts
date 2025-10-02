@@ -51,8 +51,8 @@ function runEmailWorker(args: {to:string; subject:string; html:string; fromName?
   });
 }
 export async function sendOtpEmail(to: string, otp: string) {
-  const html = `<p>Mã OTP của bạn: <b>${otp}</b>.</p><p>Mã sẽ hết hạn sau 10 phút.</p>`;
-  const subject = 'Mã OTP của bạn';
+  const html = `<p>Your OTP code: <b>${otp}</b></p><p>This code will expire in 10 minutes.</p>`;
+  const subject = 'Your OTP Code';
   const res = await runEmailWorker({ to, subject, html, fromName: 'Your App' });
   console.log('✅ OTP sent', { id: res.id });
   return { messageId: res.id };
@@ -61,13 +61,13 @@ export async function sendOtpEmail(to: string, otp: string) {
 export async function sendPasswordChangeNotification(to: string, name: string, rollbackToken: string) {
   const url = `${process.env.SERVER_URL}/auth/rollback-password?token=${encodeURIComponent(rollbackToken)}`;
   const html = `
-    <h2>Đổi mật khẩu</h2>
-    <p>Xin chào ${name},</p>
-    <p>Mật khẩu của bạn đã được đổi lúc ${new Date().toLocaleString('vi-VN',{ timeZone: 'Asia/Ho_Chi_Minh' })}.</p>
-    <p><strong>Nếu không phải bạn thực hiện</strong>, nhấn liên kết dưới đây để khôi phục mật khẩu trước đó:</p>
-    <p><a href="${url}" style="background:#ff4444;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Khôi phục mật khẩu trước đó</a></p>
-    <p>Liên kết hết hạn sau 24 giờ.</p>`;
-  const subject = 'Đổi mật khẩu thành công';
+    <h2>Password Changed</h2>
+    <p>Hello ${name},</p>
+    <p>Your password has been successfully changed on ${new Date().toLocaleString()}.</p>
+    <p><strong>If you did not make this change</strong>, click the link below to restore your previous password:</p>
+    <p><a href="${url}" style="background:#ff4444;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Restore Previous Password</a></p>
+    <p>This link will expire in 24 hours.</p>`;
+  const subject = 'Password Changed Successfully';
   const res = await runEmailWorker({ to, subject, html, fromName: 'Security' });
   console.log('✅ Password notice sent', { id: res.id });
   return { messageId: res.id };
