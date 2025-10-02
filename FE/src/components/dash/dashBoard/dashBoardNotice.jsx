@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../../../configs/axiosInstance";
-import { FaChevronDown, FaPen, FaTrash } from "react-icons/fa";
+import { FaChevronDown } from "react-icons/fa";
+import { IoPencil, IoTrashOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 
 const Pill = ({ children, tone = "gray" }) => {
@@ -31,7 +32,7 @@ export default function DashBoardNotice() {
   // tabs phía trên (All + các page)
   const [pageFilter, setPageFilter] = useState("All");
 
-  // đang xoá id nào → để disable nút
+  // đang xoá id nào → để disable icon
   const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
@@ -41,10 +42,8 @@ export default function DashBoardNotice() {
       setLoading(true);
       setErr(null);
       try {
-        // Lấy tất cả notice “global/page” cho admin
         const { data } = await axiosInstance.get("/notice/admin");
         if (!alive) return;
-        // Chuẩn hóa nhẹ để không vỡ UI nếu thiếu field
         const mapped = (Array.isArray(data?.notices) ? data.notices : data || []).map((n) => ({
           id: n?.id ?? n?._id ?? null,
           title: n?.title ?? "—",
@@ -125,7 +124,7 @@ export default function DashBoardNotice() {
 
     try {
       await axiosInstance.delete(`/notice/${n.id}`);
-      // thành công -> giữ nguyên state đã xoá
+      // success: giữ nguyên
     } catch (e) {
       // fail -> revert
       setNotices(prevNotices);
@@ -147,7 +146,7 @@ export default function DashBoardNotice() {
             <button
               type="button"
               onClick={() => setOpenStateDrop((s) => !s)}
-              className="bg-white px-3 py-1.5 rounded-full shadow-sm flex items-center text-sm"
+              className="bg-gray-100 px-4 py-2 rounded-full text-sm flex items-center"
             >
               {stateFilter}
               <FaChevronDown className="ml-2 text-xs" />
@@ -173,7 +172,7 @@ export default function DashBoardNotice() {
           </div>
 
           <button
-            className="px-3 py-1.5 rounded-full bg-black text-white text-sm"
+            className="bg-gray-100 px-4 py-2 rounded-full text-sm flex items-center"
             onClick={() => navigate("/dash-board/update-notices")}
           >
             + Add notice
@@ -206,7 +205,15 @@ export default function DashBoardNotice() {
 
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-gray-100">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
+          {/* Cố định chiều rộng cột để bảng không “nhảy” */}
+          <colgroup>
+            <col className="w-[38%]" /> {/* Title */}
+            <col className="w-[28%]" /> {/* Pages */}
+            <col className="w-[14%]" /> {/* State */}
+            <col className="w-[20%]" /> {/* Actions */}
+          </colgroup>
+
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="text-left font-medium px-4 py-3">Title</th>
@@ -235,9 +242,9 @@ export default function DashBoardNotice() {
               filtered.map((n) => (
                 <tr key={n.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-4">
-                    <div className="font-medium text-gray-900">{n.title}</div>
+                    <div className="font-medium text-gray-900 truncate">{n.title}</div>
                     {n.subtitle ? (
-                      <div className="text-xs text-gray-500 mt-0.5">{n.subtitle}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 truncate">{n.subtitle}</div>
                     ) : null}
                   </td>
 
@@ -249,12 +256,13 @@ export default function DashBoardNotice() {
                     </div>
                   </td>
 
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     {n.state ? <Pill tone="green">Active</Pill> : <Pill tone="red">Disabled</Pill>}
                   </td>
 
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-2 justify-end">
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-4 justify-end">
+                      {/* GIỮ NGUYÊN Activate/Disable */}
                       <button
                         onClick={() => toggleState(n)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium ${
@@ -266,28 +274,23 @@ export default function DashBoardNotice() {
                         {n.state ? "Disable" : "Activate"}
                       </button>
 
-                      <button
+                      {/* EDIT icon kiểu DashUMTable */}
+                      <IoPencil
                         onClick={() => toEdit(n)}
-                        className="px-3 py-1.5 rounded-full border text-xs flex items-center gap-1"
+                        className="cursor-pointer text-green-500 hover:text-green-700 text-lg"
                         title="Edit"
-                      >
-                        <FaPen className="text-[10px]" />
-                        Edit
-                      </button>
+                        aria-label="Edit notice"
+                      />
 
-                      <button
-                        onClick={() => onDelete(n)}
-                        disabled={deletingId === n.id}
-                        className={`px-3 py-1.5 rounded-full text-xs flex items-center gap-1 ${
-                          deletingId === n.id
-                            ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                            : "bg-red-600 text-white hover:bg-red-700"
+                      {/* DELETE icon kiểu DashUMTable */}
+                      <IoTrashOutline
+                        onClick={() => (deletingId ? null : onDelete(n))}
+                        className={`cursor-pointer text-red-500 hover:text-red-700 text-lg ${
+                          deletingId === n.id ? "opacity-50 pointer-events-none" : ""
                         }`}
-                        title="Delete"
-                      >
-                        <FaTrash className="text-[10px]" />
-                        {deletingId === n.id ? "Deleting..." : "Delete"}
-                      </button>
+                        title={deletingId === n.id ? "Deleting..." : "Delete"}
+                        aria-label="Delete notice"
+                      />
                     </div>
                   </td>
                 </tr>

@@ -9,7 +9,7 @@ const adminRoute: Router = Router();
 adminRoute.get(
   '/overview',
   authMiddleware,
-  authorize(['ADMIN']), // adjust if you have 'HOST' etc.
+  authorize(['ADMIN', 'HOST']), // adjust if you have 'HOST' etc.
   getAdminOverview
 );
 
@@ -17,7 +17,7 @@ adminRoute.get(
 adminRoute.get('/users', authMiddleware, authorize(['ADMIN']), getAllUsersForAdmin);
 
 // Secure admin creation endpoint (only SUPER_ADMIN)
-adminRoute.post('/create-admin', authMiddleware, authorize(['SUPER_ADMIN']), createAdminAccount);
+adminRoute.post('/create-admin', authMiddleware, authorize(['HOST']), createAdminAccount);
 
 export default adminRoute;
 
