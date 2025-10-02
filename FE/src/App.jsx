@@ -13,7 +13,7 @@ import LogInPage from "./layouts/loginPage";
 import Register from "./layouts/registerPage";
 import Setting from "./layouts/settingPage";
 import Transactions from "./layouts/transactionHistoryPage";
-import ResetPasswordPage from "./layouts/ResetPasswordPage";
+import ResetPasswordPage from "./layouts/ResetPasswordPage_new";
  
 // import Settings from "./layouts/settingPage";
 // dash's import

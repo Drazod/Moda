@@ -308,6 +308,153 @@ export const changeIdentity = async (req: Request, res: Response) => {
     }
 }
 
+// Forgot password - send OTP to email
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+
+        // Check if user exists
+        const user = await prisma.user.findUnique({
+            where: { email }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found with this email" });
+        }
+
+        if (!user.isVerified) {
+            return res.status(400).json({ message: "Account not verified. Please complete registration first." });
+        }
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        // Store OTP in user record
+        await prisma.user.update({
+            where: { email },
+            data: {
+                otpCode: otp,
+                otpExpiry: otpExpiry
+            }
+        });
+
+        // Send OTP email
+        const { sendOtpEmail } = await import('../utils/email');
+        await sendOtpEmail(email, otp);
+
+        res.status(200).json({ 
+            message: "OTP sent to your email. Please check your inbox and use the code to reset your password." 
+        });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// Verify OTP for password reset
+export const verifyResetOtp = async (req: Request, res: Response) => {
+    try {
+        const { email, otp } = req.body;
+        
+        if (!email || !otp) {
+            return res.status(400).json({ message: "Email and OTP are required" });
+        }
+
+        const user = await prisma.user.findUnique({ where: { email } });
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (!user.otpCode || !user.otpExpiry) {
+            return res.status(400).json({ message: "No reset OTP found. Please request a new one." });
+        }
+
+        if (user.otpCode !== otp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+
+        if (user.otpExpiry < new Date()) {
+            return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+        }
+
+        // Generate a temporary reset token (valid for 15 minutes)
+        const resetToken = require('crypto').randomBytes(32).toString('hex');
+        const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+        await prisma.user.update({
+            where: { email },
+            data: {
+                resetToken: resetToken,
+                resetTokenExpiry: resetTokenExpiry,
+                otpCode: null, // Clear the OTP
+                otpExpiry: null
+            }
+        });
+
+        res.status(200).json({ 
+            message: "OTP verified successfully. You can now reset your password.",
+            resetToken: resetToken
+        });
+    } catch (error) {
+        console.error('Verify reset OTP error:', error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// Reset password with verified token
+export const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { resetToken, newPassword } = req.body;
+        
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ message: "Reset token and new password are required" });
+        }
+
+        // Enforce strong password
+        const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!strongPassword.test(newPassword)) {
+            return res.status(400).json({ 
+                message: "Password must be at least 8 characters with uppercase, lowercase, and a number." 
+            });
+        }
+
+        const user = await prisma.user.findFirst({
+            where: { resetToken }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: "Invalid reset token" });
+        }
+
+        if (!user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+            return res.status(400).json({ message: "Reset token has expired" });
+        }
+
+        // Update password and clear reset token
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashSync(newPassword, 10),
+                resetToken: null,
+                resetTokenExpiry: null
+            }
+        });
+
+        res.status(200).json({ 
+            message: "Password reset successfully. You can now log in with your new password." 
+        });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // me -> return the logged in user
 export const someFunction = (req: Request, res: Response) => {
   if (!req.user) {

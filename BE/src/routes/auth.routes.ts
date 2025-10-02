@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Login, Register, changePassword, someFunction, changeIdentity, rollbackPassword } from '../controllers/auth.controller';
+import { Login, Register, changePassword, someFunction, changeIdentity, rollbackPassword, forgotPassword, verifyResetOtp, resetPassword } from '../controllers/auth.controller';
 import { verifyOtp } from '../controllers/auth.controller';
 
 import authMiddleware from '../middlewares/authentication';
@@ -262,5 +262,131 @@ userRoute.get('/me', [authMiddleware], someFunction);
  *         description: Internal server error
  */
 userRoute.put('/:id/changeProfile', changeIdentity);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Send OTP for password reset
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "OTP sent to your email. Please check your inbox and use the code to reset your password."
+ *       400:
+ *         description: Email required or account not verified
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+userRoute.post('/forgot-password', forgotPassword);
+
+/**
+ * @swagger
+ * /auth/verify-reset-otp:
+ *   post:
+ *     summary: Verify OTP for password reset
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: OTP verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "OTP verified successfully. You can now reset your password."
+ *                 resetToken:
+ *                   type: string
+ *                   example: "abc123def456..."
+ *       400:
+ *         description: Invalid or expired OTP
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+userRoute.post('/verify-reset-otp', verifyResetOtp);
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset password with verified token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - resetToken
+ *               - newPassword
+ *             properties:
+ *               resetToken:
+ *                 type: string
+ *                 example: "abc123def456..."
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 8
+ *                 example: "NewSecurePass123"
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset successfully. You can now log in with your new password."
+ *       400:
+ *         description: Invalid token or weak password
+ *       500:
+ *         description: Internal server error
+ */
+userRoute.post('/reset-password', resetPassword);
 
 export default userRoute;

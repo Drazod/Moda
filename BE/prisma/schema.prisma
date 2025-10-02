@@ -134,6 +134,8 @@ model User {
   createdAt       DateTime  @default(now())
   otpCode         String?
   otpExpiry       DateTime?
+  resetToken      String?
+  resetTokenExpiry DateTime?
   isVerified      Boolean   @default(false)
 }
 
