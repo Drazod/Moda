@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { prisma } from ".."; 
 import { State } from "@prisma/client";
-
+const CART_ITEM_INCLUDE = {
+  Clothes: { include: { mainImg: true } },
+  Size: true,                               
+} as const;
 export const getCart = async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).json({ message: "User not authenticated" });
 
@@ -23,7 +26,7 @@ export const getCart = async (req: Request, res: Response) => {
         where: { userId: req.user.id, state: "PENDING" },
         include: {
           items: {
-            include: { Clothes: true },
+            include: CART_ITEM_INCLUDE,
           },
         },
       });
@@ -44,12 +47,10 @@ export const getCartById = async (req: Request, res: Response) => {
     const cart = await prisma.cart.findUnique({
       where: { id: parseInt(id) },
       include: {
-        items: {
-          include: {
-            Clothes: true,
+          items: {
+            include: CART_ITEM_INCLUDE,
           },
         },
-      },
     });
 
     if (!cart) {
@@ -188,6 +189,7 @@ export const addCartItemToCart = async (req: Request, res: Response) => {
       const updatedItem = await prisma.cartItem.update({
         where: { id: cartItemId },
         data: { quantity, totalprice: clothes.price * quantity },
+        include: CART_ITEM_INCLUDE,
       });
       return res.status(200).json({ message: "Cart updated", data: updatedItem });
     } else {
@@ -203,12 +205,14 @@ export const addCartItemToCart = async (req: Request, res: Response) => {
             quantity: existingItem.quantity + 1,
             totalprice: clothes.price * (existingItem.quantity + 1),
           },
+          include: CART_ITEM_INCLUDE,
         });
         return res.status(200).json({ message: "Cart item quantity incremented", data: updatedItem });
       } else {
         // Otherwise, create a new cart item
         const newItem = await prisma.cartItem.create({
           data: { cartId: cart.id, ClothesId: clothes.id, sizeId, quantity, totalprice: clothes.price * quantity },
+          include: CART_ITEM_INCLUDE,
         });
         return res.status(201).json({ message: "Item added to cart", data: newItem });
       }
@@ -275,6 +279,7 @@ export const updateCartItemInCart = async (req: Request, res: Response) => {
         quantity, 
         totalprice: newTotalPrice 
       },
+      include: CART_ITEM_INCLUDE,
     });
 
     res.status(200).json({ message: "Cart item updated", cartItem: updatedCartItem });
