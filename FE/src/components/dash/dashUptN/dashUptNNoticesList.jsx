@@ -64,7 +64,7 @@ const DashUptNNoticesList = ({ onEditNotice }) => {
                                 title="Click to toggle state"
                                 onClick={() => handleToggleState(notice)}
                             >
-                                {notice.state ? 'Active' : 'Disable'}
+                                {notice.state ? 'Enable' : 'Disable'}
                             </span>
                             <IoPencil 
                                 onClick={() => onEditNotice(notice)} 

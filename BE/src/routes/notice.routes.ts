@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getNotices, createNotice, updateNoticeState, getAdminNotices } from "../controllers/notice.controller";
+import { getNotices, createNotice, updateNoticeState, getAdminNotices, deleteNotice } from "../controllers/notice.controller";
 import authMiddleware from "../middlewares/authentication";
 import authorize from "../middlewares/authorization";
 import multer from 'multer';
@@ -133,5 +133,25 @@ noticeRoute.post('/',
  *         description: Notice state updated
  */
 noticeRoute.put("/:id/state", authMiddleware, authorize(["ADMIN"]), updateNoticeState);
+
+/**
+ * @swagger
+ * /notice/{id}:
+ *   delete:
+ *     summary: Delete a notice (and its image if any)
+ *     tags: [Notice]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The ID of the notice
+ *     responses:
+ *       200:
+ *         description: Notice deleted
+ */
+noticeRoute.delete("/:id", authMiddleware, authorize(["ADMIN"]), deleteNotice);
+
 
 export default noticeRoute;

@@ -226,3 +226,62 @@ export const updateNoticeState = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to update notice" });
   }
 };
+
+export const deleteNotice = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) {
+      return res.status(400).json({ error: "Invalid notice ID" });
+    }
+
+    // Lấy notice kèm ảnh (nếu có) để xoá ảnh trước khi xoá notice
+    const existing = await prisma.notice.findUnique({
+      where: { id },
+      include: { image: true },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Notice not found" });
+    }
+
+    // Nếu có ảnh → xoá file + record Image (ảnh rời: không truyền cakeId)
+    if (existing.image) {
+      try {
+        // bạn có thể truyền name hoặc url đều được, hàm delete đã hỗ trợ cả hai
+        await deleteImageFromFirebaseAndPrisma(existing.image.name);
+        // hoặc: await deleteImageFromFirebaseAndPrisma(existing.image.url);
+      } catch (imgErr) {
+        // Không chặn xoá notice nếu xoá ảnh thất bại, chỉ log cảnh báo
+        console.warn("Failed to delete notice image:", imgErr);
+      }
+    }
+
+    // Xoá notice
+    const deleted = await prisma.notice.delete({ where: { id } });
+
+    // Phát socket cho client để gỡ notice trên UI
+    if (deleted.userId) {
+      io.to(String(deleted.userId)).emit("remove-notice", deleted.id);
+    } else {
+      io.emit("remove-notice", deleted.id);
+    }
+
+    // Ghi log
+    const actorId = req.user?.id;
+    const actorName = req.user?.name;
+    if (actorId && actorName) {
+      await prisma.log.create({
+        data: {
+          userId: actorId,
+          userName: actorName,
+          action: ` had deleted notice ${deleted.title} (id=${deleted.id})`,
+        },
+      });
+    }
+
+    return res.json({ message: "Notice deleted", id: deleted.id });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to delete notice" });
+  }
+};
