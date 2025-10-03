@@ -31,6 +31,8 @@ import usePresenceHeartbeat from '../src/hooks/usePresenceHeartbeat';
 import AdminProfile from './layouts/dash/adminProfile.jsx';
 import AdminSettings from './layouts/dash/adminSettings.jsx';
 import CreateAdminAccount from './layouts/dash/createAdminAccount.jsx';
+import PaymentFail from "./layouts/paymentfail.jsx";
+import PaymentSuccess from "./layouts/paymentsuccess.jsx";
 const App = () => {
   usePresenceHeartbeat(20000);
   return (
@@ -42,6 +44,8 @@ const App = () => {
         <Route path="/store" element={<Store/>}/>
         <Route path="/product" element={<Product/>}/>
         <Route path="/cart" element={<CartModal/>}/>
+        <Route path="/payment-success" element={<PaymentSuccess/>}/>
+        <Route path="/payment-fail" element={<PaymentFail/>}/>
         <Route path="/login" element={
           <PublicOnly>
             <LogInPage />
