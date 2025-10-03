@@ -1,5 +1,5 @@
 import OtpVerificationPage from "./layouts/OtpVerificationPage";
-
+import { Toaster } from "react-hot-toast";
 import React from "react";
 import { CartProvider } from "./context/CartContext";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -94,6 +94,14 @@ const App = () => {
 
         </Route>
   </Routes>
+  {/* Toasts */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: { fontSize: 14, zIndex: 999999 },
+            duration: 2500,
+          }}
+        />
   </CartProvider>
   );
 };

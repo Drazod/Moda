@@ -2,15 +2,19 @@ import React, { useState, useEffect } from "react";
 import "../index.css";
 import { FaUserCircle, FaShoppingCart } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import CartModal from "../layouts/cart";
 import { Link } from "react-router-dom";
 
 export default function Header() {
-  const [open, setOpen] = useState(false); // ⬅️ add cart modal state
+  const [open, setOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
+
   const { user, logout } = useAuth();
+  const { items } = useCart();
+  const cartCount = items.reduce((sum, it) => sum + (it.qty || 0), 0);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -18,7 +22,6 @@ export default function Header() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Prefer a safe display name
   const displayName = user?.name || user?.username || user?.email || "Profile";
 
   return (
@@ -43,9 +46,7 @@ export default function Header() {
       {!isMobile && (
         <div className="flex justify-center">
           <Link to="/home">
-            <h1 className="text-[40px] font-dancing font-semibold mr-6">
-              Moda
-            </h1>
+            <h1 className="text-[40px] font-dancing font-semibold mr-6">Moda</h1>
           </Link>
         </div>
       )}
@@ -79,14 +80,28 @@ export default function Header() {
           </Link>
         )}
 
+        {/* Cart button + badge */}
         <button
           onClick={() => setOpen(true)}
-          className="p-1 -m-1"
+          className="relative p-1 -m-1"
           aria-label="Open cart"
           title="Cart"
+          type="button"
         >
           <FaShoppingCart className="text-xl hover:text-gray-600" />
+
+          {/* Badge */}
+          {cartCount > 0 && (
+            <span
+              className="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1
+                         rounded-full bg-black text-white text-[11px]
+                         font-semibold leading-[18px] text-center"
+            >
+              {cartCount > 99 ? "99+" : cartCount}
+            </span>
+          )}
         </button>
+
         <CartModal open={open} onClose={() => setOpen(false)} />
       </div>
 

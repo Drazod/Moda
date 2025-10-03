@@ -35,6 +35,10 @@ const FashionTemplate = () => {
     "JACKETS",
     "COATS",
   ]);
+const formatVND = (v) =>
+  (Number(v) || 0).toLocaleString("vi-VN", {
+    maximumFractionDigits: 0,
+  }) + " VND";
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -477,14 +481,14 @@ const FashionTemplate = () => {
                     <img
                       src={product.mainImg?.url || product.image || ''}
                       alt={product.name}
-                      className="w-full h-auto mb-4 object-cover"
+                      className="w-full h-[650px] object-cover rounded"
                     />
                   </div>
 
                   <p className="text-sm text-gray-500">{product.category?.name || '-'}</p>
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-bold text-gray-700">{product.name}</h3>
-                    <span className="text-lg font-semibold text-gray-600">{product.price} VND</span>
+                    <span className="text-lg font-semibold text-gray-600">{formatVND(product.price)} </span>
                   </div>
                 </div>
               ))

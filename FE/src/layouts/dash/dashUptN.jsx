@@ -25,10 +25,6 @@ const DashUptN_Main = () => {
           <IoAdd className="mr-2 text-lg" /> Add notice
         </button>
       </div>
-      <div className="flex space-x-6 border-b mb-4">
-        <button className="py-2 border-b-2 border-orange-500 font-semibold">All <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">10</span></button>
-        {/* To be continued  */}
-      </div>
       <DashUptNNoticesList onEditNotice={handleOpenEditNotice} />
 
       {/* vouchers */}

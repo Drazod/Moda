@@ -108,7 +108,7 @@ const DashUptNNoticeForm = ({ mode, notice, onClose, onCreated }) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <input name="state" type="checkbox" checked={form.state} onChange={handleChange} id="notice-state" />
-                            <label htmlFor="notice-state" className="text-sm font-medium">Active</label>
+                            <label htmlFor="notice-state" className="text-sm font-medium">Enable</label>
                         </div>
                     </div>
                     {error && <div className="text-red-500 text-sm mt-2">{error}</div>}

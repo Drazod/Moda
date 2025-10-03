@@ -14,7 +14,7 @@ const ONE_DAY = 24 * 60 * 60 * 1000;
 export const createAdminAccount = async (req: Request, res: Response) => {
   try {
     const requester = req.user;
-    if (!requester || requester.role !== 'SUPER_ADMIN') {
+    if (!requester || requester.role !== 'HOST') {
       return res.status(403).json({ error: 'Forbidden: Only super admins can create admin accounts.' });
     }
     const { name, email, password, phone, address } = req.body;

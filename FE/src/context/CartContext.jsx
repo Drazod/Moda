@@ -1,147 +1,204 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useAuth } from "./AuthContext";
 import axiosInstance from "../configs/axiosInstance";
+import toast from "react-hot-toast";
 
 const CartContext = createContext();
 
+// ===== Helpers =====
+const SYNC_DEBOUNCE_MS = 200;
+
+// Chuẩn hoá map item từ API -> FE
+const mapCartItems = (apiItems = []) =>
+  apiItems.map((item) => ({
+    id: item.ClothesId,
+    cartId: item.cartId,
+    cartItemId: item.id,
+    name: item.Clothes?.name ?? "",
+    price: item.Clothes?.price ?? 0,
+    qty: item.quantity,
+    image:
+      item.imageUrl || // nếu sau này snapshot ảnh ở CartItem
+      item?.Clothes?.mainImg?.url || // BE đã include mainImg
+      "",
+    sizeId: item.sizeId,
+    label: item.Size?.label ?? "",
+    selectedColor: item.selectedColor ?? null,
+    selectedSize: item.selectedSize ?? null,
+  }));
+
+// Áp hạn mức local (nếu bạn lưu stock tạm ở localStorage)
+const clampByLocal = (items) => {
+  let cartSizeQuantities = {};
+  try {
+    cartSizeQuantities =
+      JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
+  } catch {}
+  return items.map((it) => {
+    const allowed = cartSizeQuantities?.[it.id]?.[it.sizeId];
+    if (typeof allowed === "number" && it.qty > allowed) {
+      return { ...it, qty: allowed };
+    }
+    return it;
+  });
+};
+
+// Fetch giỏ canonical từ server
+const fetchCanonical = async () => {
+  const res = await axiosInstance.get("/cart/view");
+  const apiItems = Array.isArray(res.data?.cartItems) ? res.data.cartItems : [];
+  return clampByLocal(mapCartItems(apiItems));
+};
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
-  const cartCreatedUserIdRef = useRef(null);
   const { user } = useAuth();
 
-  // Reset cartCreatedUserIdRef and items when user changes
+  // Dùng để chỉ tạo/fetch cart một lần mỗi user đăng nhập
+  const cartCreatedUserIdRef = useRef(null);
+
+  // Dùng để bỏ qua sync lần mount đầu
+  const isFirstSync = useRef(true);
+
+  // Khoá chống re-entrancy trong khi sync
+  const syncingRef = useRef(false);
+
+  // Debounce timer cho sync
+  const debounceTimerRef = useRef(null);
+
+  // Lưu JSON string của canonical gần nhất để tránh setItems lại y chang
+  const lastCanonicalRef = useRef(null);
+
+  // Ghi nhớ item vừa thay đổi gần nhất để chỉ sync 1 item thay vì cả mảng
+  const lastChangedItemRef = useRef(null);
+
+  // ============ RESET khi logout ============
   useEffect(() => {
     if (!user) {
       cartCreatedUserIdRef.current = null;
       setItems([]);
+      lastCanonicalRef.current = null;
+      lastChangedItemRef.current = null;
     }
-  }, [user && user.id]);
+  }, [user?.id]);
 
-  // On login/register, create cart if needed and fetch cart items (only once per user)
+  // ============ Khi login: tạo cart nếu cần + fetch cart ============
   useEffect(() => {
-    const syncCart = async () => {
-      if (user && user.id && cartCreatedUserIdRef.current !== user.id) {
-        cartCreatedUserIdRef.current = user.id; // Set immediately to prevent race
+    const syncOnLogin = async () => {
+      if (user?.id && cartCreatedUserIdRef.current !== user.id) {
+        cartCreatedUserIdRef.current = user.id;
         try {
-          await axiosInstance.post("/cart/create");
-        } catch (err) {
-          // Ignore error if cart already exists
-        }
+          await axiosInstance.post("/cart/create"); // nếu đã tồn tại sẽ bỏ qua
+        } catch {}
         try {
-          const res = await axiosInstance.get("/cart/view");
-          if (Array.isArray(res.data?.cartItems)) {
-            // Map backend cartItems to frontend format
-            const mapped = res.data.cartItems.map(item => ({
-              id: item.ClothesId,
-              cartId: item.cartId,
-              cartItemId: item.id,
-              name: item.Clothes?.name || '',
-              price: item.Clothes?.price || 0,
-              qty: item.quantity,
-              image: item.Clothes?.mainImg.url,
-              sizeId: item.sizeId,
-              label: item.Size.label,
-              selectedColor: item.selectedColor,
-              selectedSize: item.selectedSize,
-              
-            }));
-            // Clamp each item's qty to allowed per-size stock from localStorage
-            let cartSizeQuantities = {};
-            try {
-              cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
-            } catch {}
-            const clamped = mapped.map(it => {
-              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
-                const allowed = cartSizeQuantities[it.id][it.sizeId];
-                if (it.qty > allowed) {
-                  return { ...it, qty: allowed };
-                }
-              }
-              return it;
-            });
-            setItems(clamped);
-          }
-        } catch (err) {
-          // Optionally: show notification
-        }
+          const canonical = await fetchCanonical();
+          lastCanonicalRef.current = JSON.stringify(canonical);
+          setItems(canonical);
+        } catch {}
       }
     };
-    syncCart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user && user.id]);
+    syncOnLogin();
+  }, [user?.id]);
 
-  // Helper to sync cart to backend
-  const syncCartToBackend = useCallback(async (newItems) => {
-    try {
-      for (const it of newItems) {
-        if (it.cartItemId) {
-          await axiosInstance.post("/cart/add", {
-            cartItemId: it.cartItemId,
-            cakeId: it.id,
-            quantity: it.qty
-          });
-        } else {
-          await axiosInstance.post("/cart/add", {
-            cakeId: it.id,
-            quantity: it.qty,
-            ...(it.sizeId ? { sizeId: it.sizeId } : {})
-          });
-          // After adding a new item (no cartItemId), fetch canonical cart and update state
-          const res = await axiosInstance.get("/cart/view");
-          if (Array.isArray(res.data?.cartItems)) {
-            const mapped = res.data.cartItems.map(item => ({
-              id: item.ClothesId,
-              cartId: item.cartId,
-              cartItemId: item.id,
-              name: item.Clothes?.name || '',
-              price: item.Clothes?.price || 0,
-              qty: item.quantity,
-              image: item.Clothes?.mainImg.url,
-              sizeId: item.sizeId,
-              label: item.Size.label,
-              selectedColor: item.selectedColor,
-              selectedSize: item.selectedSize,
-              
-            }));
-            // Clamp each item's qty to allowed per-size stock from localStorage
-            let cartSizeQuantities = {};
-            try {
-              cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
-            } catch {}
-            const clamped = mapped.map(it => {
-              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
-                const allowed = cartSizeQuantities[it.id][it.sizeId];
-                if (it.qty > allowed) {
-                  return { ...it, qty: allowed };
-                }
-              }
-              return it;
-            });
-            setItems(clamped);
-          }
-        }
-      }
-    } catch (err) {
-      // Optionally: show notification
-    }
-  }, []);
-
-  // Always sync cart to backend when items change (except on initial mount)
-  const isFirstSync = useRef(true);
+  // ============ SYNC lên BE + REFETCH canonical (debounced) ============
   useEffect(() => {
+    // Lần đầu mount bỏ qua
     if (isFirstSync.current) {
       isFirstSync.current = false;
       return;
     }
-    syncCartToBackend(items);
-  }, [items, syncCartToBackend]);
 
-  const addToCart = (product, options = {}) => {
-    if (!product || !product.id) {
-      alert("Cannot add to cart: product id is missing.");
+    if (syncingRef.current) return;
+
+    clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(async () => {
+      if (syncingRef.current) return;
+      syncingRef.current = true;
+
+      try {
+        const one = lastChangedItemRef.current;
+
+        if (one) {
+          if (one.cartItemId) {
+            await axiosInstance.post("/cart/add", {
+              cartItemId: one.cartItemId,
+              cakeId: one.id,
+              quantity: one.qty,
+            });
+          } else {
+            await axiosInstance.post("/cart/add", {
+              cakeId: one.id,
+              quantity: one.qty,
+              ...(one.sizeId ? { sizeId: one.sizeId } : {}),
+            });
+          }
+        } else {
+          for (const it of items) {
+            if (it.cartItemId) {
+              await axiosInstance.post("/cart/add", {
+                cartItemId: it.cartItemId,
+                cakeId: it.id,
+                quantity: it.qty,
+              });
+            } else {
+              await axiosInstance.post("/cart/add", {
+                cakeId: it.id,
+                quantity: it.qty,
+                ...(it.sizeId ? { sizeId: it.sizeId } : {}),
+              });
+            }
+          }
+        }
+
+        const canonical = await fetchCanonical();
+
+        const canonicalStr = JSON.stringify(canonical);
+        if (canonicalStr !== lastCanonicalRef.current) {
+          lastCanonicalRef.current = canonicalStr;
+          setItems(canonical);
+        }
+      } catch {
+        // Bạn có thể toast.error ở đây nếu muốn
+      } finally {
+        syncingRef.current = false;
+        lastChangedItemRef.current = null;
+      }
+    }, SYNC_DEBOUNCE_MS);
+
+    return () => clearTimeout(debounceTimerRef.current);
+  }, [items]);
+
+  // ============ Public API cho UI ============
+  const addToCart = useCallback((product, options = {}) => {
+    if (!product?.id) {
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? "animate-enter" : "animate-leave"
+            } flex items-center gap-3 bg-[#B91C1C] text-white px-4 py-3 rounded-lg shadow-lg`}
+          >
+            <div className="font-medium">Thiếu mã sản phẩm, không thể thêm vào giỏ.</div>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="ml-2 text-xs underline"
+            >
+              Đóng
+            </button>
+          </div>
+        ),
+        { duration: 2200 }
+      );
       return;
     }
+
     setItems((prev) => {
       const idx = prev.findIndex(
         (it) =>
@@ -150,89 +207,118 @@ export function CartProvider({ children }) {
           it.selectedSize === options.selectedSize &&
           it.sizeId === options.sizeId
       );
-      let updated;
-      if (idx !== -1) {
-        updated = [...prev];
-        updated[idx].qty += options.qty || 1;
-      } else {
-        updated = [
-          ...prev,
-          {
-            id: product.id,
-            name: product.name,
-            price: product.price,
-            image: product.images && product.images[0],
-            selectedColor: options.selectedColor,
-            selectedSize: options.selectedSize,
-            sizeId: options.sizeId,
-            qty: options.qty || 1,
-          },
-        ];
-      }
-      return updated;
-    });
-    // After optimistic update, fetch canonical cart from backend and replace local cart
-    setTimeout(() => {
-      axiosInstance.get("/cart/view").then(res => {
-        if (Array.isArray(res.data?.cartItems)) {
-          const mapped = res.data.cartItems.map(item => ({
-            id: item.ClothesId,
-            cartId: item.cartId,
-            cartItemId: item.id,
-            name: item.Clothes?.name || '',
-            price: item.Clothes?.price || 0,
-            qty: item.quantity,
-            image: item.Clothes?.mainImgId ? `/path/to/images/${item.Clothes.mainImgId}` : undefined,
-            sizeId: item.sizeId,
-            selectedColor: item.selectedColor,
-            selectedSize: item.selectedSize,
-          }));
-          // Clamp each item's qty to allowed per-size stock from localStorage
-          let cartSizeQuantities = {};
-          try {
-            cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
-          } catch {}
-          const clamped = mapped.map(it => {
-            if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
-              const allowed = cartSizeQuantities[it.id][it.sizeId];
-              if (it.qty > allowed) {
-                return { ...it, qty: allowed };
-              }
-            }
-            return it;
-          });
-          setItems(clamped);
-        }
-      });
-    }, 300);
-  };
 
-  const removeFromCart = (id, color, size, cartItemId) => {
+      let next;
+      let toastPayload = {
+        name: product.name,
+        color: options.selectedColor ?? null,
+        size: options.selectedSize ?? null,
+        img:
+          product?.imageUrl ||
+          product?.mainImg?.url ||
+          (Array.isArray(product?.images) ? product.images[0] : "") ||
+          "",
+      };
+
+      if (idx !== -1) {
+        next = [...prev];
+        const updated = { ...next[idx], qty: next[idx].qty + (options.qty || 1) };
+        next[idx] = updated;
+        lastChangedItemRef.current = updated;
+      } else {
+        const fresh = {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image:
+            product?.imageUrl ||
+            product?.mainImg?.url ||
+            (Array.isArray(product?.images) ? product.images[0] : "") ||
+            "",
+          selectedColor: options.selectedColor ?? null,
+          selectedSize: options.selectedSize ?? null,
+          sizeId: options.sizeId ?? null,
+          qty: options.qty || 1,
+        };
+        next = [...prev, fresh];
+        lastChangedItemRef.current = fresh;
+      }
+
+      // 🔔 Toast custom – mini card hợp màu trang, nổi bật
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? "animate-enter" : "animate-leave"
+            } flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl border`}
+            style={{
+              background: "#434237", // nền đậm
+              color: "#fff",
+              borderColor: "#BFAF92", // viền be
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            {toastPayload.img ? (
+              <img
+                src={toastPayload.img}
+                alt=""
+                className="w-10 h-10 rounded object-cover ring-1 ring-white/10"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded bg-black/20 grid place-items-center text-sm">
+                🛍
+              </div>
+            )}
+
+            <div className="min-w-[160px]">
+              <div className="font-semibold leading-tight">{toastPayload.name}</div>
+              <div className="text-[12px] opacity-80 leading-tight">
+                Đã thêm vào giỏ
+                {toastPayload.size ? ` • Size: ${toastPayload.size}` : ""}
+                {toastPayload.color ? ` • ${toastPayload.color}` : ""}
+              </div>
+            </div>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="ml-2 text-xs underline opacity-90 hover:opacity-100"
+              title="Đóng thông báo"
+            >
+              Đóng
+            </button>
+          </div>
+        ),
+        { duration: 2200, position: "top-right" }
+      );
+
+      return next;
+    });
+  }, []);
+
+  const removeFromCart = useCallback((id, color, size, cartItemId) => {
     setItems((prev) => {
       const updated = prev.filter((it) => it.cartItemId !== cartItemId);
-      // Call DELETE /cart for this item using cartItemId if present
+      // gọi API xoá (không chờ, useEffect sẽ refetch canonical sau khi state đổi)
       (async () => {
         try {
           await axiosInstance.delete("/cart/delete", { data: { cartItemId } });
-        } catch (err) {
-          // Optionally: show notification
-        }
+        } catch {}
       })();
-      syncCartToBackend(updated);
       return updated;
     });
-  };
+  }, []);
 
-  const updateQty = (cartItemId, qty) => {
+  const updateQty = useCallback((cartItemId, qty) => {
     setItems((prev) => {
       const updated = prev.map((it) =>
-        it.cartItemId === cartItemId
-          ? { ...it, qty }
-          : it
+        it.cartItemId === cartItemId ? { ...it, qty } : it
       );
+      const changed = updated.find((it) => it.cartItemId === cartItemId) || null;
+      lastChangedItemRef.current = changed;
       return updated;
     });
-  };
+  }, []);
 
   return (
     <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQty }}>

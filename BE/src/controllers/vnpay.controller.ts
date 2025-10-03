@@ -121,7 +121,7 @@ export const handleReturn = async (req: Request, res: Response) => {
           console.error('Error fetching cart/user for address/coupon:', err);
         }
         if (!userId) {
-          return res.redirect('http://localhost:3000/payment-error?message=NoUser');
+          return res.redirect('https://moda-six.vercel.app/payment-error?message=NoUser');
         }
         let transaction;
         try {
@@ -174,7 +174,7 @@ export const handleReturn = async (req: Request, res: Response) => {
         } catch (err) {
           console.error('Error creating transaction/shipping or updating sizes:', err);
           // Optionally redirect to error page
-          return res.redirect('http://localhost:3000/payment-error?message=DBError');
+          return res.redirect('https://moda-six.vercel.app/payment-error?message=DBError');
         }
         // Payment successful, redirect to success page
         if (couponCode) {
@@ -187,13 +187,13 @@ export const handleReturn = async (req: Request, res: Response) => {
         if (userId && orderId) {
           await createOrderNoticeForUser({ userId, orderId });
         }
-        return res.redirect(`http://localhost:3000/payment-success?orderId=${orderId}`);
+        return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderId}`);
       } else {
         // Payment failed, redirect to failure page
-        return res.redirect(`http://localhost:3000/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
+        return res.redirect(`https://moda-six.vercel.app/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
       }
     } else {
       // Invalid signature, redirect to an error page
-      return res.redirect('http://localhost:3000/payment-error?message=InvalidSignature');
+      return res.redirect('https://moda-six.vercel.app/payment-error?message=InvalidSignature');
     }
 };

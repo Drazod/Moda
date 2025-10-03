@@ -1,14 +1,18 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { createVNPayPayment } from "../utils/vnpay";
 import { useCart } from "../context/CartContext";
 import VoucherPanel from "../components/cart/voucherPanel";
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../configs/axiosInstance";
 
-const bg = "#E6DAC4";          // modal bg
-const fieldBg = "#CDC2AF";      // input bg
-const railBg = "#BFAF92";       // subtotal rail
-const darkBtn = "#434237";      // checkout button
+const bg = "#E6DAC4";
+const fieldBg = "#CDC2AF";
+const railBg = "#BFAF92";
+const darkBtn = "#434237";
+
+const formatVND = (v) =>
+  (Number(v) || 0).toLocaleString("vi-VN", {
+    maximumFractionDigits: 0,
+  }) + " VND";
 
 export default function CartModal({ open, onClose }) {
   const { items, removeFromCart, updateQty } = useCart();
@@ -21,34 +25,39 @@ export default function CartModal({ open, onClose }) {
     payment: "store",
   });
   useEffect(() => {
-  if (open && user) {
-    setForm((f) => ({
-      ...f,
-      name: user.name || "",
-      address: user.address || "",
-      phone: user.phone || "",
-    }));
-  }
-}, [open, user]);
+    if (open && user) {
+      setForm((f) => ({
+        ...f,
+        name: user.name || "",
+        address: user.address || "",
+        phone: user.phone || "",
+      }));
+    }
+  }, [open, user]);
+
   const [showVouchers, setShowVouchers] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState("");
   const [voucherDiscount, setVoucherDiscount] = useState(null);
 
-  console.log(voucherDiscount)
   const subtotal = useMemo(
-    () => items.reduce((s, it) => s + it.price * it.qty, 0),
+    () => items.reduce((s, it) => s + (it.price ?? 0) * (it.qty ?? 0), 0),
     [items]
   );
 
   // Find cartId from items if present (assumes all items have same cartId)
   const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
 
+  const total = useMemo(() => {
+    if (!voucherDiscount) return subtotal;
+    if (voucherDiscount < 1) return subtotal * (1 - voucherDiscount);
+    return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0);
+  }, [subtotal, voucherDiscount]);
+
   const handleCheckout = async () => {
     if (!cartId) {
       alert("No cart ID found. Please add items to cart.");
       return;
     }
-    console.log("[DEBUG] couponCode before VNPay:", selectedVoucher);
     try {
       const res = await axiosInstance.post("/vnpay/create-payment", {
         orderId: cartId,
@@ -56,7 +65,6 @@ export default function CartModal({ open, onClose }) {
         orderDescription: `Payment for cart #${cartId}`,
         orderType: "other",
         language: "vn",
-        // Optionally: pass bankCode from form/payment selection
         address: form.address,
         couponCode: selectedVoucher,
       });
@@ -67,12 +75,10 @@ export default function CartModal({ open, onClose }) {
     }
   };
 
-  // Minimum quantity required (set to 1 if not specified)
-  const getMinQty = (item) => (item.minQty ? item.minQty : 1);
-  // Get max quantity for this size (if available)
+  const getMinQty = (item) => (item?.minQty ? item.minQty : 1);
   const getMaxQty = (item) => {
-    if (item.sizeId && item.sizeStock) return item.sizeStock;
-    if (item.maxQty) return item.maxQty;
+    if (item?.sizeId && item?.sizeStock) return item.sizeStock;
+    if (item?.maxQty) return item.maxQty;
     return undefined;
   };
 
@@ -81,24 +87,25 @@ export default function CartModal({ open, onClose }) {
     if (!item) return;
     const minQty = getMinQty(item);
     const maxQty = getMaxQty(item);
-    // Check localStorage for allowed quantity for this product and size
-    let allowedQty = undefined;
+
+    // localStorage limit theo size
+    let allowedQty;
     let totalQtyForThisSize = 0;
     try {
-      const cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
-      if (item.id && item.sizeId && cartSizeQuantities[item.id] && typeof cartSizeQuantities[item.id][item.sizeId] === 'number') {
+      const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
+      if (item.id && item.sizeId && cartSizeQuantities[item.id] && typeof cartSizeQuantities[item.id][item.sizeId] === "number") {
         allowedQty = cartSizeQuantities[item.id][item.sizeId];
       }
-      // Sum all cart items with same id and sizeId
-      totalQtyForThisSize = items.filter(
-        (it) => it.id === item.id && it.sizeId === item.sizeId
-      ).reduce((sum, it) => sum + it.qty, 0);
+      totalQtyForThisSize = items
+        .filter((it) => it.id === item.id && it.sizeId === item.sizeId)
+        .reduce((sum, it) => sum + it.qty, 0);
     } catch {}
-    if (typeof allowedQty === 'number' && totalQtyForThisSize >= allowedQty) {
+
+    if (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) {
       alert(`You cannot add more than ${allowedQty} for this size.`);
       return;
     }
-    if (typeof maxQty === 'number' && item.qty >= maxQty) {
+    if (typeof maxQty === "number" && item.qty >= maxQty) {
       alert(`Only ${maxQty} left in stock for this size.`);
       return;
     }
@@ -108,35 +115,27 @@ export default function CartModal({ open, onClose }) {
     }
     updateQty(cartItemId, item.qty + 1);
   };
-  const total = useMemo(() => {
-    if (!voucherDiscount) return subtotal;
-    if (voucherDiscount < 1) {
-      return subtotal * (1 - voucherDiscount);
-    }
-    return Math.max(subtotal * (100 - voucherDiscount) / 100, 0);
-  }, [subtotal, voucherDiscount]);
+
   const dec = (cartItemId) => {
     const item = items.find((it) => it.cartItemId === cartItemId);
     if (!item) return;
     const minQty = getMinQty(item);
     if (item.qty > minQty) updateQty(cartItemId, item.qty - 1);
   };
+
   const removeItem = (id, color, size, cartItemId) => {
     removeFromCart(id, color, size, cartItemId);
   };
-  const handleForm = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleForm = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   if (!open) return null;
 
-  // Calculate total quantity of items in the cart
-  const totalQty = items.reduce((sum, it) => sum + it.qty, 0);
+  const totalQty = items.reduce((sum, it) => sum + (it.qty ?? 0), 0);
 
   return (
     <div className="fixed inset-0 z-[100] font-Jsans">
-      {/* overlay */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      {/* sheet */}
       <div
         className="absolute left-1/2 top-1/2 w-[min(1000px,96vw)] -translate-x-1/2 -translate-y-1/2 shadow-2xl ring-1 ring-black/10"
         style={{ background: bg }}
@@ -158,112 +157,101 @@ export default function CartModal({ open, onClose }) {
         {/* body */}
         <div className="grid grid-cols-1 gap-10 px-6 pb-6 pt-4 lg:grid-cols-[1fr_1fr]">
           {/* LEFT – items list */}
-          <div className="space-y-4 font-medium text-base overflow-y-auto" style={{ maxHeight: '400px' }}>
-            {items.map((it, i) => (
-              <div key={it.id + (it.selectedColor || '') + (it.selectedSize || '')} className="pb-2">
-                <div className="grid grid-cols-[80px_1fr_auto] items-center gap-2">
-                  <img
-                    src={it.image}
-                    alt={it.name}
-                    className="h-20 w-20 rounded object-cover"
-                  />
-                  <div>
-                    <p className=" leading-snug ">{it.name}</p>
-                    {!it.selectedSize && it.sizeId && (
-                      <div className="text-xs text-gray-500">Size: {it.label}</div>
-                    )}
-                    {it.selectedColor && (
-                      <div className="text-xs text-gray-500">Color: {it.selectedColor}</div>
-                    )}
-                    {it.selectedSize && (
-                      <div className="text-xs text-gray-500">Size: {it.selectedSize}</div>
-                    )}
-                  </div>
+          <div className="space-y-4 font-medium text-base overflow-y-auto" style={{ maxHeight: "400px" }}>
+            {items.map((it, i) => {
+              const key = (it.cartItemId ?? it.id) + "-" + (it.sizeId ?? "");
+              const imgSrc = it.image || it.imageUrl || it?.Clothes?.mainImg?.url || "/placeholder.png";
+              const sizeLabel = it.selectedSize || it.label || it?.Size?.label || "";
 
-                  <button
-                    onClick={() => removeItem(it.id, it.selectedColor, it.selectedSize, it.cartItemId)}
-                    className="ml-auto h-8 w-8 rounded-full hover:bg-black/10 "
-                    aria-label="Remove"
-                    title="Remove"
-                  >
-                    🗑
-                  </button>
+              return (
+                <div key={key} className="pb-2">
+                  <div className="grid grid-cols-[80px_1fr_auto] items-center gap-2">
+                    <img src={imgSrc} alt={it.name || "Product"} className="h-20 w-20 rounded object-cover" />
+                    <div>
+                      <p className=" leading-snug ">{it.name}</p>
+                      {sizeLabel && <div className="text-xs text-gray-500">Size: {sizeLabel}</div>}
+                      {it.selectedColor && <div className="text-xs text-gray-500">Color: {it.selectedColor}</div>}
+                    </div>
 
-                  {/* price & qty line */}
-                  <div className="col-start-2">
-                    <p className="">${it.price.toFixed(2)}</p>
-                  </div>
-                  <div className="col-start-3 flex items-center justify-end">
-                    <div className="flex items-center rounded-full border border-black/20 bg-[#efe5d6] px-2">
-                      <button
-                        onClick={() => dec(it.cartItemId)}
-                        className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
-                        aria-label="Decrease"
-                        disabled={it.qty <= getMinQty(it)}
-                        style={it.qty <= getMinQty(it) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
-                      >
-                        –
-                      </button>
-                      <div className="w-9 text-center">{it.qty}</div>
-                      <button
-                        onClick={() => inc(it.cartItemId)}
-                        className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
-                        aria-label="Increase"
-                        disabled={
-                          (() => {
+                    <button
+                      onClick={() => removeItem(it.id, it.selectedColor, it.selectedSize, it.cartItemId)}
+                      className="ml-auto h-8 w-8 rounded-full hover:bg-black/10 "
+                      aria-label="Remove"
+                      title="Remove"
+                    >
+                      🗑
+                    </button>
+
+                    {/* price & qty line */}
+                    <div className="col-start-2">
+                      <p>{formatVND(it.price)}</p>
+                    </div>
+                    <div className="col-start-3 flex items-center justify-end">
+                      <div className="flex items-center rounded-full border border-black/20 bg-[#efe5d6] px-2">
+                        <button
+                          onClick={() => dec(it.cartItemId)}
+                          className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
+                          aria-label="Decrease"
+                          disabled={it.qty <= getMinQty(it)}
+                          style={it.qty <= getMinQty(it) ? { opacity: 0.5, cursor: "not-allowed" } : {}}
+                        >
+                          –
+                        </button>
+                        <div className="w-9 text-center">{it.qty}</div>
+                        <button
+                          onClick={() => inc(it.cartItemId)}
+                          className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
+                          aria-label="Increase"
+                          disabled={(() => {
                             const maxQty = getMaxQty(it);
                             let allowedQty;
                             let totalQtyForThisSize = 0;
                             try {
-                              const cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
-                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
+                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === "number") {
                                 allowedQty = cartSizeQuantities[it.id][it.sizeId];
                               }
-                              totalQtyForThisSize = items.filter(
-                                (itm) => itm.id === it.id && itm.sizeId === it.sizeId
-                              ).reduce((sum, itm) => sum + itm.qty, 0);
+                              totalQtyForThisSize = items
+                                .filter((itm) => itm.id === it.id && itm.sizeId === it.sizeId)
+                                .reduce((sum, itm) => sum + itm.qty, 0);
                             } catch {}
-                            if (typeof allowedQty === 'number' && totalQtyForThisSize >= allowedQty) return true;
-                            if (typeof maxQty === 'number' && it.qty >= maxQty) return true;
+                            if (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) return true;
+                            if (typeof maxQty === "number" && it.qty >= maxQty) return true;
                             return false;
-                          })()
-                        }
-                        style={
-                          (() => {
+                          })()}
+                          style={(() => {
                             const maxQty = getMaxQty(it);
                             let allowedQty;
                             let totalQtyForThisSize = 0;
                             try {
-                              const cartSizeQuantities = JSON.parse(localStorage.getItem('cartSizeQuantities')) || {};
-                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === 'number') {
+                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
+                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === "number") {
                                 allowedQty = cartSizeQuantities[it.id][it.sizeId];
                               }
-                              totalQtyForThisSize = items.filter(
-                                (itm) => itm.id === it.id && itm.sizeId === it.sizeId
-                              ).reduce((sum, itm) => sum + itm.qty, 0);
+                              totalQtyForThisSize = items
+                                .filter((itm) => itm.id === it.id && itm.sizeId === it.sizeId)
+                                .reduce((sum, itm) => sum + itm.qty, 0);
                             } catch {}
                             if (
-                              (typeof allowedQty === 'number' && totalQtyForThisSize >= allowedQty) ||
-                              (typeof maxQty === 'number' && it.qty >= maxQty)
+                              (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) ||
+                              (typeof maxQty === "number" && it.qty >= maxQty)
                             ) {
-                              return { opacity: 0.5, cursor: 'not-allowed' };
+                              return { opacity: 0.5, cursor: "not-allowed" };
                             }
                             return {};
-                          })()
-                        }
-                      >
-                        +
-                      </button>
+                          })()}
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* divider */}
-                {i !== items.length - 1 && (
-                  <div className="mt-4 h-px w-full bg-black/15" />
-                )}
-              </div>
-            ))}
+                  {/* divider */}
+                  {i !== items.length - 1 && <div className="mt-4 h-px w-full bg-black/15" />}
+                </div>
+              );
+            })}
 
             {/* payment / offers row */}
             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-medium">
@@ -281,9 +269,7 @@ export default function CartModal({ open, onClose }) {
                     <option value="card">Card</option>
                     <option value="cod">Cash on delivery</option>
                   </select>
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-                    ▾
-                  </span>
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">▾</span>
                 </div>
               </div>
 
@@ -291,20 +277,20 @@ export default function CartModal({ open, onClose }) {
 
               <div className="flex items-center gap-3">
                 <span className="text-base font-medium">Offers:</span>
-                  <button
-                    onClick={() => setShowVouchers(true)}
-                    className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70"
-                  >
-                    {selectedVoucher ? (
-                      <>
-                        {selectedVoucher} <span className="text-xs opacity-70">(applied)</span>
-                      </>
-                    ) : (
-                      <>
-                        Find voucher <span className="translate-x-[2px]">⟶</span>
-                      </>
-                    )}
-                  </button>
+                <button
+                  onClick={() => setShowVouchers(true)}
+                  className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70"
+                >
+                  {selectedVoucher ? (
+                    <>
+                      {selectedVoucher} <span className="text-xs opacity-70">(applied)</span>
+                    </>
+                  ) : (
+                    <>
+                      Find voucher <span className="translate-x-[2px]">⟶</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -361,16 +347,11 @@ export default function CartModal({ open, onClose }) {
         </div>
 
         {/* footer rail */}
-        <div
-          className="mx-5 mb-5 pt-4"
-          style={{ background: railBg }}
-        >
+        <div className="mx-5 mb-5 pt-4" style={{ background: railBg }}>
           <div className="mx-1 p-4">
             <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Sub Total</span>
-              <span className="font-semibold">
-                VND{total.toFixed(2)}
-              </span>
+              <span className="font-semibold">{formatVND(total)}</span>
             </div>
 
             <div className="flex gap-4">
@@ -395,19 +376,17 @@ export default function CartModal({ open, onClose }) {
           </div>
         </div>
       </div>
-    {showVouchers && (
-      <VoucherPanel
-        onClose={() => setShowVouchers(false)}
-        onApply={(couponCode, discount) => {
-          setSelectedVoucher(couponCode);   // store coupon code
-          setVoucherDiscount(discount);      // store voucher discount
-          setShowVouchers(false);
-        }}
-      />
-    )}
+
+      {showVouchers && (
+        <VoucherPanel
+          onClose={() => setShowVouchers(false)}
+          onApply={(couponCode, discount) => {
+            setSelectedVoucher(couponCode);
+            setVoucherDiscount(discount);
+            setShowVouchers(false);
+          }}
+        />
+      )}
     </div>
   );
 }
-
-
-

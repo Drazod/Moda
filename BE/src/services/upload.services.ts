@@ -121,57 +121,98 @@ export const uploadToFirebase = async (file: Express.Multer.File): Promise<strin
     });
 };
 
-export const deleteImageFromFirebaseAndPrisma = async (name: string, isMainImage: boolean, cakeId: number) => {
+const getNameFromUrl = (nameOrUrl: string) => {
+  if (nameOrUrl.startsWith("http")) {
     try {
-        // const filePath = url.replace('https://storage.googleapis.com/moda-938e0.firebasestorage.app/', '');
-        const storageRef = bucket.file(`images/${name}`);
-    
-        await storageRef.delete();
-
-        // Check if the cake exists and fetch its current image information
-        const existingCake = await prisma.clothes.findUnique({
-            where: { id: cakeId },
-            include: { mainImg: true, extraImgs: true }, // Get the current images related to this cake
-        });
-
-        if (!existingCake) {
-            throw new Error('Cake not found');
-        }
-
-        // If it's the main image, update the cake record in Prisma
-        if (isMainImage) {
-            await prisma.clothes.update({
-                where: { id: cakeId },
-                data: {
-                    mainImgId: null, // Remove the link to the main image
-                },
-            });
-        } else {
-            // If it's an extra image, disconnect it from the Cake model
-            const imageRecord = await prisma.image.findUnique({
-                where: { url: `https://storage.googleapis.com/${bucket.name}/images/${name}` },
-            });
-
-            if (imageRecord) {
-                await prisma.clothes.update({
-                    where: { id: cakeId },
-                    data: {
-                        extraImgs: {
-                            disconnect: { id: imageRecord.id }, // Disconnect the image from the cake's extraImgs
-                        },
-                    },
-                });
-            }
-        }
-
-        // Delete the image record from Prisma
-        await prisma.image.delete({
-            where: { url: `https://storage.googleapis.com/moda-938e0.firebasestorage.app/images/${name}` },
-        });
-
-        console.log(`File ${name} deleted successfully!`);
-    } catch (error) {
-        console.error('Error deleting image from Firebase Storage:', error);
-        throw new Error('Failed to delete image');
+      const u = new URL(nameOrUrl);
+      // expect: .../images/<name>
+      const parts = u.pathname.split("/");
+      return parts[parts.length - 1] || nameOrUrl;
+    } catch {
+      return nameOrUrl;
     }
-}
+  }
+  return nameOrUrl;
+};
+
+// Helper: build đúng url public cho ảnh theo bucket hiện tại
+const buildPublicUrl = (name: string) =>
+  `https://storage.googleapis.com/${bucket.name}/images/${name}`;
+
+/**
+ * Xoá ảnh trên Firebase và record Prisma.
+ * - Nếu có `cakeId` => ảnh thuộc product (main/extra) -> disconnect khỏi Clothes rồi xoá record Image.
+ * - Nếu không có `cakeId` => ảnh rời (ví dụ Notice) -> chỉ xoá file + record Image.
+ *
+ * @param nameOrUrl: có thể truyền "name" (abc.png) hoặc full url
+ * @param isMainImage?: chỉ dùng khi có cakeId
+ * @param cakeId?: id của Clothes; nếu bỏ trống => coi là ảnh rời (notice)
+ */
+export const deleteImageFromFirebaseAndPrisma = async (
+  nameOrUrl: string,
+  isMainImage?: boolean,
+  cakeId?: number
+) => {
+  const name = getNameFromUrl(nameOrUrl);
+  const publicUrl = buildPublicUrl(name);
+
+  try {
+    // 1) Xoá file trên Firebase Storage (bỏ qua lỗi nếu file đã không tồn tại)
+    await bucket.file(`images/${name}`).delete().catch((e) => {
+      // không throw để không chặn flow
+      console.warn("Storage delete warning:", e?.message || e);
+    });
+
+    // 2) Nếu có cakeId => xử lý product
+    if (typeof cakeId === "number") {
+      const existingCake = await prisma.clothes.findUnique({
+        where: { id: cakeId },
+        include: { mainImg: true, extraImgs: true },
+      });
+      if (!existingCake) {
+        throw new Error("Clothes not found");
+      }
+
+      if (isMainImage) {
+        // gỡ liên kết mainImg
+        await prisma.clothes.update({
+          where: { id: cakeId },
+          data: { mainImgId: null },
+        });
+      } else {
+        // tìm image record theo name/url rồi disconnect khỏi extraImgs
+        const imageRecord = await prisma.image.findFirst({
+          where: {
+            OR: [{ name: name }, { url: publicUrl }],
+          },
+        });
+        if (imageRecord) {
+          await prisma.clothes.update({
+            where: { id: cakeId },
+            data: { extraImgs: { disconnect: { id: imageRecord.id } } },
+          });
+        }
+      }
+
+      // xoá record Image (theo name OR url — để chắc ăn)
+      await prisma.image.deleteMany({
+        where: {
+          OR: [{ name: name }, { url: publicUrl }],
+        },
+      });
+
+      console.log(`Deleted product image ${name} successfully`);
+      return;
+    }
+
+    // 3) Không có cakeId => ảnh rời (ví dụ Notice)
+    await prisma.image.deleteMany({
+      where: { OR: [{ name: name }, { url: publicUrl }] },
+    });
+
+    console.log(`Deleted loose image ${name} successfully`);
+  } catch (error) {
+    console.error("Error deleting image from Firebase/Prisma:", error);
+    throw new Error("Failed to delete image");
+  }
+};

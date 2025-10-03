@@ -44,4 +44,9 @@
   }
 }
 
+.animate-enter { animation: enter 200ms ease-out; }
+.animate-leave { animation: leave 150ms ease-in forwards; }
+@keyframes enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes leave { to { opacity: 0; transform: translateY(-6px); } }
+
 
