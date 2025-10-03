@@ -45,7 +45,8 @@ const App = () => {
         <Route path="/product" element={<Product/>}/>
         <Route path="/cart" element={<CartModal/>}/>
         <Route path="/payment-success" element={<PaymentSuccess/>}/>
-        <Route path="/payment-fail" element={<PaymentFail/>}/>
+        {/* <Route path="/payment-fail" element={<PaymentFail/>}/> */}
+        <Route path="/payment-failed" element={<PaymentFail/>}/>
         <Route path="/login" element={
           <PublicOnly>
             <LogInPage />

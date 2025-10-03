@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const PaymentFail = () => {
   const query = new URLSearchParams(useLocation().search);
   const orderId = query.get('orderId');
+  const errorCode = query.get('errorCode');
   const navigate = useNavigate();
 
   const handleTryAgain = () => {
@@ -12,6 +13,19 @@ const PaymentFail = () => {
 
   const handleGoHome = () => {
     navigate('/home');
+  };
+
+  // Get specific error message based on error code
+  const getErrorMessage = (code) => {
+    const errorMessages = {
+      '24': 'Transaction was cancelled by user',
+      '23': 'Payment declined by bank',
+      '22': 'Insufficient funds',
+      '21': 'Card expired or invalid',
+      '20': 'Network timeout',
+      'default': 'Payment could not be processed'
+    };
+    return errorMessages[code] || errorMessages['default'];
   };
 
   return (
@@ -29,8 +43,20 @@ const PaymentFail = () => {
           
           {/* Error Message */}
           <h2 className="text-2xl font-semibold mb-2 text-red-600">Payment Failed</h2>
-          <p className="mb-6 text-gray-700">
-            We're sorry, but your payment for Order #{orderId} could not be processed. Please try again or contact support if the issue persists.
+          <p className="mb-4 text-gray-700">
+            {orderId ? `Order #${orderId}` : 'Your payment'} could not be processed.
+          </p>
+          
+          {errorCode && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
+              <p className="text-sm text-red-700">
+                <span className="font-semibold">Error Code {errorCode}:</span> {getErrorMessage(errorCode)}
+              </p>
+            </div>
+          )}
+          
+          <p className="mb-6 text-gray-600 text-sm">
+            Please try again or contact support if the issue persists.
           </p>
           
           {/* Action Buttons */}
