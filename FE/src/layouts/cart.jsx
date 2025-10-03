@@ -24,8 +24,9 @@ export default function CartModal({ open, onClose }) {
     message: "",
     payment: "store",
   });
+  
   useEffect(() => {
-    if (open && user) {
+    if ((open || open === undefined) && user) {
       setForm((f) => ({
         ...f,
         name: user.name || "",
@@ -129,7 +130,7 @@ export default function CartModal({ open, onClose }) {
 
   const handleForm = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  if (!open) return null;
+  if (!open && open !== undefined) return null;
 
   const totalQty = items.reduce((sum, it) => sum + (it.qty ?? 0), 0);
 
@@ -145,13 +146,23 @@ export default function CartModal({ open, onClose }) {
           <h3 className="text-2xl font-medium tracking-[0.02em] text-[#353535]">
             Your cart <span className="opacity-40">({totalQty})</span>
           </h3>
-          <button
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-full bg-black/15 text-[#3a3936] hover:bg-black/25"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+          {onClose ? (
+            <button
+              onClick={onClose}
+              className="grid h-8 w-8 place-items-center rounded-full bg-black/15 text-[#3a3936] hover:bg-black/25"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          ) : (
+            <a 
+              href="/home"
+              className="grid h-8 w-8 place-items-center rounded-full bg-black/15 text-[#3a3936] hover:bg-black/25"
+              aria-label="Go to Home"
+            >
+              ✕
+            </a>
+          )}
         </div>
 
         {/* body */}
