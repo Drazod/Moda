@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import authMiddleware from '../middlewares/authentication';
 import { userProfile, userUpdate, userTransactionHistory } from '../controllers/user.controller';
+import multer from 'multer';
+
+// Configure multer for file uploads
+const upload = multer({
+    storage: multer.memoryStorage(),
+});
 // import { createPayment } from '../controllers/payment.controller';
 
 const userRoute: Router = Router();
@@ -25,7 +31,7 @@ const userRoute: Router = Router();
  */
 userRoute.get('/profile', authMiddleware, userProfile);
 
-userRoute.post('/update', authMiddleware, userUpdate);
+userRoute.post('/update', authMiddleware, upload.fields([{ name: 'avatar', maxCount: 1 }]), userUpdate);
 
 // userRoute.post('/payment', createPayment);
 

@@ -146,10 +146,16 @@ export const userUpdate = async (req: Request, res: Response) => {
         if (files && files.avatar && files.avatar.length > 0) {
             const avatarFile = files.avatar[0];
             
-            // Delete old avatar if it exists
-            if (currentUser.avatarId) {
+            // Delete old avatar if it exists (check if avatarId property exists)
+            if ('avatarId' in currentUser && currentUser.avatarId) {
                 try {
-                    await deleteImageFromFirebaseAndPrisma(currentUser.avatarId);
+                    // Get the avatar image record to get the URL
+                    const avatarImage = await prisma.image.findUnique({
+                        where: { id: currentUser.avatarId as number }
+                    });
+                    if (avatarImage) {
+                        await deleteImageFromFirebaseAndPrisma(avatarImage.url);
+                    }
                 } catch (error) {
                     console.error('Error deleting old avatar:', error);
                     // Continue with upload even if deletion fails
