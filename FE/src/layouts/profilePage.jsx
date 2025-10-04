@@ -16,7 +16,6 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
   const [transactions, setTransactions] = useState([]);
-
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
@@ -69,19 +68,37 @@ export default function ProfilePage() {
               </div>
             </div>
             <div className="mt-4 text-[#1D1A05] flex justify-between">
-              <p>Membership: {profile?.membership || "No membership"}</p>
+              <p>Loyalty Points: {profile?.points || 0}</p>
+              <p className="text-sm text-gray-600">
+                {profile?.points >= 1000 ? "Gold Member" : 
+                 profile?.points >= 500 ? "Silver Member" : 
+                 profile?.points >= 100 ? "Bronze Member" : "Basic Member"}
+              </p>
             </div>
             <div className="mt-4 w-full bg-[#F2F2F2] rounded-full h-2.5">
               <div
-                style={{ width: `${profile?.membershipProgress || 20}%` }}
+                style={{ width: `${Math.min((profile?.points || 0) / 10, 100)}%` }}
                 className="bg-[#434237] h-2.5 rounded-full"
               >
               </div>
+            </div>
+            <div className="mt-2 text-xs text-gray-500 text-right">
+              {profile?.points || 0} / 1000 points to Gold
             </div>
             <div className="mt-6 space-y-6">
               <h3 className="font-semibold text-2xl">Profile</h3>
               <p>Address: {profile?.address || "No address provided"}</p>
               <p>📞 {profile?.phone || "No phone number"}</p>
+              
+              {/* Points History Link */}
+              <div className="pt-4 border-t border-gray-300">
+                <a 
+                  href="/transactions" 
+                  className="text-[#434237] hover:text-[#2f2e25] underline text-sm"
+                >
+                  View Transaction & Refund History →
+                </a>
+              </div>
             </div>
           </div>
 

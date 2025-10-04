@@ -11,7 +11,10 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                 transactionDetails: {
                     include: {
                         clothes: true,
-                        size: true
+                        size: true,
+                        refunds: {
+                            orderBy: { createdAt: 'desc' }
+                        }
                     }
                 }
             },
@@ -41,35 +44,63 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
             return amount.toLocaleString('vi-VN') + ' VND';
         }
 
-
         const result = transactions.map((t) => {
             const { date, time } = formatDateTime(t.createdAt);
-            // Compose detail string from transactionDetails
-            let detail = 'No items';
-            if (t.transactionDetails && t.transactionDetails.length > 0) {
-                detail = t.transactionDetails
-                    .map(td => {
-                        let name = td.clothes?.name || '';
-                        let size = td.size?.label ? ` (${td.size.label})` : '';
-                        return name + size;
-                    })
-                    .filter(Boolean)
-                    .join(', ');
-            }
+            
             // Get state from first associated shipping record, if available
             let state = t.shipping && t.shipping.length > 0 ? t.shipping[0].State : undefined;
+            
+            // Map transaction details with refund information
+            const items = t.transactionDetails.map(td => {
+                const availableForRefund = td.quantity - td.refundedQuantity;
+                
+                // Get refund status for this item
+                let refundStatus = 'NONE';
+                let latestRefund = null;
+                if (td.refunds && td.refunds.length > 0) {
+                    latestRefund = td.refunds[0]; // Most recent refund
+                    refundStatus = latestRefund.status;
+                }
+
+                return {
+                    transactionDetailId: td.id,
+                    clothesId: td.clothesId,
+                    clothesName: td.clothes?.name || 'Unknown Item',
+                    size: td.size?.label || 'N/A',
+                    unitPrice: formatPrice(td.price),
+                    originalQuantity: td.quantity,
+                    refundedQuantity: td.refundedQuantity,
+                    availableForRefund: availableForRefund,
+                    canRefund: availableForRefund > 0 && state === 'COMPLETE',
+                    refundStatus: refundStatus,
+                    latestRefundReason: latestRefund?.reason || null,
+                    latestRefundAdminNote: latestRefund?.adminNote || null
+                };
+            });
+
+            // Create summary detail string for backward compatibility
+            let detail = 'No items';
+            if (items.length > 0) {
+                detail = items
+                    .map(item => `${item.clothesName} (${item.size}) x${item.originalQuantity}`)
+                    .join(', ');
+            }
+
             return {
                 orderId: `#${t.id}`,
-                detail,
+                detail, // Keep for backward compatibility
+                items, // New detailed item information
                 date,
                 time,
                 price: formatPrice(t.amount),
-                state // Transaction state from shipping
+                state, // Transaction state from shipping
+                canRefundAny: items.some(item => item.canRefund)
             };
         });
 
         res.status(200).json({ message: "User transaction history", transactions: result });
     } catch (error) {
+        console.error('Error fetching transaction history:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }
