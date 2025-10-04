@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axiosInstance from  "../../../configs/axiosInstance";
 import { useAuth } from "../../../context/AuthContext";
+import AvatarUpload from "../AvatarUpload";
 
 function toDateInputValue(value) {
   if (!value) return "";
@@ -15,6 +16,7 @@ export default function InformationForm() {
   const [loading, setLoading] = useState(true);
   const [member, setMember] = useState(null);
   const [submitError, setSubmitError] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   const [formData, setFormData] = useState({
     id: "",
@@ -41,6 +43,7 @@ export default function InformationForm() {
 
         setMember(u);
         setFormData(normalized);
+        setAvatarUrl(u?.avatar?.url || null);
       } catch (e) {
         console.error("Failed to load profile:", e);
         setSubmitError(
@@ -57,6 +60,15 @@ export default function InformationForm() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((s) => ({ ...s, [name]: value }));
+  };
+
+  const handleAvatarUpdate = (newAvatarUrl) => {
+    setAvatarUrl(newAvatarUrl);
+    // Also update the member state if needed
+    setMember(prev => ({
+      ...prev,
+      avatar: { url: newAvatarUrl }
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -93,29 +105,24 @@ export default function InformationForm() {
     <div className="w-3/4 p-6">
       <h2 className="text-3xl font-semibold mb-8">Account Details</h2>
 
-      {/* Avatar section (kept simple) */}
-      <div className="flex items-center mb-8">
-        <form onSubmit={(e) => e.preventDefault()}>
-          <img
-            src="https://via.placeholder.com/128"
-            alt="Avatar"
-            className="w-24 h-24 rounded-full mr-6"
-          />
-          <input type="file" id="avatarInput" accept="image/*" />
-          <button
-            type="button"
-            className="px-4 py-2 bg-gray-600 rounded-md text-white mr-6"
-          >
-            Change avatar
-          </button>
-          <p className="text-gray-400 text-sm">
-            File type: JPEG, PNG, GIF
-            <br />
-            Recommended dimension: 128x128
-            <br />
-            Recommended file size: 256kb
-          </p>
-        </form>
+      {/* Avatar Upload */}
+      <div className="mb-8">
+        <h3 className="text-black font-bold mb-4">Change Avatar</h3>
+        <div className="flex items-center">
+          <div className="mr-6">
+            <AvatarUpload 
+              currentAvatar={avatarUrl}
+              onAvatarUpdate={handleAvatarUpdate}
+              size="large"
+            />
+          </div>
+          <div className="text-gray-600 text-sm">
+            <p className="mb-2"><strong>File types:</strong> JPEG, PNG, GIF</p>
+            <p className="mb-2"><strong>Recommended size:</strong> 128x128 pixels</p>
+            <p className="mb-2"><strong>Max file size:</strong> 5MB</p>
+            <p className="text-xs text-gray-500">Click on the avatar to change it</p>
+          </div>
+        </div>
       </div>
 
       {/* Profile Form */}

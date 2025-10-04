@@ -7,7 +7,6 @@ import { useAuth } from "../context/AuthContext";
 import NotificationCard from "../components/user/notificationCard";
 import RecentOrdersCard from "../components/user/recentOrderCard";
 import OrderStatusCard from "../components/user/orderStatusCard";
-import AvatarUpload from "../components/user/AvatarUpload";
 import axiosInstance from '../configs/axiosInstance';
 import { useNavigate } from "react-router-dom";
 
@@ -15,7 +14,6 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const [profile, setProfile] = useState(null);
   const [transactions, setTransactions] = useState([]);
-  const [avatarUrl, setAvatarUrl] = useState(null);
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
@@ -40,22 +38,12 @@ export default function ProfilePage() {
       try {
         const res = await axiosInstance.get('/auth/me');
         setProfile(res.data);
-        setAvatarUrl(res.data?.avatar?.url || null);
       } catch (error) {
         console.error("Failed to fetch users:", error);
       }
     };
     fetchData();
   }, []);
-
-  const handleAvatarUpdate = (newAvatarUrl) => {
-    setAvatarUrl(newAvatarUrl);
-    // Also update the profile state if needed
-    setProfile(prev => ({
-      ...prev,
-      avatar: { url: newAvatarUrl }
-    }));
-  };
   return (
   <div className="flex flex-col md:flex-row min-h-screen relative-container noise-overlay font-Jsans">
     {/* Sidebar */}
@@ -67,12 +55,11 @@ export default function ProfilePage() {
         <section className="z-10 col-span-1 bg-[#BFAF92] rounded-2xl shadow flex flex-col justify-between h-full">
           <div className="p-6">
             <div className="flex items-center">
-              <div className="mr-4">
-                <AvatarUpload 
-                  currentAvatar={avatarUrl}
-                  onAvatarUpdate={handleAvatarUpdate}
-                />
-              </div>
+              <img
+                src={profile?.avatar?.url || "https://via.placeholder.com/120"}
+                alt="Avatar"
+                className="rounded-full border w-20 h-20 mr-4 object-cover"
+              />
               <div>
                 <h2 className="text-2xl font-semibold">{profile?.name || "Guest"}</h2>
                 <p className="text-gray-600">{profile?.email || "example@email.com"}</p>

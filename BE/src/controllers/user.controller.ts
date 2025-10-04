@@ -116,6 +116,9 @@ export const userProfile = async (req: Request, res: Response) => {
         const user = await prisma.user.findUnique({
             where: {
                 id: userId
+            },
+            include: {
+                avatar: true
             }
         });
         res.status(200).json({message: "User Profile: ", user: user});
@@ -149,12 +152,12 @@ export const userUpdate = async (req: Request, res: Response) => {
             // Delete old avatar if it exists (check if avatarId property exists)
             if ('avatarId' in currentUser && currentUser.avatarId) {
                 try {
-                    // Get the avatar image record to get the URL
+                    // Get the avatar image record to get the name
                     const avatarImage = await prisma.image.findUnique({
                         where: { id: currentUser.avatarId as number }
                     });
                     if (avatarImage) {
-                        await deleteImageFromFirebaseAndPrisma(avatarImage.url);
+                        await deleteImageFromFirebaseAndPrisma(avatarImage.name);
                     }
                 } catch (error) {
                     console.error('Error deleting old avatar:', error);

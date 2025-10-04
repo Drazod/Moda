@@ -31,6 +31,48 @@ const userRoute: Router = Router();
  */
 userRoute.get('/profile', authMiddleware, userProfile);
 
+/**
+ * @swagger
+ * /user/update:
+ *   post:
+ *     summary: Update user profile with optional avatar upload
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: User's name
+ *               phone:
+ *                 type: string
+ *                 description: User's phone number
+ *               address:
+ *                 type: string
+ *                 description: User's address
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: Avatar image file
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       500:
+ *         description: Internal server error
+ */
 userRoute.post('/update', authMiddleware, upload.fields([{ name: 'avatar', maxCount: 1 }]), userUpdate);
 
 // userRoute.post('/payment', createPayment);

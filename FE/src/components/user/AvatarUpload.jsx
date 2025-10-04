@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { FaCamera, FaSpinner } from 'react-icons/fa';
 import axiosInstance from '../../configs/axiosInstance';
 
-const AvatarUpload = ({ currentAvatar, onAvatarUpdate }) => {
+const AvatarUpload = ({ currentAvatar, onAvatarUpdate, size = "small" }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [previewUrl, setPreviewUrl] = useState(currentAvatar);
     const fileInputRef = useRef(null);
@@ -62,13 +62,17 @@ const AvatarUpload = ({ currentAvatar, onAvatarUpdate }) => {
         fileInputRef.current?.click();
     };
 
+    const sizeClasses = size === "large" 
+        ? "w-32 h-32" 
+        : "w-20 h-20";
+
     return (
         <div className="relative group">
             <div className="relative">
                 <img
                     src={previewUrl || "https://via.placeholder.com/120"}
                     alt="Avatar"
-                    className="rounded-full border w-20 h-20 object-cover"
+                    className={`rounded-full border object-cover ${sizeClasses}`}
                 />
                 
                 {/* Upload overlay */}
