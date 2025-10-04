@@ -124,12 +124,15 @@ model User {
   phone           String    
   address         String    @db.VarChar(1024)
   role            Role      @default(USER)
+  points          Int       @default(0)
   carts           Cart[]
   comments        Comment[]
   shippings       Shipping[]
   transactions    Transaction[]
   notices         Notice[]
   passwordHistory PasswordHistory[]
+  pointHistory    PointHistory[]
+  refunds         Refund[]
   updatedAt       DateTime  @updatedAt
   createdAt       DateTime  @default(now())
   otpCode         String?
@@ -185,9 +188,11 @@ model TransactionDetail {
   sizeId         Int
   quantity       Int
   price          Float
+  refundedQuantity Int       @default(0)
   transaction    Transaction  @relation(fields: [transactionId], references: [id])
   clothes        Clothes      @relation(fields: [clothesId], references: [id])
   size           Size         @relation(fields: [sizeId], references: [id])
+  refunds        Refund[]
   createdAt      DateTime     @default(now())
 }
 
@@ -223,5 +228,47 @@ model PasswordHistory {
   isUsed          Boolean   @default(false)
   user            User      @relation(fields: [userId], references: [id])
   createdAt       DateTime  @default(now())
+}
+
+model PointHistory {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  points          Int       // Positive for earning, negative for spending/refund
+  type            PointType
+  description     String
+  transactionId   Int?      // Optional reference to transaction
+  refundId        Int?      // Optional reference to refund
+  user            User      @relation(fields: [userId], references: [id])
+  createdAt       DateTime  @default(now())
+}
+
+model Refund {
+  id                  Int               @id @default(autoincrement())
+  userId              Int
+  transactionDetailId Int
+  quantity            Int               // How many items being refunded
+  refundAmount        Float             // Amount to refund in currency
+  pointsReturned      Int               // Points returned for this refund
+  reason              String?           @db.VarChar(1024)
+  status              RefundStatus      @default(PENDING)
+  adminNote           String?           @db.VarChar(1024)
+  user                User              @relation(fields: [userId], references: [id])
+  transactionDetail   TransactionDetail @relation(fields: [transactionDetailId], references: [id])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+enum PointType {
+  EARNED_PAYMENT    // Points earned from payment
+  RETURNED_REFUND   // Points returned from refund
+  SPENT_PURCHASE    // Points spent on purchase (for future use)
+  ADMIN_ADJUSTMENT  // Manual adjustment by admin
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
 }
 

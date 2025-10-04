@@ -14,6 +14,8 @@ import adminRoute from "./admin.routes"; // Add this line
 import metricRoute from "./metric.routes";
 import reportRoute from "./report.routes";
 import searchRoute from "./search.routes";
+import pointsRoute from "./points.routes";
+import refundRoute from "./refund.routes";
 
 import shippingRoute from "./shipping.routes";
 import orderRoute from "./order.routes";
@@ -35,6 +37,8 @@ route.use('/report', reportRoute);
 route.use('/notice', noticeRoute);
 route.use('/log', logRoute);
 route.use('/search', searchRoute);
+route.use('/points', pointsRoute);
+route.use('/refund', refundRoute);
 route.use('/shipping', shippingRoute);
 route.use('/coupon', couponRoute);
 route.use('/order', orderRoute);

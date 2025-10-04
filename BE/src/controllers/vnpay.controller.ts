@@ -3,6 +3,7 @@ import { prisma } from "..";
 import querystring from 'querystring';
 import crypto from 'crypto';
 import { createOrderNoticeForUser } from './notice.controller';
+import { addPointsFromPayment } from './points.controller';
 
 const VNPayConfig = {
   tmnCode: "RJOCMWWT",
@@ -187,6 +188,12 @@ export const handleReturn = async (req: Request, res: Response) => {
         if (userId && orderId) {
           await createOrderNoticeForUser({ userId, orderId });
         }
+        
+        // Add points to user from payment (100,000 VND = 100 points)
+        if (userId && transaction) {
+          await addPointsFromPayment(userId, transaction.id, amount);
+        }
+        
         return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderId}`);
       } else {
         // Payment failed, redirect to failure page
