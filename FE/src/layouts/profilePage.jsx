@@ -36,8 +36,10 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axiosInstance.get('/auth/me');
-        setProfile(res.data);
+        const { data } = await axiosInstance.get("/user/profile");
+        // accept several response shapes: {success,data}, {user}, or the user itself
+        const u = data?.data ?? data?.user ?? data;
+        setProfile(u);
       } catch (error) {
         console.error("Failed to fetch users:", error);
       }

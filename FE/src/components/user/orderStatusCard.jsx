@@ -35,6 +35,11 @@ function OrderStatusCard({ items = [] }) {
     setMinimized((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // Check if an item is minimized - default to true (closed)
+  const isMinimized = (id) => {
+    return minimized[id] !== false; // Default to true (closed) if not set
+  };
+
   return (
     <section className="col-span-2 z-10">
       <div className="flex items-center justify-between px-1 md:px-2 mb-2">
@@ -48,7 +53,7 @@ function OrderStatusCard({ items = [] }) {
           {paginatedItems.map((o) => {
             const status = o.status || "prepare";
             const pretty = statusMap[status] || statusMap.prepare;
-            const isMin = minimized[o.id];
+            const isMin = isMinimized(o.id);
             return (
               <div
                 key={o.id}
