@@ -107,6 +107,7 @@ model Image {
   ClothesMain   Clothes?    @relation(name: "MainImage")
   ClothesExtras Clothes[]   @relation(name: "ExtraImages")
   Notice Notice[]
+  UserAvatar User?    @relation(name: "UserAvatar")
 }
 
 
@@ -125,6 +126,8 @@ model User {
   address         String    @db.VarChar(1024)
   role            Role      @default(USER)
   points          Int       @default(0)
+  avatarId        Int?      @unique
+  avatar          Image?    @relation(fields: [avatarId], references: [id], name: "UserAvatar")
   carts           Cart[]
   comments        Comment[]
   shippings       Shipping[]

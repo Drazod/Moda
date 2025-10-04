@@ -20,6 +20,7 @@ import ResetPasswordPage from "./layouts/ResetPasswordPage_new";
 import DashLayout from "./layouts/dash/dashLayout";
 import DashBoard_Main from "./layouts/dash/dashBoard";
 import DashOM_Main from "./layouts/dash/dashOM.jsx"; 
+import DashRfM_Main from "./layouts/dash/dashRfM.jsx";
 import DashActLog_Main from "./layouts/dash/dashActLog.jsx";
 import DashUM_Main from "./layouts/dash/dashUM.jsx";
 import DashPdM_Main from "./layouts/dash/dashPdM.jsx";
@@ -84,6 +85,7 @@ const App = () => {
           <Route index element={<DashBoard_Main />} />
           {/* Other routes for dash's properties*/}
           <Route path="order-manage" element={<DashOM_Main />} />
+          <Route path="refund-manage" element={<DashRfM_Main />} />
           <Route path="activity-log" element={<DashActLog_Main />} />
           <Route path="users-manage" element={<DashUM_Main />} />
           <Route path="products-manage" element={<DashPdM_Main />} />

@@ -106,6 +106,7 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
 }
 import { Request, Response } from 'express';
 import { prisma } from '..';
+import { uploadToFirebase, deleteImageFromFirebaseAndPrisma } from '../services/upload.services';
 
 export const userProfile = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "User not authenticated" });
@@ -127,15 +128,61 @@ export const userUpdate = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "User not authenticated" });
 
     const userId = req.user.id;
+    
     try {
+        // Get current user to check if they have an existing avatar
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        let updateData: any = { ...req.body };
+
+        // Handle avatar upload if file is provided
+        const files = req.files as { avatar?: Express.Multer.File[] };
+        if (files && files.avatar && files.avatar.length > 0) {
+            const avatarFile = files.avatar[0];
+            
+            // Delete old avatar if it exists
+            if (currentUser.avatarId) {
+                try {
+                    await deleteImageFromFirebaseAndPrisma(currentUser.avatarId);
+                } catch (error) {
+                    console.error('Error deleting old avatar:', error);
+                    // Continue with upload even if deletion fails
+                }
+            }
+
+            // Upload new avatar
+            const avatarName = Date.now() + '_avatar_' + avatarFile.originalname;
+            const avatarUrl = await uploadToFirebase({ ...avatarFile, originalname: avatarName });
+            
+            // Create new image record
+            const avatarImage = await prisma.image.create({
+                data: {
+                    name: avatarName,
+                    url: avatarUrl,
+                },
+            });
+
+            // Update user data to include new avatar
+            updateData.avatarId = avatarImage.id;
+        }
+
+        // Update user with new data
         const user = await prisma.user.update({
             where: {
                 id: userId
             },
-            data: req.body
+            data: updateData
         });
+
         res.status(200).json({message: "User updated successfully", user: user});
     } catch (error) {
+        console.error('Error updating user:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }

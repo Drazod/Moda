@@ -1,30 +1,51 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../components/user/sidebar";
 import axiosInstance from '../configs/axiosInstance';
-import { FiExternalLink } from "react-icons/fi";
-import { FiRefreshCw } from "react-icons/fi";
+import { FiExternalLink, FiRefreshCw, FiChevronDown, FiChevronRight } from "react-icons/fi";
 import RefundModal from "../components/user/refundModal";
 
 export default function TransactionHistoryPage() {
   const [transactions, setTransactions] = useState([]);
+  const [groupedTransactions, setGroupedTransactions] = useState([]);
+  const [expandedOrders, setExpandedOrders] = useState(new Set());
   const [page, setPage] = useState(0);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [refundHistory, setRefundHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'refunds'
   const pageSize = 7;
-  const pageCount = Math.ceil(transactions.length / pageSize);
-  const pagedTransactions = transactions.slice(page * pageSize, (page + 1) * pageSize);
+  const pageCount = Math.ceil(groupedTransactions.length / pageSize);
+  const pagedTransactions = groupedTransactions.slice(page * pageSize, (page + 1) * pageSize);
 
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
+        // Fetch detailed transactions with individual items
         const res = await axiosInstance.get('/user/transactions');
         if (Array.isArray(res.data?.transactions)) {
-          setTransactions(res.data.transactions);
+          // Group transactions as orders with their items
+          const orders = res.data.transactions.map(transaction => ({
+            orderId: transaction.orderId,
+            date: transaction.date,
+            time: transaction.time,
+            transactionState: transaction.state,
+            totalPrice: transaction.price,
+            canRefundAny: transaction.canRefundAny,
+            items: transaction.items.map(item => ({
+              ...item,
+              transactionId: transaction.orderId,
+              orderId: transaction.orderId,
+              date: transaction.date,
+              time: transaction.time,
+              transactionState: transaction.state,
+              id: item.transactionDetailId
+            }))
+          }));
+          setTransactions(orders);
+          setGroupedTransactions(orders);
         }
       } catch (error) {
-        console.error("Failed to fetch transactions:", error);
+        console.error("Failed to fetch transaction details:", error);
       }
     };
     fetchTransactions();
@@ -34,7 +55,7 @@ export default function TransactionHistoryPage() {
     const fetchRefundHistory = async () => {
       if (activeTab === 'refunds') {
         try {
-          const res = await axiosInstance.get('/user/refunds');
+          const res = await axiosInstance.get('/refund/history');
           if (Array.isArray(res.data?.refunds)) {
             setRefundHistory(res.data.refunds);
           }
@@ -51,15 +72,51 @@ export default function TransactionHistoryPage() {
     setShowRefundModal(true);
   };
 
+  const toggleOrderExpansion = (orderId) => {
+    setExpandedOrders(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  };
+
   const onRefundSubmit = async (refundData) => {
     try {
-      await axiosInstance.post('/user/refund-request', refundData);
+      await axiosInstance.post('/refund/request', refundData);
       setShowRefundModal(false);
       setSelectedTransaction(null);
-      // Refresh refund history
+      // Refresh transactions to show updated refund quantities
+      const res = await axiosInstance.get('/user/transactions');
+      if (Array.isArray(res.data?.transactions)) {
+        const orders = res.data.transactions.map(transaction => ({
+          orderId: transaction.orderId,
+          date: transaction.date,
+          time: transaction.time,
+          transactionState: transaction.state,
+          totalPrice: transaction.price,
+          canRefundAny: transaction.canRefundAny,
+          items: transaction.items.map(item => ({
+            ...item,
+            transactionId: transaction.orderId,
+            orderId: transaction.orderId,
+            date: transaction.date,
+            time: transaction.time,
+            transactionState: transaction.state,
+            id: item.transactionDetailId
+          }))
+        }));
+        setTransactions(orders);
+        setGroupedTransactions(orders);
+      }
+      // Switch to refunds tab to show the new request
       setActiveTab('refunds');
     } catch (error) {
       console.error("Failed to submit refund request:", error);
+      throw error; // Re-throw to let RefundModal handle the error display
     }
   };
 
@@ -99,46 +156,116 @@ export default function TransactionHistoryPage() {
           {activeTab === 'orders' && (
             <>
               {/* Orders Header */}
-              <div className="rounded-t-2xl bg-[#23211A] flex items-center px-6" style={{height:'48px'}}>
-                <div className="w-[120px] text-white font-semibold text-lg">Order Id</div>
-                <div className="flex-1 text-white font-semibold text-lg">Detail</div>
-                <div className="w-[160px] text-white font-semibold text-lg">Date</div>
-                <div className="w-[100px] text-white font-semibold text-lg">Time</div>
-                <div className="w-[120px] text-white font-semibold text-lg">Price</div>
-                <div className="w-[100px] text-white font-semibold text-lg">Action</div>
+              <div className="rounded-t-2xl bg-[#23211A] flex items-center " style={{height:'48px'}}>
+                <div className="w-[50px] text-white font-semibold text-lg"></div>
+                <div className="w-[100px] text-white font-semibold text-lg">Order</div>
+                <div className="flex-1 text-white font-semibold text-lg">Items Summary</div>
+                <div className="w-[120px] text-white font-semibold text-lg">Total Price</div>
+                <div className="w-[100px] text-white font-semibold text-lg">Status</div>
+                <div className="w-[100px] text-white font-semibold text-lg">Date</div>
               </div>
-          <div className="px-6 pt-2 pb-4">
-            {pagedTransactions.map((tx, idx) => (
-              <div key={tx.orderId || idx} className="flex items-center border-b border-[#e6dac4] py-3 hover:bg-[#efe5d6] transition">
-                <div className="w-[120px] font-semibold text-base text-[#fff]" style={{color:'#fff', fontWeight:600}}>{tx.orderId}</div>
-                <div className="flex-1 text-base text-[#fff] opacity-80" style={{color:'#fff', opacity:0.8}}>{tx.detail}</div>
-                <div className="w-[160px] text-base text-[#fff] opacity-80" style={{color:'#fff', opacity:0.8}}>
-                  {(typeof tx.date === 'string' && tx.date.includes(',')) ? tx.date.split(',')[1].trim() : tx.date}
+          <div className="">
+            {pagedTransactions.map((order, idx) => {
+              const isExpanded = expandedOrders.has(order.orderId);
+              const itemCount = order.items.length;
+              const itemsSummary = order.items.map(item => item.clothesName).join(', ');
+              const truncatedSummary = itemsSummary.length > 50 ? itemsSummary.substring(0, 50) + '...' : itemsSummary;
+              
+              return (
+                <div key={order.orderId || idx} className="border-b border-[#e6dac4]">
+                  {/* Order Summary Row */}
+                  <div className="flex items-center py-3 hover:bg-[#f5f1e8] transition">
+                    <div className="w-[50px] flex justify-center">
+                      <button
+                        onClick={() => toggleOrderExpansion(order.orderId)}
+                        className="text-[#434237] hover:text-[#2f2e25] transition-colors"
+                        title={isExpanded ? 'Collapse items' : 'Expand items'}
+                      >
+                        {isExpanded ? <FiChevronDown size={18} /> : <FiChevronRight size={18} />}
+                      </button>
+                    </div>
+                    <div className="w-[100px] font-semibold text-base text-[#434237]">
+                      {order.orderId}
+                    </div>
+                    <div className="flex-1 text-base text-[#434237]">
+                      <div className="font-medium">{truncatedSummary}</div>
+                      <div className="text-xs text-gray-600">{itemCount} item{itemCount > 1 ? 's' : ''}</div>
+                    </div>
+                    <div className="w-[120px] font-bold text-base text-[#434237]">
+                      {order.totalPrice}
+                    </div>
+                    <div className="w-[100px] text-base">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        order.transactionState === 'COMPLETE' ? 'bg-green-100 text-green-800' :
+                        order.transactionState === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        order.transactionState === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.transactionState || 'PENDING'}
+                      </span>
+                    </div>
+                    <div className="w-[100px] text-base text-[#434237]">
+                      <div className="text-sm">{order.date}</div>
+                      <div className="text-xs text-gray-600">{order.time}</div>
+                    </div>
+                  </div>
+
+                  {/* Expanded Items */}
+                  {isExpanded && (
+                    <div className="bg-[#f9f7f1] px-6 py-2">
+                      <div className="text-xs font-semibold text-[#434237] mb-2 flex">
+                        <div className="w-[50px]"></div>
+                        <div className="w-[100px]">Item</div>
+                        <div className="flex-1">Details</div>
+                        <div className="w-[80px]">Qty</div>
+                        <div className="w-[80px]">Refunded</div>
+                        <div className="w-[120px]">Unit Price</div>
+                        <div className="w-[100px]">Actions</div>
+                      </div>
+                      {order.items.map((item, itemIdx) => {
+                        const quantity = item.originalQuantity || item.quantity || 0;
+                        const availableForRefund = item.availableForRefund || (quantity - (item.refundedQuantity || 0));
+                        const canRefund = item.canRefund || (availableForRefund > 0 && item.transactionState === 'COMPLETE');
+                        
+                        return (
+                          <div key={item.id || itemIdx} className="flex items-center py-2 text-sm">
+                            <div className="w-[50px]"></div>
+                            <div className="w-[100px] text-[#434237]">#{itemIdx + 1}</div>
+                            <div className="flex-1 text-[#434237]">
+                              <div className="font-medium">{item.clothesName || item.itemName || item.clothes?.name}</div>
+                              {item.size && <div className="text-xs text-gray-600">Size: {item.size}</div>}
+                              {item.color && <div className="text-xs text-gray-600">Color: {item.color}</div>}
+                            </div>
+                            <div className="w-[80px] text-[#434237]">
+                              {quantity}
+                            </div>
+                            <div className="w-[80px] text-[#434237]">
+                              {item.refundedQuantity || 0}
+                            </div>
+                            <div className="w-[120px] font-bold text-[#434237]">
+                              {item.unitPrice || (item.price ? `${item.price.toLocaleString('vi-VN')} VND` : 'N/A')}
+                            </div>
+                            <div className="w-[100px] flex gap-2">
+                              <button 
+                                onClick={() => handleRefundRequest(item)}
+                                disabled={!canRefund}
+                                className={`${canRefund ? 'hover:text-[#434237] text-blue-600' : 'text-gray-400 cursor-not-allowed'}`}
+                                title={canRefund ? `Refund up to ${availableForRefund} items` : 'Cannot refund this item'}
+                              >
+                                <FiRefreshCw size={16} />
+                              </button>
+                              <button className="hover:text-[#434237] text-gray-600" title="View Details">
+                                <FiExternalLink size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="w-[100px] text-base text-[#fff] opacity-80" style={{color:'#fff', opacity:0.8}}>{tx.time}</div>
-                <div className="w-[120px] font-bold text-base text-[#fff]" style={{color:'#fff', fontWeight:700}}>
-                  {tx.price && tx.price.split(' ').length > 1 ? (
-                    <>
-                      <span style={{fontWeight:700}}>{tx.price.split(' ')[0]}</span>
-                      <br/>
-                      <span style={{fontWeight:700}}>{tx.price.split(' ').slice(1).join(' ')}</span>
-                    </>
-                  ) : tx.price}
-                </div>
-                <div className="w-[100px] text-right flex gap-2">
-                  <button 
-                    onClick={() => handleRefundRequest(tx)}
-                    className="hover:text-[#434237] text-blue-600"
-                    title="Request Refund"
-                  >
-                    <FiRefreshCw size={18} />
-                  </button>
-                  <button className="hover:text-[#434237]" title="View Details">
-                    <FiExternalLink size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {transactions.length === 0 && (
               <div className="py-8 text-center text-gray-500">No transactions found.</div>
             )}
