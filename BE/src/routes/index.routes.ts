@@ -16,6 +16,7 @@ import reportRoute from "./report.routes";
 import searchRoute from "./search.routes";
 import pointsRoute from "./points.routes";
 import refundRoute from "./refund.routes";
+import commentRoute from "./comment.routes";
 
 import shippingRoute from "./shipping.routes";
 import orderRoute from "./order.routes";
@@ -39,6 +40,7 @@ route.use('/log', logRoute);
 route.use('/search', searchRoute);
 route.use('/points', pointsRoute);
 route.use('/refund', refundRoute);
+route.use('/comments', commentRoute);
 route.use('/shipping', shippingRoute);
 route.use('/coupon', couponRoute);
 route.use('/order', orderRoute);

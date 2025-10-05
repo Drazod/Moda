@@ -37,13 +37,19 @@ model CartItem {
 }
 
 model Comment{
-  id              Int       @id @default(autoincrement())
-  userId          Int
-  ClothesId       Int
-  content         String    @db.VarChar(1024)
-  rating          Int
-  user            User      @relation(fields: [userId], references: [id])
-  Clothes        Clothes   @relation(fields: [ClothesId], references: [id])
+  id                  Int               @id @default(autoincrement())
+  userId              Int
+  transactionDetailId Int
+  content             String            @db.VarChar(1024)
+  rating              Int               // 1-5 star rating
+  isVerifiedPurchase  Boolean           @default(true) // Always true since linked to transaction
+  user                User              @relation(fields: [userId], references: [id])
+  transactionDetail   TransactionDetail @relation(fields: [transactionDetailId], references: [id])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  // Ensure one comment per user per transaction detail
+  @@unique([userId, transactionDetailId])
 }
 
 model Coupon{
@@ -68,7 +74,6 @@ model Clothes {
   information String?   @db.VarChar(1024)
   mainImgId   Int?      @unique
   cartItems   CartItem[]
-  Comments    Comment[]
   categoryId  Int       
   category    Category  @relation(fields: [categoryId], references: [id])
 
@@ -196,6 +201,7 @@ model TransactionDetail {
   clothes        Clothes      @relation(fields: [clothesId], references: [id])
   size           Size         @relation(fields: [sizeId], references: [id])
   refunds        Refund[]
+  comments       Comment[]
   createdAt      DateTime     @default(now())
 }
 

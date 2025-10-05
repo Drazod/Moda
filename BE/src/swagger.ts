@@ -67,7 +67,19 @@ const options = {
                   canRefund: { type: 'boolean', example: true },
                   refundStatus: { type: 'string', enum: ['NONE', 'PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'], example: 'NONE' },
                   latestRefundReason: { type: 'string', nullable: true, example: null },
-                  latestRefundAdminNote: { type: 'string', nullable: true, example: null }
+                  latestRefundAdminNote: { type: 'string', nullable: true, example: null },
+                  hasCommented: { type: 'boolean', example: false },
+                  canComment: { type: 'boolean', example: true },
+                  userComment: {
+                    type: 'object',
+                    nullable: true,
+                    properties: {
+                      id: { type: 'integer', example: 1 },
+                      content: { type: 'string', example: 'Great product!' },
+                      rating: { type: 'integer', example: 5 },
+                      createdAt: { type: 'string', format: 'date-time', example: '2023-09-20T10:00:00Z' }
+                    }
+                  }
                 }
               }
             },
@@ -75,8 +87,56 @@ const options = {
             time: { type: 'string', example: '7:00 pm' },
             price: { type: 'string', example: '200,000 VND' },
             state: { type: 'string', enum: ['ORDERED', 'PENDING', 'SHIPPING', 'COMPLETE'], example: 'COMPLETE' },
-            canRefundAny: { type: 'boolean', example: true }
+            canRefundAny: { type: 'boolean', example: true },
+            canCommentAny: { type: 'boolean', example: true },
+            hasCommentedAny: { type: 'boolean', example: false }
           },
+        },
+        Comment: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer', example: 1 },
+            userId: { type: 'integer', example: 1 },
+            transactionDetailId: { type: 'integer', example: 1 },
+            content: { type: 'string', example: 'Excellent product! Very satisfied with the quality.' },
+            rating: { type: 'integer', minimum: 1, maximum: 5, example: 5 },
+            isVerifiedPurchase: { type: 'boolean', example: true },
+            createdAt: { type: 'string', format: 'date-time', example: '2023-09-20T10:00:00Z' },
+            updatedAt: { type: 'string', format: 'date-time', example: '2023-09-20T10:00:00Z' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'integer', example: 1 },
+                name: { type: 'string', example: 'John Doe' },
+                avatar: {
+                  type: 'object',
+                  nullable: true,
+                  properties: {
+                    url: { type: 'string', example: 'https://firebasestorage.googleapis.com/v0/b/.../avatar.jpg' }
+                  }
+                }
+              }
+            },
+            transactionDetail: {
+              type: 'object',
+              properties: {
+                clothes: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'integer', example: 5 },
+                    name: { type: 'string', example: 'Cotton T-Shirt' }
+                  }
+                },
+                size: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'integer', example: 2 },
+                    label: { type: 'string', example: 'M' }
+                  }
+                }
+              }
+            }
+          }
         },
       },
     },

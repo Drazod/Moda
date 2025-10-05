@@ -14,6 +14,12 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                         size: true,
                         refunds: {
                             orderBy: { createdAt: 'desc' }
+                        },
+                        comments: {
+                            where: {
+                                userId: userId
+                            },
+                            orderBy: { createdAt: 'desc' }
                         }
                     }
                 }
@@ -50,7 +56,7 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
             // Get state from first associated shipping record, if available
             let state = t.shipping && t.shipping.length > 0 ? t.shipping[0].State : undefined;
             
-            // Map transaction details with refund information
+            // Map transaction details with refund and comment information
             const items = t.transactionDetails.map(td => {
                 const availableForRefund = td.quantity - td.refundedQuantity;
                 
@@ -60,6 +66,19 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                 if (td.refunds && td.refunds.length > 0) {
                     latestRefund = td.refunds[0]; // Most recent refund
                     refundStatus = latestRefund.status;
+                }
+
+                // Get comment status for this item
+                let hasCommented = false;
+                let canComment = false;
+                let userComment = null;
+                
+                if (td.comments && td.comments.length > 0) {
+                    hasCommented = true;
+                    userComment = td.comments[0]; // Most recent comment by this user
+                } else {
+                    // Can comment if order is complete and user hasn't commented yet
+                    canComment = state === 'COMPLETE';
                 }
 
                 return {
@@ -74,7 +93,15 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                     canRefund: availableForRefund > 0 && state === 'COMPLETE',
                     refundStatus: refundStatus,
                     latestRefundReason: latestRefund?.reason || null,
-                    latestRefundAdminNote: latestRefund?.adminNote || null
+                    latestRefundAdminNote: latestRefund?.adminNote || null,
+                    hasCommented: hasCommented,
+                    canComment: canComment,
+                    userComment: userComment ? {
+                        id: userComment.id,
+                        content: userComment.content,
+                        rating: userComment.rating,
+                        createdAt: userComment.createdAt
+                    } : null
                 };
             });
 
@@ -94,7 +121,9 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                 time,
                 price: formatPrice(t.amount),
                 state, // Transaction state from shipping
-                canRefundAny: items.some(item => item.canRefund)
+                canRefundAny: items.some(item => item.canRefund),
+                canCommentAny: items.some(item => item.canComment),
+                hasCommentedAny: items.some(item => item.hasCommented)
             };
         });
 
@@ -157,7 +186,7 @@ export const userUpdate = async (req: Request, res: Response) => {
                         where: { id: currentUser.avatarId as number }
                     });
                     if (avatarImage) {
-                        await deleteImageFromFirebaseAndPrisma(avatarImage.name);
+                        await deleteImageFromFirebaseAndPrisma(avatarImage.name.toString());
                     }
                 } catch (error) {
                     console.error('Error deleting old avatar:', error);
