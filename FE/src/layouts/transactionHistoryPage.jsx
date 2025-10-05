@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import Sidebar from "../components/user/sidebar";
 import axiosInstance from '../configs/axiosInstance';
-import { FiExternalLink, FiRefreshCw, FiChevronDown, FiChevronRight } from "react-icons/fi";
+import { FiExternalLink, FiRefreshCw, FiChevronDown, FiChevronRight, FiMessageSquare } from "react-icons/fi";
 import RefundModal from "../components/user/refundModal";
+import CommentModal from "../components/user/commentModal";
 
 export default function TransactionHistoryPage() {
   const [transactions, setTransactions] = useState([]);
@@ -10,6 +11,7 @@ export default function TransactionHistoryPage() {
   const [expandedOrders, setExpandedOrders] = useState(new Set());
   const [page, setPage] = useState(0);
   const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showCommentModal, setShowCommentModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [refundHistory, setRefundHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'refunds'
@@ -70,6 +72,39 @@ export default function TransactionHistoryPage() {
   const handleRefundRequest = (transaction) => {
     setSelectedTransaction(transaction);
     setShowRefundModal(true);
+  };
+
+  const handleCommentRequest = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowCommentModal(true);
+  };
+
+  const handleCommentSubmit = async (commentData) => {
+    try {
+      // Use the correct transaction detail ID field
+
+      const response = await axiosInstance.post('/comments/submit', commentData);
+      
+      // Backend returns success with message, not success field
+      if (response.status === 201 && response.data.message) {
+        console.log('Comment submitted successfully:', response.data);
+        alert('Review submitted successfully!');
+      } else {
+        console.error('Comment submission failed:', response.data.message);
+        alert('Failed to submit review. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+      // Handle specific error responses
+      if (error.response?.data?.message) {
+        alert(`Error: ${error.response.data.message}`);
+      } else {
+        alert('An error occurred while submitting your review. Please try again.');
+      }
+    } finally {
+      setShowCommentModal(false);
+      setSelectedTransaction(null);
+    }
   };
 
   const toggleOrderExpansion = (orderId) => {
@@ -245,7 +280,7 @@ export default function TransactionHistoryPage() {
                             <div className="w-[120px] font-bold text-[#434237]">
                               {item.unitPrice || (item.price ? `${item.price.toLocaleString('vi-VN')} VND` : 'N/A')}
                             </div>
-                            <div className="w-[100px] flex gap-2">
+                            <div className="w-[130px] flex gap-2">
                               <button 
                                 onClick={() => handleRefundRequest(item)}
                                 disabled={!canRefund}
@@ -254,6 +289,15 @@ export default function TransactionHistoryPage() {
                               >
                                 <FiRefreshCw size={16} />
                               </button>
+                              {order.transactionState === 'COMPLETE' && (
+                                <button 
+                                  onClick={() => handleCommentRequest(item)}
+                                  className="hover:text-[#434237] text-green-600"
+                                  title="Leave a review"
+                                >
+                                  <FiMessageSquare size={16} />
+                                </button>
+                              )}
                               <button className="hover:text-[#434237] text-gray-600" title="View Details">
                                 <FiExternalLink size={16} />
                               </button>
@@ -339,6 +383,18 @@ export default function TransactionHistoryPage() {
               setSelectedTransaction(null);
             }}
             onSubmit={onRefundSubmit}
+          />
+        )}
+
+        {/* Comment Modal */}
+        {showCommentModal && (
+          <CommentModal
+            transaction={selectedTransaction}
+            onClose={() => {
+              setShowCommentModal(false);
+              setSelectedTransaction(null);
+            }}
+            onSubmit={handleCommentSubmit}
           />
         )}
       </div>

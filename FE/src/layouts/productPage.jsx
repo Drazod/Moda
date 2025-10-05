@@ -24,6 +24,9 @@ const ProductDetail = () => {
   const [activeTab, setActiveTab] = useState("description");
   const [qty, setQty] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
 
   const { addToCart, items } = useCart();
 
@@ -76,6 +79,30 @@ const ProductDetail = () => {
       })
       .catch(() => setError("Failed to load product"))
       .finally(() => setLoading(false));
+  }, [productId]);
+
+  // Fetch comments for the product
+  useEffect(() => {
+    if (!productId) return;
+    
+    const fetchComments = async () => {
+      setCommentsLoading(true);
+      try {
+        const response = await axiosInstance.get(`/comments/product/${productId}`);
+        if (response.data.comments) {
+          setComments(response.data.comments);
+          setRatingStats(response.data.ratingStats || { averageRating: 0, totalReviews: 0 });
+        }
+      } catch (error) {
+        console.error("Failed to fetch comments:", error);
+        setComments([]);
+        setRatingStats({ averageRating: 0, totalReviews: 0 });
+      } finally {
+        setCommentsLoading(false);
+      }
+    };
+
+    fetchComments();
   }, [productId]);
 
   const handleNextImage = () => {
@@ -413,57 +440,85 @@ const ProductDetail = () => {
             <img src={gallery6} alt="Back View" />
           </div>
         </section>
-
+                // Reviews
         <section className="mt-20 px-8 mx-auto">
           <div className="flex items-center text-lg">
             <span className="text-4xl font-kaisei text-[#434237] tracking-wide">
-              5.0
+              {ratingStats.averageRating.toFixed(1)}
             </span>
             <div className="text-[#434237] mx-2">
-              {"★★★★★".split("").map((_, i) => (
-                <span key={i} className="text-3xl">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span 
+                  key={star} 
+                  className={`text-3xl ${
+                    star <= Math.round(ratingStats.averageRating) 
+                      ? 'text-[#434237]' 
+                      : 'text-gray-300'
+                  }`}
+                >
                   ★
                 </span>
               ))}
             </div>
             <span className="pt-2 text-2xl font-Jsans font-light text-[#353535]">
-              | 15 reviews
+              | {ratingStats.totalReviews} reviews
             </span>
           </div>
 
-          {[1, 2, 3].map((_, i) => (
-            <div
-              key={i}
-              className="ml-16 py-20 border-b border-[#434237] font-Jsans text-xl"
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-[150px_1fr] gap-4 items-justify-start">
-                <div>
-                  <p className="text-2xl text-[#353535]">Ricky Ng.</p>
-                  <p className="text-sm font-light text-[#353535]">
-                    Verified Buyer
-                  </p>
-                </div>
-                <div className="ml-32">
-                  <div className="flex items-center mb-2">
-                    <span className="text-[#434237] text-base">
-                      {"★★★★★".split("").map((_, j) => (
-                        <span key={j} className="text-xl">
-                          ★
-                        </span>
-                      ))}
-                    </span>
-                    <span className="text-[#434237] text-xl ml-2">
-                      Perfect essential
-                    </span>
+          {commentsLoading ? (
+            <div className="ml-16 py-20 text-center">
+              <p className="text-[#353535]">Loading reviews...</p>
+            </div>
+          ) : comments.length > 0 ? (
+            comments.map((comment) => (
+              <div
+                key={comment.id}
+                className="ml-16 py-20 border-b border-[#434237] font-Jsans text-xl"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-[150px_1fr] gap-4 items-justify-start">
+                  <div>
+                    <p className="text-2xl text-[#353535]">{comment.user.name}</p>
+                    <p className="text-sm font-light text-[#353535]">
+                      {comment.isVerifiedPurchase ? 'Verified Buyer' : 'Customer'}
+                    </p>
+                    {comment.transactionDetail?.size && (
+                      <p className="text-xs text-gray-500">
+                        Size: {comment.transactionDetail.size.label}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-[#353535] font-light max-w-[90%]">
-                    This is an amazing staple for my wardrobe. So soft and
-                    effortless, lightweight but warm.
-                  </p>
+                  <div className="ml-32">
+                    <div className="flex items-center mb-2">
+                      <span className="text-[#434237] text-base">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <span 
+                            key={star} 
+                            className={`text-xl ${
+                              star <= comment.rating 
+                                ? 'text-[#434237]' 
+                                : 'text-gray-300'
+                            }`}
+                          >
+                            ★
+                          </span>
+                        ))}
+                      </span>
+                      <span className="text-[#434237] text-lg ml-2">
+                        {new Date(comment.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-[#353535] font-light max-w-[90%]">
+                      {comment.content}
+                    </p>
+                  </div>
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="ml-16 py-20 text-center">
+              <p className="text-[#353535]">No reviews yet. Be the first to review this product!</p>
             </div>
-          ))}
+          )}
         </section>
       </div>
 

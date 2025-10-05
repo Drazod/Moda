@@ -107,20 +107,20 @@ export const submitComment = async (req: Request, res: Response) => {
 // Get comments for a specific product (public endpoint)
 export const getProductComments = async (req: Request, res: Response) => {
   try {
-    const { clothesId } = req.params;
+    const { productId } = req.params;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    if (!clothesId) {
-      return res.status(400).json({ message: 'Clothes ID is required' });
+    if (!productId) {
+      return res.status(400).json({ message: 'Product ID is required' });
     }
 
     // Get comments for the product through transaction details
     const comments = await prisma.comment.findMany({
       where: {
         transactionDetail: {
-          clothesId: parseInt(clothesId)
+          clothesId: parseInt(productId)
         }
       },
       include: {
@@ -153,7 +153,7 @@ export const getProductComments = async (req: Request, res: Response) => {
     const totalComments = await prisma.comment.count({
       where: {
         transactionDetail: {
-          clothesId: parseInt(clothesId)
+          clothesId: parseInt(productId)
         }
       }
     });
@@ -162,7 +162,7 @@ export const getProductComments = async (req: Request, res: Response) => {
     const ratingStats = await prisma.comment.aggregate({
       where: {
         transactionDetail: {
-          clothesId: parseInt(clothesId)
+          clothesId: parseInt(productId)
         }
       },
       _avg: {
