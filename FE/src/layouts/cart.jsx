@@ -73,7 +73,6 @@ export default function CartModal({ open, onClose }) {
       const res = await axiosInstance.post("/vnpay/create-payment", {
         orderId: cartId,
         amount: total,
-        orderDescription: `Payment for cart #${cartId}`,
         orderType: "other",
         language: "vn",
         address: form.address,

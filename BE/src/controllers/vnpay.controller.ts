@@ -14,7 +14,7 @@ const VNPayConfig = {
 
 // Generate payment URL
 export const createPayment = async (req: Request, res: Response) => {
-  const { orderId, amount, orderDescription, orderType, language, bankCode, address, couponCode, pointsUsed } = req.body;
+  const { orderId, amount, orderType, language, bankCode, address, couponCode, pointsUsed } = req.body;
   console.log("drazod:", address);
   console.log("drazod:", couponCode);
   console.log("drazod pointsUsed:", pointsUsed);
@@ -44,7 +44,7 @@ export const createPayment = async (req: Request, res: Response) => {
     vnp_Locale: locale,
     vnp_CurrCode: currCode,
     vnp_TxnRef: orderId,
-    vnp_OrderInfo: orderDescription || `Payment for Order #${orderId}${pointsUsed ? ` - Points: ${pointsUsed}` : ''}`,
+    vnp_OrderInfo:  `Payment for Order #${orderId}${pointsUsed ? ` - Points: ${pointsUsed}` : ''}`,
     vnp_OrderType: orderType || 'other',
     vnp_Amount: amount * 100,  // Convert to smallest currency unit (e.g., VND)
     vnp_ReturnUrl: VNPayConfig.returnUrl,
