@@ -59,8 +59,9 @@ export default function CartModal({ open, onClose }) {
     return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0);
   }, [subtotal, voucherDiscount]);
 
-  // Calculate total after points
-  const maxUsablePoints = Math.min(availablePoints, Math.floor(totalAfterVoucher));
+  // Calculate total after points (limited to 50% of original price)
+  const maxPointsAllowed = Math.floor(subtotal * 0.5); // 50% of original price
+  const maxUsablePoints = Math.min(availablePoints, maxPointsAllowed, Math.floor(totalAfterVoucher));
   const pointsUsed = Math.min(pointsToUse, maxUsablePoints);
   const total = Math.max(totalAfterVoucher - pointsUsed, 0);
 
@@ -401,6 +402,10 @@ export default function CartModal({ open, onClose }) {
                 className="w-24 px-2 py-1 rounded border border-gray-300 text-right"
                 style={{ background: fieldBg }}
               />
+            </div>
+            <div className="mb-1 flex items-center justify-between text-[12px] text-gray-600">
+              <span className="font-light">Max: {formatVND(Math.floor(subtotal * 0.5))} (50% of original price)</span>
+              <span></span>
             </div>
             {pointsUsed > 0 && (
               <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
