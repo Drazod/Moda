@@ -203,7 +203,7 @@ cakeRoute.post('/create',
     upload.fields([
         { name: 'mainImage', maxCount: 1 }, // One main image
         { name: 'extraImages', maxCount: 4 }, // Up to 4 extra images
-    ]), authMiddleware, authorize(["ADMIN"]),
+    ]), authMiddleware, authorize(["ADMIN", "HOST"]),
     clothesCreate);
 
 
@@ -266,7 +266,7 @@ cakeRoute.post('/createMany', clothesCreateMany);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.put('/update/:id',authMiddleware,authorize(["ADMIN"]), updateClothes);
+cakeRoute.put('/update/:id',authMiddleware,authorize(["ADMIN", "HOST"]), updateClothes);
 
 /**
  * @swagger
@@ -289,7 +289,7 @@ cakeRoute.put('/update/:id',authMiddleware,authorize(["ADMIN"]), updateClothes);
  *       500:
  *         description: Internal server error
  */
-cakeRoute.delete('/delete/:id',authMiddleware,authorize(["ADMIN"]), deleteClothes);
+cakeRoute.delete('/delete/:id',authMiddleware,authorize(["ADMIN", "HOST"]), deleteClothes);
 
 /**
  * @swagger
@@ -318,7 +318,7 @@ cakeRoute.delete('/delete/:id',authMiddleware,authorize(["ADMIN"]), deleteClothe
  *       500:
  *         description: Internal server error
  */
-cakeRoute.delete('/deleteImage/:id',authMiddleware, authorize(["ADMIN"]), deleteImage);
+cakeRoute.delete('/deleteImage/:id',authMiddleware, authorize(["ADMIN", "HOST"]), deleteImage);
 
 /**
  * @swagger
@@ -360,7 +360,7 @@ cakeRoute.put('/updateImage/:id',
     upload.fields([
         { name: 'mainImage', maxCount: 1 },
         { name: 'extraImages', maxCount: 4 },
-    ]), authMiddleware, authorize(["ADMIN"]),
+    ]), authMiddleware, authorize(["ADMIN", "HOST"]),
     updateImage);
 
 export default cakeRoute;

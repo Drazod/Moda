@@ -56,8 +56,8 @@ export const createAdminAccount = async (req: Request, res: Response) => {
   }
 };
 
-
-function parseRange(q: any): Range {
+ 
+export function parseRange(q: any): Range {
   const now = new Date();
   const to = q?.to ? new Date(q.to) : now;
   if (q?.from) return { from: new Date(q.from), to };
@@ -71,12 +71,12 @@ function parseRange(q: any): Range {
   return { from, to };
 }
 
-function previous(range: Range): Range {
+export function previous(range: Range): Range {
   const len = range.to.getTime() - range.from.getTime();
   return { from: new Date(range.from.getTime() - len), to: range.from };
 }
 
-function pctChange(curr: number, prev: number): number {
+export function pctChange(curr: number, prev: number): number {
   if (!isFinite(prev) || prev === 0) return curr > 0 ? 100 : 0;
   return ((curr - prev) / prev) * 100;
 }

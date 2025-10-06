@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Header from "../components/header";
 import Footer from "../components/footer";
 import { useLocation } from "react-router-dom";
 import axiosInstance from "../configs/axiosInstance";
-import gallery5 from "../assets/productdetail/product-image_detail1.png";
-import gallery6 from "../assets/productdetail/product-image_detail2.png";
 import { useCart } from "../context/CartContext";
 
 const formatVND = (v) =>
-  (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) +
-  " VND";
+  (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " VND";
 
 const ProductDetail = () => {
   const location = useLocation();
@@ -24,13 +21,21 @@ const ProductDetail = () => {
   const [activeTab, setActiveTab] = useState("description");
   const [qty, setQty] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Comments & rating
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
 
+  // Other products (carousel)
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  // ➕ rating + số cmt cho từng sp gợi ý
+  const [statsMap, setStatsMap] = useState({}); // { [id]: { avg, total } }
+
   const { addToCart, items } = useCart();
 
-  // Chuẩn bị danh sách ảnh: mainImg trước rồi extraImgs
+  // ===== Images list: main first, then extra =====
   const imageUrls = [
     product?.mainImg?.url,
     ...(product?.extraImgs ? product.extraImgs.map((i) => i.url) : []),
@@ -47,12 +52,13 @@ const ProductDetail = () => {
       .get(`/clothes/${productId}`)
       .then((res) => {
         setProduct(res.data);
-        // Lưu size stock vào localStorage để đồng bộ với CartContext (nếu cần)
+
+        // Sync size stock to localStorage for CartContext (optional)
         if (Array.isArray(res.data.sizes)) {
           let cartSizeQuantities = {};
           try {
             cartSizeQuantities =
-              JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
+              JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}") || {};
           } catch {
             cartSizeQuantities = {};
           }
@@ -63,13 +69,11 @@ const ProductDetail = () => {
                 cartSizeQuantities[res.data.id][s.id] = s.quantity;
               }
             });
-            localStorage.setItem(
-              "cartSizeQuantities",
-              JSON.stringify(cartSizeQuantities)
-            );
+            localStorage.setItem("cartSizeQuantities", JSON.stringify(cartSizeQuantities));
           }
         }
-        // set default color & size
+
+        // defaults
         if (res.data.colors?.length) setSelectedColor(res.data.colors[0]);
         if (res.data.sizes?.length) {
           const first = res.data.sizes[0];
@@ -81,20 +85,22 @@ const ProductDetail = () => {
       .finally(() => setLoading(false));
   }, [productId]);
 
-  // Fetch comments for the product
+  // Fetch comments
   useEffect(() => {
     if (!productId) return;
-    
+
     const fetchComments = async () => {
       setCommentsLoading(true);
       try {
         const response = await axiosInstance.get(`/comments/product/${productId}`);
-        if (response.data.comments) {
+        if (response.data?.comments) {
           setComments(response.data.comments);
           setRatingStats(response.data.ratingStats || { averageRating: 0, totalReviews: 0 });
+        } else {
+          setComments([]);
+          setRatingStats({ averageRating: 0, totalReviews: 0 });
         }
-      } catch (error) {
-        console.error("Failed to fetch comments:", error);
+      } catch {
         setComments([]);
         setRatingStats({ averageRating: 0, totalReviews: 0 });
       } finally {
@@ -104,6 +110,176 @@ const ProductDetail = () => {
 
     fetchComments();
   }, [productId]);
+
+  // Fetch list for carousel (no related needed)
+  useEffect(() => {
+    if (!productId) return;
+
+    const toArray = (data) => {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.items)) return data.items;
+      if (Array.isArray(data?.data)) return data.data;
+      if (Array.isArray(data?.results)) return data.results;
+      if (Array.isArray(data?.clothes)) return data.clothes;
+      return [];
+    };
+
+    let cancelled = false;
+
+    const fetchAll = async () => {
+      setRelatedLoading(true);
+      try {
+        const res = await axiosInstance.get("/clothes/list");
+        const raw = toArray(res.data);
+
+        // Remove current product and de-duplicate
+        const arr = raw
+          .filter((p) => String(p?.id) !== String(productId))
+          .filter(
+            ((seen) => (p) =>
+              seen.has(String(p.id)) ? false : (seen.add(String(p.id)), true))(new Set())
+          );
+
+        if (!cancelled) setRelatedProducts(arr);
+      } catch {
+        if (!cancelled) setRelatedProducts([]);
+      } finally {
+        if (!cancelled) setRelatedLoading(false);
+      }
+    };
+
+    fetchAll();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  // Lấy rating & số cmt cho tối đa 12 sp đầu
+  useEffect(() => {
+    if (!relatedProducts?.length) return;
+    const top = relatedProducts.slice(0, 12);
+    Promise.allSettled(
+      top.map((p) =>
+        axiosInstance.get(`/comments/product/${p.id}`).then((res) => ({
+          id: p.id,
+          avg: res.data?.ratingStats?.averageRating || 0,
+          total:
+            (Array.isArray(res.data?.comments) && res.data.comments.length) ||
+            res.data?.ratingStats?.totalReviews ||
+            0,
+        }))
+      )
+    ).then((results) => {
+      const map = {};
+      results.forEach((r) => {
+        if (r.status === "fulfilled") map[r.value.id] = { avg: r.value.avg, total: r.value.total };
+      });
+      setStatsMap(map);
+    });
+  }, [relatedProducts]);
+
+  // ===== Stock helpers =====
+  let sizes = [];
+  if (Array.isArray(product?.sizes)) {
+    if (typeof product.sizes[0] === "string") sizes = product.sizes;
+    else if (typeof product.sizes[0] === "object" && product.sizes[0].label) {
+      sizes = product.sizes.map((s) => s.label);
+    }
+  }
+  const colors = product?.colors || [];
+
+  const getSelectedSizeId = () => {
+    if (
+      Array.isArray(product?.sizes) &&
+      typeof product.sizes[0] === "object" &&
+      product.sizes[0].label
+    ) {
+      const found = product.sizes.find((s) => s.label === selectedSize);
+      return found?.id;
+    }
+    return undefined;
+  };
+
+  const getSizeStock = () => {
+    if (
+      Array.isArray(product?.sizes) &&
+      typeof product.sizes[0] === "object" &&
+      product.sizes[0].label
+    ) {
+      const found = product.sizes.find((s) => s.label === selectedSize);
+      if (typeof found?.quantity === "number") return found.quantity;
+    }
+    if (typeof product?.stock === "number") return product.stock;
+    if (typeof product?.quantity === "number") return product.quantity;
+    return Infinity;
+  };
+
+  const getQtyInCartSameSize = () => {
+    const sizeId = getSelectedSizeId();
+    return items
+      .filter((it) => it.id === product.id && it.sizeId === sizeId)
+      .reduce((sum, it) => sum + (it.qty || 0), 0);
+  };
+
+  const getMaxQtyAllowed = () => {
+    const stock = getSizeStock();
+    const inCart = getQtyInCartSameSize();
+    return Math.max(0, stock - inCart);
+  };
+
+  const maxAllowed = getMaxQtyAllowed();
+  const isOutOfStock = maxAllowed <= 0;
+
+  // Stepper
+  const incQty = () => setQty((q) => Math.min(q + 1, Math.max(1, maxAllowed)));
+  const decQty = () => setQty((q) => Math.max(1, q - 1));
+  const onQtyInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    const safe = Number.isNaN(v) ? 1 : Math.max(1, Math.min(v, Math.max(1, maxAllowed)));
+    setQty(safe);
+  };
+
+  // ===== Carousel refs & handlers =====
+  const sliderRef = useRef(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const updateArrows = () => {
+    const el = sliderRef.current;
+    if (!el) return;
+    const EPS = 2;
+    setCanLeft(el.scrollLeft > EPS);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - EPS);
+  };
+
+  useEffect(() => {
+    const el = sliderRef.current;
+    if (!el) return;
+    updateArrows();
+    const onScroll = () => updateArrows();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", updateArrows);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", updateArrows);
+    };
+  }, [relatedProducts.length]);
+
+  const scrollByAmount = (dir = 1) => {
+    const el = sliderRef.current;
+    if (!el) return;
+    const first = el.querySelector("a");
+    if (first) {
+      const cs = getComputedStyle(el);
+      const gapStr = cs.gap || cs.columnGap || cs.rowGap || "0";
+      const gap = parseFloat(gapStr) || 0;
+      const cardW = first.getBoundingClientRect().width + gap;
+      el.scrollBy({ left: dir * cardW, behavior: "smooth" });
+    } else {
+      el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: "smooth" });
+    }
+    setTimeout(updateArrows, 300);
+  };
 
   const handleNextImage = () => {
     if (!imageUrls.length) return;
@@ -130,74 +306,6 @@ const ProductDetail = () => {
   }
   if (!product) return null;
 
-  // ===== Helpers: sizes/colors =====
-  let sizes = [];
-  if (Array.isArray(product.sizes)) {
-    if (typeof product.sizes[0] === "string") sizes = product.sizes;
-    else if (typeof product.sizes[0] === "object" && product.sizes[0].label) {
-      sizes = product.sizes.map((s) => s.label);
-    }
-  }
-  const colors = product.colors || [];
-
-  // ===== Stock logic theo size + giỏ hàng hiện tại =====
-  const getSelectedSizeId = () => {
-    if (
-      Array.isArray(product.sizes) &&
-      typeof product.sizes[0] === "object" &&
-      product.sizes[0].label
-    ) {
-      const found = product.sizes.find((s) => s.label === selectedSize);
-      return found?.id;
-    }
-    return undefined;
-  };
-
-  // Stock thực tế của size đang chọn (fallback stock/quantity tổng)
-  const getSizeStock = () => {
-    if (
-      Array.isArray(product.sizes) &&
-      typeof product.sizes[0] === "object" &&
-      product.sizes[0].label
-    ) {
-      const found = product.sizes.find((s) => s.label === selectedSize);
-      if (typeof found?.quantity === "number") return found.quantity;
-    }
-    if (typeof product.stock === "number") return product.stock;
-    if (typeof product.quantity === "number") return product.quantity;
-    return Infinity;
-  };
-
-  // Số lượng đã có trong giỏ cho cùng sản phẩm + size
-  const getQtyInCartSameSize = () => {
-    const sizeId = getSelectedSizeId();
-    return items
-      .filter((it) => it.id === product.id && it.sizeId === sizeId)
-      .reduce((sum, it) => sum + (it.qty || 0), 0);
-  };
-
-  // Tối đa có thể thêm tiếp cho size này (sau khi trừ phần đang có trong giỏ)
-  const getMaxQtyAllowed = () => {
-    const stock = getSizeStock();
-    const inCart = getQtyInCartSameSize();
-    return Math.max(0, stock - inCart);
-  };
-
-  const maxAllowed = getMaxQtyAllowed();
-  const isOutOfStock = maxAllowed <= 0;
-
-  // Stepper quantity
-  const incQty = () =>
-    setQty((q) => Math.min(q + 1, Math.max(1, maxAllowed)));
-  const decQty = () => setQty((q) => Math.max(1, q - 1));
-  const onQtyInput = (e) => {
-    const v = parseInt(e.target.value, 10);
-    const safe = Number.isNaN(v)
-      ? 1
-      : Math.max(1, Math.min(v, Math.max(1, maxAllowed)));
-    setQty(safe);
-  };
-
   return (
     <div className="relative-container noise-overlay min-h-screen flex flex-col">
       <Header />
@@ -212,19 +320,33 @@ const ProductDetail = () => {
                 alt="Product Main"
                 className="w-[80%] h-auto object-contain"
               />
+
+              {/* Chevron buttons */}
               <button
                 onClick={handlePrevImage}
-                className="absolute left-0 top-1/2 -translate-y-1/2 p-4 hover:text-gray-500 text-black text-5xl z-10"
+                aria-label="Previous image"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10
+                           h-10 w-10 flex items-center justify-center rounded-full
+                           text-[#353535] hover:text-black transition"
               >
-                {"<"}
+                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
+
               <button
                 onClick={handleNextImage}
-                className="absolute right-0 top-1/2 -translate-y-1/2 p-4 hover:text-gray-500 text-black text-5xl z-10"
+                aria-label="Next image"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10
+                           h-10 w-10 flex items-center justify-center rounded-full
+                           text-[#353535] hover:text-black transition"
               >
-                {">"}
+                <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </div>
+
             <div className="flex ml-16 space-x-4 mt-4">
               {product.extraImgs?.map((img, idx) => (
                 <img
@@ -241,20 +363,13 @@ const ProductDetail = () => {
           {/* RIGHT – Details */}
           <div className="font-Jsans text-[#353535]">
             <nav className="text-gray-500 text-sm mb-4">
-              <a href="/" className="hover:underline">
-                Home
-              </a>{" "}
-              /{" "}
-              <a href="/store" className="hover:underline">
-                Store
-              </a>{" "}
-              / <span className="text-black">{product.name}</span>
+              <a href="/" className="hover:underline">Home</a> /{" "}
+              <a href="/store" className="hover:underline">Store</a> /{" "}
+              <span className="text-black">{product.name}</span>
             </nav>
 
             <h1 className="text-4xl text-black font-bold">{product.name}</h1>
-            <p className="text-4xl text-black mt-4">
-              {formatVND(product.price)}
-            </p>
+            <p className="text-4xl text-black mt-4">{formatVND(product.price)}</p>
 
             {/* Tabs */}
             <div className="flex mt-4 border-b border-gray-300">
@@ -302,9 +417,7 @@ const ProductDetail = () => {
                       key={i}
                       onClick={() => setSelectedColor(color)}
                       className={`w-12 h-12 rounded-full border-2 cursor-pointer ${
-                        selectedColor === color
-                          ? "border-black"
-                          : "border-gray-300"
+                        selectedColor === color ? "border-black" : "border-gray-300"
                       }`}
                       style={{ backgroundColor: color }}
                     />
@@ -323,7 +436,6 @@ const ProductDetail = () => {
                       key={size}
                       onClick={() => {
                         setSelectedSize(size);
-                        // Khi đổi size, reset qty về 1 để tránh vượt max của size mới
                         setQty(1);
                       }}
                       className={`w-12 h-12 border font-Jsans text-xl text-center bg-[#F5F5F5]/50 rounded cursor-pointer ${
@@ -372,7 +484,7 @@ const ProductDetail = () => {
               </div>
               {Number.isFinite(maxAllowed) && (
                 <div className="mt-1 text-sm text-gray-600">
-                  Còn lại {maxAllowed} sản phẩm cho size này 
+                  Còn lại {maxAllowed} sản phẩm cho size này
                 </div>
               )}
             </div>
@@ -388,12 +500,7 @@ const ProductDetail = () => {
                 const sizeId = getSelectedSizeId();
                 const safeQty = Math.max(1, Math.min(qty, maxAllowed));
                 if (safeQty <= 0) return;
-                addToCart(product, {
-                  selectedColor,
-                  selectedSize,
-                  sizeId,
-                  qty: safeQty,
-                }); // không toast ở đây để tránh trùng – CartContext đã toast
+                addToCart(product, { selectedColor, selectedSize, sizeId, qty: safeQty });
               }}
             >
               {isOutOfStock ? "Out of stock" : "Add to cart"}
@@ -401,7 +508,7 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Bottom sections */}
+        {/* Details blocks */}
         {product.details && (
           <div
             className="border-t border-[#434237] mt-20 mx-8"
@@ -425,35 +532,31 @@ const ProductDetail = () => {
           </div>
         )}
 
+        {/* More about this product (no gallery images) */}
         <section className="mt-20 px-8">
           <div className="text-center mx-auto">
-            <h2 className="text-2xl mb-4 font-Jsans text-[#353535]">
-              More about this product
-            </h2>
+            <h2 className="text-2xl mb-4 font-Jsans text-[#353535]">More about this product</h2>
             <p className="font-Jsans font-light text-base text-[#434237] leading-loose">
               {product.information ||
                 "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim."}
             </p>
           </div>
-          <div className="flex flex-col md:flex-row justify-center items-center gap-8 mt-10">
-            <img src={gallery5} alt="Front View" />
-            <img src={gallery6} alt="Back View" />
-          </div>
         </section>
-                // Reviews
+
+        {/* Reviews (before suggestions) */}
         <section className="mt-20 px-8 mx-auto">
           <div className="flex items-center text-lg">
             <span className="text-4xl font-kaisei text-[#434237] tracking-wide">
-              {ratingStats.averageRating.toFixed(1)}
+              {Number(ratingStats.averageRating || 0).toFixed(1)}
             </span>
             <div className="text-[#434237] mx-2">
               {[1, 2, 3, 4, 5].map((star) => (
-                <span 
-                  key={star} 
+                <span
+                  key={star}
                   className={`text-3xl ${
-                    star <= Math.round(ratingStats.averageRating) 
-                      ? 'text-[#434237]' 
-                      : 'text-gray-300'
+                    star <= Math.round(ratingStats.averageRating || 0)
+                      ? "text-[#434237]"
+                      : "text-gray-300"
                   }`}
                 >
                   ★
@@ -479,7 +582,7 @@ const ProductDetail = () => {
                   <div>
                     <p className="text-2xl text-[#353535]">{comment.user.name}</p>
                     <p className="text-sm font-light text-[#353535]">
-                      {comment.isVerifiedPurchase ? 'Verified Buyer' : 'Customer'}
+                      {comment.isVerifiedPurchase ? "Verified Buyer" : "Customer"}
                     </p>
                     {comment.transactionDetail?.size && (
                       <p className="text-xs text-gray-500">
@@ -487,39 +590,190 @@ const ProductDetail = () => {
                       </p>
                     )}
                   </div>
-                  <div className="ml-32">
+                  <div className="lg:ml-32">
                     <div className="flex items-center mb-2">
                       <span className="text-[#434237] text-base">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <span 
-                            key={star} 
+                          <span
+                            key={star}
                             className={`text-xl ${
-                              star <= comment.rating 
-                                ? 'text-[#434237]' 
-                                : 'text-gray-300'
+                              star <= comment.rating ? "text-[#434237]" : "text-gray-300"
                             }`}
                           >
                             ★
                           </span>
                         ))}
                       </span>
-                      <span className="text-[#434237] text-lg ml-2">
+                      <span className="text-[#434237] text-lg lg:ml-2 ml-1">
                         {new Date(comment.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-[#353535] font-light max-w-[90%]">
-                      {comment.content}
-                    </p>
+                    <p className="text-[#353535] font-light max-w-[90%]">{comment.content}</p>
                   </div>
                 </div>
               </div>
             ))
           ) : (
             <div className="ml-16 py-20 text-center">
-              <p className="text-[#353535]">No reviews yet. Be the first to review this product!</p>
+              <p className="text-[#353535]">
+                No reviews yet. Be the first to review this product!
+              </p>
             </div>
           )}
         </section>
+
+        {/* Suggestions carousel — bottom (đÃ SỬA) */}
+        {(!relatedLoading && relatedProducts.length === 0) ? null : (
+          <section className="mt-20 px-8 relative">
+            <div className="flex items-end justify-between mb-6">
+              <h2 className="text-2xl font-Jsans text-[#353535]">Gợi ý sản phẩm khác</h2>
+              {!relatedLoading && relatedProducts.length > 0 && (
+                <a href="/store" className="text-sm text-gray-600 hover:underline">
+                  Xem thêm
+                </a>
+              )}
+            </div>
+
+            {relatedLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="w-full h-56 bg-gray-200 rounded" />
+                    <div className="h-4 bg-gray-200 rounded mt-3 w-3/4" />
+                    <div className="h-4 bg-gray-200 rounded mt-2 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="relative">
+                {/* side fade overlays (match #f5edde background) */}
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-[rgba(245,237,222,1)] to-[rgba(245,237,222,0)]" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-[rgba(245,237,222,1)] to-[rgba(245,237,222,0)]" />
+
+                {/* Chevron arrows */}
+                <button
+                  onClick={() => canLeft && scrollByAmount(-1)}
+                  aria-label="Scroll left"
+                  aria-disabled={!canLeft}
+                  className={`hidden md:flex absolute -left-2 top-1/2 -translate-y-1/2 z-10
+                              h-10 w-10 items-center justify-center rounded-full
+                              text-[#353535] hover:text-black transition
+                              ${canLeft ? "opacity-100" : "opacity-40 pointer-events-none"}`}
+                >
+                  <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={() => canRight && scrollByAmount(1)}
+                  aria-label="Scroll right"
+                  aria-disabled={!canRight}
+                  className={`hidden md:flex absolute -right-2 top-1/2 -translate-y-1/2 z-10
+                              h-10 w-10 items-center justify-center rounded-full
+                              text-[#353535] hover:text-black transition
+                              ${canRight ? "opacity-100" : "opacity-40 pointer-events-none"}`}
+                >
+                  <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {/* Slider */}
+                <div
+                  ref={sliderRef}
+                  className="flex gap-5 overflow-x-auto scrollbar-hide scroll-smooth pr-2"
+                  style={{ scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch" }}
+                >
+                  {relatedProducts.map((p) => {
+                    const img =
+                      p?.mainImg?.url ||
+                      (Array.isArray(p?.extraImgs) && p.extraImgs[0]?.url) ||
+                      "";
+                    const sizesText =
+                      Array.isArray(p?.sizes) && p.sizes.length > 0
+                        ? (typeof p.sizes[0] === "object" ? p.sizes.map((s) => s.label) : p.sizes).join(", ")
+                        : "Free size";
+                    const colors = Array.isArray(p?.colors) ? p.colors.slice(0, 6) : [];
+                    const stats = statsMap[p.id] || { avg: 0, total: 0 };
+
+                    return (
+                      <a
+                        key={p.id}
+                        href={`/product?id=${p.id}`}
+                        className="
+                          min-w-[80%] sm:min-w-[48%] md:min-w-[33.3333%] lg:min-w-[25%]
+                          max-w-[360px] group block rounded-lg overflow-hidden hover:shadow-md transition-shadow
+                          bg-transparent border-none
+                        "
+                        style={{ scrollSnapAlign: 'start' }}
+                      >
+                        {/* Ảnh nhỏ đồng đều */}
+                        <div className="w-full aspect-[3/4] overflow-hidden bg-[#f0e7d8]">
+                          {img ? (
+                            <img
+                              src={img}
+                              alt={p.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-full h-full grid place-items-center text-gray-400">
+                              No image
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          {/* swatch + size + tim */}
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-1">
+                              {colors.map((c, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-block h-3.5 w-3.5 rounded-full border border-black/10"
+                                  style={{ backgroundColor: c }}
+                                  title={c}
+                                />
+                              ))}
+                              {Array.isArray(p?.colors) && p.colors.length > 6 && (
+                                <span className="text-[11px] text-gray-600 ml-1">+{p.colors.length - 6}</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-gray-600">{sizesText}</div>
+                            <button
+                              type="button"
+                              onClick={(e) => e.preventDefault()}
+                              className="ml-2 text-gray-500 hover:text-[#353535]"
+                              aria-label="Yêu thích"
+                              title="Thêm vào yêu thích"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
+                              </svg>
+                            </button>
+                          </div>
+
+                          <h3 className="text-base font-medium text-[#353535] line-clamp-2">
+                            {p.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-black">{formatVND(p.price)}</p>
+
+                          <div className="mt-1 flex items-center gap-1 text-[13px] text-[#353535]">
+                            <span className="text-[15px] leading-none">
+                              {"★★★★★".slice(0, Math.round(stats.avg)) + "☆☆☆☆☆".slice(Math.round(stats.avg))}
+                            </span>
+                            <span className="ml-1">{(stats.avg || 0).toFixed(1)}</span>
+                            <span className="text-gray-500">({stats.total})</span>
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       <Footer />

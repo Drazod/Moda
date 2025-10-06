@@ -13,12 +13,12 @@ import authorize from "../middlewares/authorization";
 const couponRoute = Router();
 
 // Admin routes
-couponRoute.post("/", authMiddleware, authorize(["ADMIN"]), createCoupon);
-couponRoute.put("/:id", authMiddleware, authorize(["ADMIN"]), updateCoupon);
-couponRoute.delete("/:id", authMiddleware, authorize(["ADMIN"]), deleteCoupon);
+couponRoute.post("/", authMiddleware, authorize(["ADMIN", "HOST"]), createCoupon);
+couponRoute.put("/:id", authMiddleware, authorize(["ADMIN", "HOST"]), updateCoupon);
+couponRoute.delete("/:id", authMiddleware, authorize(["ADMIN", "HOST"]), deleteCoupon);
 
 // Admin: Get all coupons
-couponRoute.get("/admin-list", authMiddleware, authorize(["ADMIN"]), getAllCouponsForAdmin);
+couponRoute.get("/admin-list", authMiddleware, authorize(["ADMIN", "HOST"]), getAllCouponsForAdmin);
 
 // User routes
 couponRoute.get("/available", authMiddleware, getAvailableCoupons);
