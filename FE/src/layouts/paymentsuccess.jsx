@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useDeleteCartMutation } from '../configs/product/addProductSlice';
+import axiosInstance from '../configs/axiosInstance';
 
 const PaymentSuccess = () => {
   const query = new URLSearchParams(useLocation().search);
   const orderId = query.get('orderId');
+  const pointsUsed = parseInt(query.get('pointsUsed') || '0', 10);
   const [deleteCart] = useDeleteCartMutation();
   const navigate = useNavigate();
 
@@ -13,7 +15,24 @@ const PaymentSuccess = () => {
     if (orderId) {
         deleteCart({ cartId: 1});
     }
-  }, [orderId]);
+    
+    // Deduct points if any were used
+    if (pointsUsed > 0) {
+      const deductPoints = async () => {
+        try {
+          const response = await axiosInstance.post('/user/deduct-points', {
+            pointsUsed: pointsUsed,
+            orderId: orderId
+          });
+          console.log('Points deducted successfully:', response.data);
+        } catch (error) {
+          console.error('Failed to deduct points:', error);
+          // Don't show error to user as payment was successful
+        }
+      };
+      deductPoints();
+    }
+  }, [orderId, pointsUsed]);
 
   const handleGoHome = () => {
     navigate('/home');

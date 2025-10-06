@@ -17,6 +17,9 @@ const formatVND = (v) =>
 export default function CartModal({ open, onClose }) {
   const { items, removeFromCart, updateQty } = useCart();
   const { user } = useAuth();
+  // Points logic
+  const [pointsToUse, setPointsToUse] = useState(0);
+  const availablePoints = user?.points || 0;
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -48,11 +51,18 @@ export default function CartModal({ open, onClose }) {
   // Find cartId from items if present (assumes all items have same cartId)
   const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
 
-  const total = useMemo(() => {
+
+  // Calculate total after voucher
+  const totalAfterVoucher = useMemo(() => {
     if (!voucherDiscount) return subtotal;
     if (voucherDiscount < 1) return subtotal * (1 - voucherDiscount);
     return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0);
   }, [subtotal, voucherDiscount]);
+
+  // Calculate total after points
+  const maxUsablePoints = Math.min(availablePoints, Math.floor(totalAfterVoucher));
+  const pointsUsed = Math.min(pointsToUse, maxUsablePoints);
+  const total = Math.max(totalAfterVoucher - pointsUsed, 0);
 
   const handleCheckout = async () => {
     if (!cartId) {
@@ -68,6 +78,7 @@ export default function CartModal({ open, onClose }) {
         language: "vn",
         address: form.address,
         couponCode: selectedVoucher,
+        pointsUsed: pointsUsed,
       });
       const paymentUrl = res.data.paymentUrl;
       window.location.href = paymentUrl;
@@ -360,8 +371,46 @@ export default function CartModal({ open, onClose }) {
         {/* footer rail */}
         <div className="mx-5 mb-5 pt-4" style={{ background: railBg }}>
           <div className="mx-1 p-4">
-            <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+
+            <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Sub Total</span>
+              <span className="font-semibold">{formatVND(subtotal)}</span>
+            </div>
+            {voucherDiscount ? (
+              <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                <span className="font-medium">After Voucher</span>
+                <span className="font-semibold">{formatVND(totalAfterVoucher)}</span>
+              </div>
+            ) : null}
+            <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+              <span className="font-medium">Available Points</span>
+              <span className="font-semibold">{availablePoints}</span>
+            </div>
+            <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+              <span className="font-medium">Use Points</span>
+              <input
+                type="number"
+                min={0}
+                max={maxUsablePoints}
+                value={pointsToUse}
+                onChange={e => {
+                  let val = parseInt(e.target.value, 10);
+                  if (isNaN(val) || val < 0) val = 0;
+                  if (val > maxUsablePoints) val = maxUsablePoints;
+                  setPointsToUse(val);
+                }}
+                className="w-24 px-2 py-1 rounded border border-gray-300 text-right"
+                style={{ background: fieldBg }}
+              />
+            </div>
+            {pointsUsed > 0 && (
+              <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                <span className="font-medium">Points Used</span>
+                <span className="font-semibold">- {formatVND(pointsUsed)}</span>
+              </div>
+            )}
+            <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+              <span className="font-medium">Total to Pay</span>
               <span className="font-semibold">{formatVND(total)}</span>
             </div>
 

@@ -14,9 +14,10 @@ const VNPayConfig = {
 
 // Generate payment URL
 export const createPayment = async (req: Request, res: Response) => {
-  const { orderId, amount, orderDescription, orderType, language, bankCode, address, couponCode } = req.body;
+  const { orderId, amount, orderDescription, orderType, language, bankCode, address, couponCode, pointsUsed } = req.body;
   console.log("drazod:", address);
   console.log("drazod:", couponCode);
+  console.log("drazod pointsUsed:", pointsUsed);
   // Get userId from authentication middleware
   const userId = req.user?.id;
   if (!userId) {
@@ -43,7 +44,7 @@ export const createPayment = async (req: Request, res: Response) => {
     vnp_Locale: locale,
     vnp_CurrCode: currCode,
     vnp_TxnRef: orderId,
-    vnp_OrderInfo: orderDescription || `Payment for Order #${orderId}`,
+    vnp_OrderInfo: orderDescription || `Payment for Order #${orderId}${pointsUsed ? ` - Points: ${pointsUsed}` : ''}`,
     vnp_OrderType: orderType || 'other',
     vnp_Amount: amount * 100,  // Convert to smallest currency unit (e.g., VND)
     vnp_ReturnUrl: VNPayConfig.returnUrl,
@@ -102,6 +103,14 @@ export const handleReturn = async (req: Request, res: Response) => {
         // You may need to adjust how you get userId, address, couponCode, etc.
         const orderId = Number(vnp_Params['vnp_TxnRef']); // This should be your cart id
         const amount = Number(vnp_Params['vnp_Amount']) / 100; // Convert back to normal unit
+        
+        // Extract pointsUsed from orderInfo
+        const orderInfo = vnp_Params['vnp_OrderInfo'] as string;
+        let pointsUsed = 0;
+        const pointsMatch = orderInfo.match(/Points: (\d+)/);
+        if (pointsMatch) {
+          pointsUsed = parseInt(pointsMatch[1], 10);
+        }
         // You may want to get userId and address from session, db, or FE
         // For demo, try to get from query (not secure for production)
         // Fetch userId, address, and couponCode from the cart using the cart id
@@ -194,7 +203,7 @@ export const handleReturn = async (req: Request, res: Response) => {
           await addPointsFromPayment(userId, transaction.id, amount);
         }
         
-        return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderId}`);
+        return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderId}&pointsUsed=${pointsUsed}`);
       } else {
         // Payment failed, redirect to failure page
         return res.redirect(`https://moda-six.vercel.app/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);

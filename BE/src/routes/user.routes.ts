@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import authMiddleware from '../middlewares/authentication';
-import { userProfile, userUpdate, userTransactionHistory } from '../controllers/user.controller';
+import { userProfile, userUpdate, userTransactionHistory, deductPoints } from '../controllers/user.controller';
 import multer from 'multer';
 
 // Configure multer for file uploads
@@ -101,5 +101,40 @@ userRoute.post('/update', authMiddleware, upload.fields([{ name: 'avatar', maxCo
  *         description: Internal server error
  */
 userRoute.get('/transactions', authMiddleware, userTransactionHistory);
+
+/**
+ * @swagger
+ * /user/deduct-points:
+ *   post:
+ *     summary: Deduct points from user account after payment completion
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               pointsUsed:
+ *                 type: integer
+ *                 description: Number of points to deduct
+ *               orderId:
+ *                 type: string
+ *                 description: Order ID for reference
+ *             required:
+ *               - pointsUsed
+ *     responses:
+ *       200:
+ *         description: Points deducted successfully
+ *       400:
+ *         description: Invalid points amount or insufficient points
+ *       401:
+ *         description: User not authenticated
+ *       500:
+ *         description: Internal server error
+ */
+userRoute.post('/deduct-points', authMiddleware, deductPoints);
 
 export default userRoute;

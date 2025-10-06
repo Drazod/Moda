@@ -224,3 +224,62 @@ export const userUpdate = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 }
+
+// Deduct points from user account (for payment completion)
+export const deductPoints = async (req: Request, res: Response) => {
+    if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+
+    const { pointsUsed, orderId } = req.body;
+
+    if (!pointsUsed || pointsUsed <= 0) {
+        return res.status(400).json({ message: "Invalid points amount" });
+    }
+
+    try {
+        const userId = req.user.id;
+
+        // Get current user points
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { points: true }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        if (user.points < pointsUsed) {
+            return res.status(400).json({ message: "Insufficient points" });
+        }
+
+        // Deduct points from user account
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                points: {
+                    decrement: pointsUsed
+                }
+            }
+        });
+
+        // Create point history record
+        await prisma.pointHistory.create({
+            data: {
+                userId: userId,
+                points: -pointsUsed, // Negative for spending
+                type: 'SPENT_PURCHASE',
+                description: `Points used for payment - Order #${orderId || 'Unknown'}`,
+                transactionId: orderId ? parseInt(orderId) : null
+            }
+        });
+
+        res.status(200).json({
+            message: "Points deducted successfully",
+            pointsDeducted: pointsUsed
+        });
+
+    } catch (error) {
+        console.error('Error deducting points:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
