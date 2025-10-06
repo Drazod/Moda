@@ -67,7 +67,7 @@ const DashHeader = () => {
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
               <a href="/dash-board/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
               <a href="/dash-board/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
-              {user?.role === 'host' && (
+              {user?.role === 'HOST' && (
                 <a href="/dash-board/create-admin" className="block px-4 py-2 text-sm text-green-700 hover:bg-green-100">Create Admin</a>
               )}
               <div className="border-t my-1"></div>

@@ -6,7 +6,7 @@ export default function RequireAdmin({ children }) {
   const location = useLocation();
   if (loading) return null;
 
-  const isAdmin = user?.role === "ADMIN" || user?.roles?.includes?.("ADMIN");
+  const isAdmin = user?.role === "ADMIN" || user?.roles?.includes?.("ADMIN") || user?.role === "HOST" || user?.roles?.includes?.("HOST");
   return isAdmin
     ? children
     : <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;

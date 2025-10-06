@@ -8,7 +8,7 @@ const CreateAdminAccount = () => {
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
 
-  if (user?.role !== 'host') {
+  if (user?.role !== 'HOST') {
     return <div className="max-w-xl mx-auto p-8 bg-white rounded-2xl shadow text-red-500">Only host can create admin accounts.</div>;
   }
 
@@ -21,7 +21,7 @@ const CreateAdminAccount = () => {
     setError(null);
     setSuccess(null);
     try {
-      await axiosInstance.post('/admin/create', form);
+      await axiosInstance.post('/admin/create-admin', form);
       setSuccess('Admin account created successfully!');
       setForm({ name: '', email: '', password: '', role: 'admin' });
     } catch (err) {
