@@ -15,7 +15,7 @@ export default function TransactionHistoryPage() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [refundHistory, setRefundHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('orders'); // 'orders' or 'refunds'
-  const pageSize = 7;
+  const pageSize = 9;
   const pageCount = Math.ceil(groupedTransactions.length / pageSize);
   const pagedTransactions = groupedTransactions.slice(page * pageSize, (page + 1) * pageSize);
 
@@ -315,7 +315,7 @@ export default function TransactionHistoryPage() {
             )}
             {/* Pagination dots (dynamic) */}
             {pageCount > 1 && (
-              <div className="flex justify-center mt-4">
+              <div className="flex justify-center py-3">
                 {Array.from({ length: pageCount }).map((_, i) => (
                   <button
                     key={i}

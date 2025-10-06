@@ -1,9 +1,9 @@
 import React from "react";
 import { CiSettings, CiUser, CiReceipt,CiHome } from "react-icons/ci";
-import InformationForm from "./setting/information";
-import Support from "./setting/support";
+import { useAuth } from "../../context/AuthContext";
 
 const Sidebar = () => {
+  const {user} = useAuth();
   return (
     <aside className=" md:w-1/12 max-h bg-[#BFAF92] ml-4 my-10 rounded-3xl py-4 flex flex-col items-center z-10">
         <a href="/home">
@@ -34,7 +34,7 @@ const Sidebar = () => {
 
         <div className="mt-auto mb-4">
           <img
-            src="https://via.placeholder.com/50"
+            src={user?.avatar?.url || "https://via.placeholder.com/150"}
             alt="User"
             className="rounded-full w-12 h-12 mx-auto"
           />
