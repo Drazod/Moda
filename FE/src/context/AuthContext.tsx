@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }) => {
     const verify = async () => {
       if (!token) { setLoading(false); return; }
       try {
-        const { data } = await axiosInstance.get('/auth/me'); // Authorization header comes from interceptor
+        const { data } = await axiosInstance.get('/user/profile'); // Authorization header comes from interceptor
         if (data?.user) {
           setUser(data.user);
           localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
