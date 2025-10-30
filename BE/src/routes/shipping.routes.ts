@@ -5,6 +5,6 @@ import authorize from "../middlewares/authorization";
 
 const shippingRoute = Router();
 
-shippingRoute.put("/:id/state", authMiddleware, authorize(["ADMIN"]), updateShippingState);
+shippingRoute.put("/:id/state", authMiddleware, authorize(["ADMIN", "HOST"]), updateShippingState);
 
 export default shippingRoute;

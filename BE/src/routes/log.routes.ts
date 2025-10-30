@@ -41,6 +41,6 @@ const logRoute: Router = Router();
  *               items:
  *                 $ref: '#/components/schemas/Log'
  */
-logRoute.get("/", authMiddleware, authorize(["ADMIN"]), getLogs);
+logRoute.get("/", authMiddleware, authorize(["ADMIN", "HOST"]), getLogs);
 
 export default logRoute;

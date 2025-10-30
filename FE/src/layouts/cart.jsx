@@ -10,16 +10,16 @@ const railBg = "#BFAF92";
 const darkBtn = "#434237";
 
 const formatVND = (v) =>
-  (Number(v) || 0).toLocaleString("vi-VN", {
-    maximumFractionDigits: 0,
-  }) + " VND";
+  (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " VND";
 
 export default function CartModal({ open, onClose }) {
   const { items, removeFromCart, updateQty } = useCart();
   const { user } = useAuth();
+
   // Points logic
   const [pointsToUse, setPointsToUse] = useState(0);
   const availablePoints = user?.points || 0;
+
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -27,7 +27,7 @@ export default function CartModal({ open, onClose }) {
     message: "",
     payment: "store",
   });
-  
+
   useEffect(() => {
     if ((open || open === undefined) && user) {
       setForm((f) => ({
@@ -51,17 +51,22 @@ export default function CartModal({ open, onClose }) {
   // Find cartId from items if present (assumes all items have same cartId)
   const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
 
-
   // Calculate total after voucher
   const totalAfterVoucher = useMemo(() => {
     if (!voucherDiscount) return subtotal;
-    if (voucherDiscount < 1) return subtotal * (1 - voucherDiscount);
-    return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0);
+    if (voucherDiscount < 1) return Math.max(subtotal * (1 - voucherDiscount), 0); // fraction
+    return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0); // percent
   }, [subtotal, voucherDiscount]);
 
-  // Calculate total after points (limited to 50% of original price)
-  const maxPointsAllowed = Math.floor(subtotal * 0.5); // 50% of original price
+  // Max points = 50% AFTER voucher
+  const maxPointsAllowed = Math.floor(totalAfterVoucher * 0.5);
   const maxUsablePoints = Math.min(availablePoints, maxPointsAllowed, Math.floor(totalAfterVoucher));
+
+  // Clamp when voucher/subtotal changes
+  useEffect(() => {
+    setPointsToUse((p) => Math.min(Math.max(0, p), maxUsablePoints));
+  }, [maxUsablePoints]);
+
   const pointsUsed = Math.min(pointsToUse, maxUsablePoints);
   const total = Math.max(totalAfterVoucher - pointsUsed, 0);
 
@@ -73,12 +78,12 @@ export default function CartModal({ open, onClose }) {
     try {
       const res = await axiosInstance.post("/vnpay/create-payment", {
         orderId: cartId,
-        amount: total,
+        amount: total,               // tiền mặt còn lại sau voucher + points
         orderType: "other",
         language: "vn",
         address: form.address,
         couponCode: selectedVoucher,
-        pointsUsed: pointsUsed,
+        pointsUsed: pointsUsed,      // gửi để server lưu & xác thực ở return
       });
       const paymentUrl = res.data.paymentUrl;
       window.location.href = paymentUrl;
@@ -104,8 +109,13 @@ export default function CartModal({ open, onClose }) {
     let allowedQty;
     let totalQtyForThisSize = 0;
     try {
-      const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
-      if (item.id && item.sizeId && cartSizeQuantities[item.id] && typeof cartSizeQuantities[item.id][item.sizeId] === "number") {
+      const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
+      if (
+        item.id &&
+        item.sizeId &&
+        cartSizeQuantities[item.id] &&
+        typeof cartSizeQuantities[item.id][item.sizeId] === "number"
+      ) {
         allowedQty = cartSizeQuantities[item.id][item.sizeId];
       }
       totalQtyForThisSize = items
@@ -166,7 +176,7 @@ export default function CartModal({ open, onClose }) {
               ✕
             </button>
           ) : (
-            <a 
+            <a
               href="/home"
               className="grid h-8 w-8 place-items-center rounded-full bg-black/15 text-[#3a3936] hover:bg-black/25"
               aria-label="Go to Home"
@@ -229,12 +239,17 @@ export default function CartModal({ open, onClose }) {
                             let allowedQty;
                             let totalQtyForThisSize = 0;
                             try {
-                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
-                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === "number") {
+                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
+                              if (
+                                it.id &&
+                                it.sizeId &&
+                                cartSizeQuantities[it.id] &&
+                                typeof cartSizeQuantities[it.id][it.sizeId] === "number"
+                              ) {
                                 allowedQty = cartSizeQuantities[it.id][it.sizeId];
                               }
                               totalQtyForThisSize = items
-                                .filter((itm) => itm.id === it.id && itm.sizeId === it.sizeId)
+                                .filter((itm) => itm.id === it.id && it.sizeId === it.sizeId)
                                 .reduce((sum, itm) => sum + itm.qty, 0);
                             } catch {}
                             if (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) return true;
@@ -246,8 +261,13 @@ export default function CartModal({ open, onClose }) {
                             let allowedQty;
                             let totalQtyForThisSize = 0;
                             try {
-                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities")) || {};
-                              if (it.id && it.sizeId && cartSizeQuantities[it.id] && typeof cartSizeQuantities[it.id][it.sizeId] === "number") {
+                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
+                              if (
+                                it.id &&
+                                it.sizeId &&
+                                cartSizeQuantities[it.id] &&
+                                typeof cartSizeQuantities[it.id][it.sizeId] === "number"
+                              ) {
                                 allowedQty = cartSizeQuantities[it.id][it.sizeId];
                               }
                               totalQtyForThisSize = items
@@ -371,21 +391,23 @@ export default function CartModal({ open, onClose }) {
         {/* footer rail */}
         <div className="mx-5 mb-5 pt-4" style={{ background: railBg }}>
           <div className="mx-1 p-4">
-
             <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Sub Total</span>
               <span className="font-semibold">{formatVND(subtotal)}</span>
             </div>
+
             {voucherDiscount ? (
               <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
                 <span className="font-medium">After Voucher</span>
                 <span className="font-semibold">{formatVND(totalAfterVoucher)}</span>
               </div>
             ) : null}
+
             <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Available Points</span>
               <span className="font-semibold">{availablePoints}</span>
             </div>
+
             <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Use Points</span>
               <input
@@ -393,7 +415,7 @@ export default function CartModal({ open, onClose }) {
                 min={0}
                 max={maxUsablePoints}
                 value={pointsToUse}
-                onChange={e => {
+                onChange={(e) => {
                   let val = parseInt(e.target.value, 10);
                   if (isNaN(val) || val < 0) val = 0;
                   if (val > maxUsablePoints) val = maxUsablePoints;
@@ -403,16 +425,21 @@ export default function CartModal({ open, onClose }) {
                 style={{ background: fieldBg }}
               />
             </div>
+
             <div className="mb-1 flex items-center justify-between text-[12px] text-gray-600">
-              <span className="font-light">Max: {formatVND(Math.floor(subtotal * 0.5))} (50% of original price)</span>
-              <span></span>
+              <span className="font-light">
+                Max: {formatVND(Math.floor(totalAfterVoucher * 0.5))} (50% of price)
+              </span>
+              <span />
             </div>
+
             {pointsUsed > 0 && (
               <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
                 <span className="font-medium">Points Used</span>
                 <span className="font-semibold">- {formatVND(pointsUsed)}</span>
               </div>
             )}
+
             <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
               <span className="font-medium">Total to Pay</span>
               <span className="font-semibold">{formatVND(total)}</span>

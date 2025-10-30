@@ -67,7 +67,7 @@ noticeRoute.get("/", authMiddleware, getNotices);
  *       200:
  *         description: A list of global/page notices
  */
-noticeRoute.get("/admin", authMiddleware, authorize(["ADMIN"]), getAdminNotices);
+noticeRoute.get("/admin", authMiddleware, authorize(["ADMIN", "HOST"]), getAdminNotices);
 
 /**
  * @swagger

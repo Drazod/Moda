@@ -138,7 +138,7 @@ export const getRefundHistory = async (req: Request, res: Response) => {
 // Admin: Get all refund requests
 export const getAllRefundRequests = async (req: Request, res: Response) => {
   try {
-    if (!req.user || req.user.role !== 'ADMIN') {
+    if (!req.user || req.user.role !== 'ADMIN' && req.user.role !== 'HOST') {
       return res.status(403).json({ message: 'Admin access required' });
     }
 
@@ -176,7 +176,7 @@ export const getAllRefundRequests = async (req: Request, res: Response) => {
 // Admin: Process refund request (approve/reject)
 export const processRefundRequest = async (req: Request, res: Response) => {
   try {
-    if (!req.user || req.user.role !== 'ADMIN') {
+    if (!req.user || req.user.role !== 'ADMIN' && req.user.role !== 'HOST') {
       return res.status(403).json({ message: 'Admin access required' });
     }
 

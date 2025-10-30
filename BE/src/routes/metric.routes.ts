@@ -21,7 +21,7 @@ metricRoute.post('/heartbeat', optionalAuth, async (req, res) => {
 // Admin can read current presence snapshot
 metricRoute.get('/summary',
   authMiddleware,
-  authorize(['ADMIN']),
+  authorize(["ADMIN", "HOST"]),
   async (_req, res) => {
     const counts = await getPresenceCounts();
     res.json(counts);

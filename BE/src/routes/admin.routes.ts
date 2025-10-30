@@ -14,7 +14,7 @@ adminRoute.get(
 );
 
 // Admin: Get list of users (id, name, role, isVerified)
-adminRoute.get('/users', authMiddleware, authorize(['ADMIN']), getAllUsersForAdmin);
+adminRoute.get('/users', authMiddleware, authorize(['ADMIN', 'HOST']), getAllUsersForAdmin);
 
 // Secure admin creation endpoint (only SUPER_ADMIN)
 adminRoute.post('/create-admin', authMiddleware, authorize(['HOST']), createAdminAccount);

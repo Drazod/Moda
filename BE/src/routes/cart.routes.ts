@@ -64,7 +64,7 @@ const cartRoute: Router = Router();
  *       500:
  *         description: Internal server error
  */
-cartRoute.get('/all',authMiddleware,authorize(["admin"]), getCart);
+cartRoute.get('/all',authMiddleware,authorize(["ADMIN", "HOST"]), getCart);
 
 /**
  * @swagger

@@ -73,7 +73,7 @@ typeRoute.get('/list', getAllTypes);
  *       500:
  *         description: Internal server error
  */
-typeRoute.post('/create',authMiddleware,authorize(["admin"]), createType);
+typeRoute.post('/create',authMiddleware,authorize(["ADMIN", "HOST"]), createType);
 
 /**
  * @swagger
@@ -98,7 +98,7 @@ typeRoute.post('/create',authMiddleware,authorize(["admin"]), createType);
  *       500:
  *         description: Internal server error
  */
-typeRoute.get('/:id',authMiddleware,authorize(["admin"]), getTypeById);
+typeRoute.get('/:id',authMiddleware,authorize(["ADMIN", "HOST"]), getTypeById);
 
 /**
  * @swagger
@@ -135,7 +135,7 @@ typeRoute.get('/:id',authMiddleware,authorize(["admin"]), getTypeById);
  *       500:
  *         description: Internal server error
  */
-typeRoute.put('/update/:id',authMiddleware,authorize(["admin"]), updateType);
+typeRoute.put('/update/:id',authMiddleware,authorize(["ADMIN", "HOST"]), updateType);
 
 /**
  * @swagger
@@ -164,6 +164,6 @@ typeRoute.put('/update/:id',authMiddleware,authorize(["admin"]), updateType);
  *       500:
  *         description: Internal server error
  */
-typeRoute.delete('/delete/:id',authMiddleware,authorize(["admin"]), deleteType);
+typeRoute.delete('/delete/:id',authMiddleware,authorize(["ADMIN", "HOST"]), deleteType);
 
 export default typeRoute;
