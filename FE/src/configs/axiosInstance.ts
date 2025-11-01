@@ -3,7 +3,7 @@ import axios, { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'ax
 const AUTH_TOKEN_KEY = 'auth_token';
 
 const axiosInstance = axios.create({
-  baseURL: 'https://moda-production.up.railway.app',
+  baseURL: 'http://localhost:4000',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

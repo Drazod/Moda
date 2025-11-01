@@ -8,6 +8,39 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+model Branch {
+  id         Int       @id @default(autoincrement())
+  code       String    @unique              // short code like "HCM-D1"
+  name       String
+  address    String    @db.VarChar(1024)
+  phone      String?   @db.VarChar(50)
+  latitude   Decimal?  @db.Decimal(10, 7)   // e.g. 10.7768890
+  longitude  Decimal?  @db.Decimal(10, 7)   // e.g. 106.7008060
+  hours      Json?                         // {"mon_fri":"09:00-21:00","sat_sun":"10:00-20:00"}
+  isActive   Boolean   @default(true)
+  // Relations
+  stocks     Stock[]
+  shippings  Shipping[]
+  transactions Transaction[]
+  notices    Notice[]
+  carts      Cart[]     @relation("PickupBranch")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Stock {
+  id        Int     @id @default(autoincrement())
+  branchId  Int
+  sizeId    Int
+  quantity  Int
+
+  branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  size      Size    @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, sizeId])          // one row per size per branch
+  @@index([sizeId])
+  @@index([branchId])
+}
 
 model Cart {
   id              Int       @id @default(autoincrement())
@@ -17,6 +50,8 @@ model Cart {
   items           CartItem[]
   couponCode      String?
   address         String? // <-- Add this line
+  pickupBranchId  Int?                               // NEW
+  pickupBranch    Branch?   @relation("PickupBranch", fields: [pickupBranchId], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
@@ -95,6 +130,7 @@ model Size {
   clothes    Clothes  @relation(fields: [clothesId], references: [id], onDelete: Cascade)
   transactionDetails TransactionDetail[]
   cartItems  CartItem[]
+  stocks     Stock[]
 }
 
 model Feature {
@@ -156,6 +192,8 @@ model Shipping{
   userId          Int
   transId         Int       @unique
   State           State     @default(PENDING)
+  branchId    Int?                                // NEW: ship-from or pickup branch
+  branch      Branch?  @relation(fields: [branchId], references: [id])
   user            User      @relation(fields: [userId], references: [id])
   transaction     Transaction @relation(fields: [transId], references: [id])
 
@@ -168,6 +206,8 @@ model Transaction{
   method          String
   userId          Int
   couponCode      String?
+  branchId           Int?                           // NEW: fulfilled by branch
+  branch             Branch?  @relation(fields: [branchId], references: [id])
   user            User      @relation(fields: [userId], references: [id])
   coupon          Coupon?   @relation(fields: [couponCode], references: [couponCode])
   transactionDetails TransactionDetail[]
@@ -215,6 +255,8 @@ model Notice {
   pages     Json
   userId    Int?      // <-- Add this line
   user      User?  @relation(fields: [userId], references: [id])
+  branchId  Int?                                   // NEW: branch-specific banner/news
+  branch    Branch?  @relation(fields: [branchId], references: [id])
   state     Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

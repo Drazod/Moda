@@ -17,7 +17,7 @@ import searchRoute from "./search.routes";
 import pointsRoute from "./points.routes";
 import refundRoute from "./refund.routes";
 import commentRoute from "./comment.routes";
-
+import branchRoute from "./branch.routes";
 import shippingRoute from "./shipping.routes";
 import orderRoute from "./order.routes";
 import couponRoute from "./coupon.routes";
@@ -44,5 +44,6 @@ route.use('/comments', commentRoute);
 route.use('/shipping', shippingRoute);
 route.use('/coupon', couponRoute);
 route.use('/order', orderRoute);
+route.use('/branch', branchRoute);
 
 export default route;

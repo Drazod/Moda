@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 // Create the API slice using the re-authentication enabled base query
 export const apiSlice = createApi({
     baseQuery: fetchBaseQuery({
-      baseUrl: 'https://moda-production.up.railway.app',
+      baseUrl: 'http://localhost:4000',
       prepareHeaders: (headers) => {
         const token = Cookies.get("_auth");
         if (token) {

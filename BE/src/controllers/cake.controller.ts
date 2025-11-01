@@ -20,136 +20,150 @@ export const clothesList = async (req: Request, res: Response) => {
 }
 
 export const clothesCreate = async (req: Request, res: Response) => {
-    console.log('req.body:', req.body);
-    const { name, description, price, categoryId, categoryName, sizes, features, material, information } = req.body;
-    const parsedPrice = parseFloat(price);
+  // Expect either branchId or branchCode in body
+  const { name, description, price, categoryId, categoryName, sizes, features, material, information, branchId, branchCode } = req.body;
+
+  try {
+    // --- 1) Validate branch requirement ---
+    if (!branchId && !branchCode) {
+      return res.status(400).json({ message: "branchId or branchCode is required." });
+    }
+
+    const branch = branchId
+      ? await prisma.branch.findUnique({ where: { id: Number(branchId) } })
+      : await prisma.branch.findUnique({ where: { code: String(branchCode) } });
+
+    if (!branch) {
+      return res.status(400).json({ message: "Branch not found." });
+    }
+
+    // --- 2) Validate/resolve category (your original logic) ---
     let category;
-    // Flexible: allow category by id or name, create if not exist
     if (categoryId) {
-        category = await prisma.category.findUnique({ where: { id: parseInt(categoryId, 10) } });
-        if (!category) {
-            return res.status(400).json({ message: 'Category ID does not exist.' });
-        }
+      category = await prisma.category.findUnique({ where: { id: parseInt(categoryId, 10) } });
+      if (!category) return res.status(400).json({ message: "Category ID does not exist." });
     } else if (categoryName) {
-        category = await prisma.category.findUnique({ where: { name: categoryName } });
-        if (!category) {
-            category = await prisma.category.create({ data: { name: categoryName } });
-        }
+      category = await prisma.category.findUnique({ where: { name: categoryName } });
+      if (!category) category = await prisma.category.create({ data: { name: categoryName } });
     } else {
-        return res.status(400).json({ message: 'CategoryId or categoryName is required.' });
+      return res.status(400).json({ message: "CategoryId or categoryName is required." });
     }
-    const parsedSizes = sizes ? JSON.parse(sizes) : [];
-    const parsedFeatures = features ? JSON.parse(features) : [];
 
+    // --- 3) Parse sizes & features safely ---
+    type SizeIn = { label: string; quantity: number };
+    type FeatureIn = { value: string };
 
-    // Lấy danh sách file từ request
+    let parsedSizes: SizeIn[] = [];
+    let parsedFeatures: FeatureIn[] = [];
+    try {
+      if (sizes) parsedSizes = JSON.parse(sizes);
+      if (features) parsedFeatures = JSON.parse(features);
+    } catch {
+      return res.status(400).json({ message: "Invalid sizes or features format" });
+    }
+
+    // --- 4) Validate images (your original checks) ---
     const files = req.files as {
-        mainImage?: Express.Multer.File[];
-        extraImages?: Express.Multer.File[];
-      };
+      mainImage?: Express.Multer.File[];
+      extraImages?: Express.Multer.File[];
+    };
 
-    // Kiểm tra sự tồn tại của mainImage
-    if (!files || !files.mainImage || files.mainImage.length === 0) {
-        return res.status(400).json({ message: "A main image is required." });
+    if (!files || !files.mainImage?.length) {
+      return res.status(400).json({ message: "A main image is required." });
     }
-
-    // Kiểm tra số lượng extraImages
-    if (!files.extraImages || files.extraImages.length === 0) {
-        return res.status(400).json({ message: "At least one extra image is required." });
+    if (!files.extraImages?.length) {
+      return res.status(400).json({ message: "At least one extra image is required." });
     }
     if (files.extraImages.length > 4) {
-        return res.status(400).json({ message: "A maximum of 4 extra images is allowed." });
+      return res.status(400).json({ message: "A maximum of 4 extra images is allowed." });
     }
 
-    try {
-
-        // MAIN IMAGE
-        const mainImageFile = files.mainImage[0];
-        const mainImageName = Date.now() + '_' + mainImageFile.originalname;
-        const mainImageUrl = await uploadToFirebase({ ...mainImageFile, originalname: mainImageName });
-        const mainImage = await prisma.image.create({
-            data: {
-                name: mainImageName,
-                url: mainImageUrl,
-            },
-        });
-
-        // EXTRA IMAGES
-        const extraImages = await Promise.all(
-            files.extraImages.map(async (file) => {
-                const extraImageName = Date.now() + '_' + file.originalname;
-                const extraImageUrl = await uploadToFirebase({ ...file, originalname: extraImageName });
-                return prisma.image.create({
-                    data: {
-                        name: extraImageName,
-                        url: extraImageUrl,
-                    },
-                });
-            })
-        );
-
-    // Parse sizes và features nếu có
-    let parsedSizes: any[] = [];
-    let parsedFeatures: any[] = [];
-
-    try {
-    if (sizes) {
-        parsedSizes = JSON.parse(sizes); // sizes gửi lên phải dạng JSON string
-    }
-    if (features) {
-        parsedFeatures = JSON.parse(features);
-    }
-    } catch (e) {
-    return res.status(400).json({ message: "Invalid sizes or features format" });
+    const parsedPrice = parseFloat(price);
+    if (Number.isNaN(parsedPrice)) {
+      return res.status(400).json({ message: "Invalid price." });
     }
 
-    const cake = await prisma.clothes.create({
-        data: {
-            name,
-            description,
-            price: parsedPrice,
-            material: material ?? null,
-            information: information ?? null,
-            mainImg: { connect: { id: mainImage.id } },
-            extraImgs: { connect: extraImages.map(image => ({ id: image.id })) },
-            category: { connect: { id: category.id } },
-            sizes: {
-                create: parsedSizes.map((s: any) => ({
-                    label: s.label,
-                    quantity: s.quantity,
-                })),
-            },
-            features: {
-                create: parsedFeatures.map((f: any) => ({
-                    value: f.value,
-                })),
-            },
-        },
-        include: {
-            sizes: true,
-            features: true,
-        },
-    });
+    // --- 5) Auth info (unchanged) ---
     const userId = req.user?.id;
     const userName = req.user?.name;
+    if (!userId || !userName) return res.status(400).json({ error: "User info not found" });
 
-    if (!userId || !userName) {
-    return res.status(400).json({ error: "User info not found" });
-    }
+    // --- 6) Transaction: upload images -> create clothes -> create stocks ---
+    const result = await prisma.$transaction(async (tx) => {
+      // MAIN IMAGE
+      const mainImageFile = files.mainImage![0];
+      const mainImageName = Date.now() + "_" + mainImageFile.originalname;
+      const mainImageUrl = await uploadToFirebase({ ...mainImageFile, originalname: mainImageName });
+      const mainImage = await tx.image.create({
+        data: { name: mainImageName, url: mainImageUrl },
+      });
 
-    // tạo log
-    await prisma.log.create({
-    data: {
-        userId,
-        userName,
-        action: `had created clothes ${name} (id=${cake.id})`,
-    },
+      // EXTRA IMAGES
+      const extraImages = await Promise.all(
+        files.extraImages!.map(async (file) => {
+          const extraImageName = Date.now() + "_" + file.originalname;
+          const extraImageUrl = await uploadToFirebase({ ...file, originalname: extraImageName });
+          return tx.image.create({ data: { name: extraImageName, url: extraImageUrl } });
+        })
+      );
+
+      // Create clothes with sizes & features (keeps your current Size.quantity)
+      const created = await tx.clothes.create({
+        data: {
+          name,
+          description,
+          price: parsedPrice,
+          material: material ?? null,
+          information: information ?? null,
+          mainImg: { connect: { id: mainImage.id } },
+          extraImgs: { connect: extraImages.map((img) => ({ id: img.id })) },
+          category: { connect: { id: category.id } },
+          sizes: {
+            create: parsedSizes.map((s) => ({
+              label: s.label,
+              quantity: s.quantity, // still writing to Size.quantity (Phase-1)
+            })),
+          },
+          features: { create: parsedFeatures.map((f) => ({ value: f.value })) },
+        },
+        include: { sizes: true, features: true },
+      });
+
+      // Build a map label -> qty from the payload to match Size ids we just created
+      const qtyByLabel = new Map<string, number>(
+        parsedSizes.map((s) => [String(s.label), Number(s.quantity) || 0])
+      );
+
+      // Upsert Stock rows for this branch for each size
+      await Promise.all(
+        created.sizes.map((sz) =>
+          tx.stock.upsert({
+            where: { branchId_sizeId: { branchId: branch.id, sizeId: sz.id } },
+            update: { quantity: qtyByLabel.get(sz.label) ?? 0 },
+            create: { branchId: branch.id, sizeId: sz.id, quantity: qtyByLabel.get(sz.label) ?? 0 },
+          })
+        )
+      );
+
+      // Log action
+      await tx.log.create({
+        data: {
+          userId,
+          userName,
+          action: `created clothes ${name} (id=${created.id}) at branch ${branch.code}`,
+        },
+      });
+
+      return created;
     });
-        res.status(201).json({ message: "Successfully create clothes", cake });
-    } catch (error) {
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}
+
+    return res.status(201).json({ message: "Successfully created clothes", clothes: result });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 export const clothesCreateMany = async (req: Request, res: Response) => {
     try {
