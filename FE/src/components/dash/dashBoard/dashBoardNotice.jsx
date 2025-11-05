@@ -18,6 +18,7 @@ const Pill = ({ children, tone = "gray" }) => {
   );
 };
 
+
 export default function DashBoardNotice() {
   const navigate = useNavigate();
 
@@ -257,24 +258,19 @@ export default function DashBoardNotice() {
                   </td>
 
                   <td className="px-4 py-4 whitespace-nowrap">
-                    {n.state ? <Pill tone="green">Active</Pill> : <Pill tone="red">Disabled</Pill>}
-                  </td>
-
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-4 justify-end">
-                      {/* GIỮ NGUYÊN Activate/Disable */}
                       <button
                         onClick={() => toggleState(n)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium ${
                           n.state
-                            ? "bg-red-50 text-red-700"
-                            : "bg-green-50 text-green-700"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
                         }`}
                       >
-                        {n.state ? "Disable" : "Activate"}
+                        {n.state ? "Active" : "Disabled"}
                       </button>
-
-                      {/* EDIT icon kiểu DashUMTable */}
+                  </td>
+                  <td className="py-4 pr-2 ">
+                     <div className="flex justify-end items-center space-x-4">
                       <IoPencil
                         onClick={() => toEdit(n)}
                         className="cursor-pointer text-green-500 hover:text-green-700 text-lg"

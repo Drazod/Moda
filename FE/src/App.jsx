@@ -25,6 +25,7 @@ import DashActLog_Main from "./layouts/dash/dashActLog.jsx";
 import DashUM_Main from "./layouts/dash/dashUM.jsx";
 import DashPdM_Main from "./layouts/dash/dashPdM.jsx";
 import DashUptN_Main from "./layouts/dash/dashUptN.jsx";
+import DashBrM_Main from "./layouts/dash/dashBrM.jsx";
 import RequireAdmin from "./utils/RequireAdmin.jsx";
 import RequireAuth from "./utils/RequireAuth";
 import PublicOnly from "./utils/PublicOnly";
@@ -89,6 +90,7 @@ const App = () => {
           <Route path="activity-log" element={<DashActLog_Main />} />
           <Route path="users-manage" element={<DashUM_Main />} />
           <Route path="products-manage" element={<DashPdM_Main />} />
+          <Route path="branch-manage" element={<DashBrM_Main />} />
           <Route path="update-notices" element={<DashUptN_Main />} />
           <Route path="profile" element={<AdminProfile />} />
           <Route path="settings" element={<AdminSettings />} />

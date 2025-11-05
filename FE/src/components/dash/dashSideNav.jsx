@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom'; // useLocation & Link
 // Import icon
-import { IoGridOutline, IoSettingsOutline, IoDocumentTextOutline, IoPeopleOutline, IoTimeOutline, IoBriefcaseOutline, IoEyeOutline, IoReturnDownBackOutline } from 'react-icons/io5';
+import { IoGridOutline, IoSettingsOutline, IoDocumentTextOutline, IoPeopleOutline, IoTimeOutline, IoBriefcaseOutline, IoEyeOutline, IoReturnDownBackOutline, IoLocationOutline } from 'react-icons/io5';
 
 const DashSideNav = () => {
   const location = useLocation(); // URL
@@ -11,6 +11,7 @@ const DashSideNav = () => {
     { name: 'Products manage', path: '/dash-board/products-manage', icon: <IoBriefcaseOutline /> },
     { name: 'Order manage', path: '/dash-board/order-manage', icon: <IoDocumentTextOutline /> },
     { name: 'Refund manage', path: '/dash-board/refund-manage', icon: <IoReturnDownBackOutline /> },
+    { name: 'Branch manage', path: '/dash-board/branch-manage', icon: <IoLocationOutline /> },
     { name: 'Activity log', path: '/dash-board/activity-log', icon: <IoTimeOutline /> },
     { name: 'Users manage', path: '/dash-board/users-manage', icon: <IoPeopleOutline /> },
     { name: 'Update notices', path: '/dash-board/update-notices', icon: <IoSettingsOutline /> },
