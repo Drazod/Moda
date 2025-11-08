@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { IoPencil, IoTrashOutline } from 'react-icons/io5';
+import { IoPencil, IoTrashOutline, IoAddCircleOutline } from 'react-icons/io5';
 import axiosInstance from '../../../configs/axiosInstance';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
 
-const DashPdMProductsTable = ({ onEditProduct }) => {
+const DashPdMProductsTable = ({ onEditProduct, onUpdateStock, isHost }) => {
+    const { user } = useAuth();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -12,8 +15,21 @@ const DashPdMProductsTable = ({ onEditProduct }) => {
             setLoading(true);
             setError(null);
             try {
-                const res = await axiosInstance.get('/clothes/list');
+                const params = {};
+                
+                // Add branchCode for admin users
+                if (!isHost && user?.managedBranch?.code) {
+                    params.branchCode = user.managedBranch.code;
+                }
+                
+                const res = await axiosInstance.get('/clothes/list', { params });
+                if (user.managedBranch.code) {
+                setProducts(res.data.clothes);
+                console.log(res.data.clothes);
+                }
+                else {
                 setProducts(res.data);
+                }
             } catch (err) {
                 setError('Failed to load products');
             } finally {
@@ -21,7 +37,20 @@ const DashPdMProductsTable = ({ onEditProduct }) => {
             }
         };
         fetchProducts();
-    }, []);
+    }, [isHost, user]);
+
+    const handleDelete = async (productId) => {
+        if (!confirm('Are you sure you want to delete this product?')) return;
+        
+        try {
+            await axiosInstance.delete(`/clothes/${productId}`);
+            toast.success('Product deleted successfully');
+            // Refresh the list
+            setProducts(products.filter(p => p.id !== productId));
+        } catch (err) {
+            toast.error('Failed to delete product');
+        }
+    };
 
     return (
         <div className="bg-white p-6 rounded-2xl shadow-sm w-full">
@@ -53,13 +82,26 @@ const DashPdMProductsTable = ({ onEditProduct }) => {
                                     <td className="py-4">{stock}</td>
                                     <td className="py-4">
                                         <div className="flex justify-center items-center space-x-4">
-                                            <IoPencil 
-                                                onClick={() => onEditProduct(product)} 
-                                                className="cursor-pointer text-green-500 hover:text-green-700 text-lg" 
-                                            />
-                                            <IoTrashOutline 
-                                                className="cursor-pointer text-red-500 hover:text-red-700 text-lg" 
-                                            />
+                                            {isHost ? (
+                                                <>
+                                                    <IoPencil 
+                                                        onClick={() => onEditProduct(product)} 
+                                                        className="cursor-pointer text-green-500 hover:text-green-700 text-lg" 
+                                                        title="Edit product"
+                                                    />
+                                                    <IoTrashOutline 
+                                                        onClick={() => handleDelete(product.id)}
+                                                        className="cursor-pointer text-red-500 hover:text-red-700 text-lg" 
+                                                        title="Delete product"
+                                                    />
+                                                </>
+                                            ) : (
+                                                <IoAddCircleOutline 
+                                                    onClick={() => onUpdateStock(product)} 
+                                                    className="cursor-pointer text-blue-500 hover:text-blue-700 text-2xl" 
+                                                    title="Add stock to branch"
+                                                />
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

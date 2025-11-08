@@ -56,6 +56,7 @@ const DashUMTable = ({ onEditUser, filterDays, sortOrder, filterStatus }) => {
                             <th className="py-3 font-medium">User Id</th>
                             <th className="py-3 font-medium">Name</th>
                             <th className="py-3 font-medium">Role</th>
+                            <th className="py-3 font-medium">Branch</th>
                             <th className="py-3 font-medium">Verified</th>
                             <th className="py-3 font-medium text-center">Action</th>
                         </tr>
@@ -66,6 +67,7 @@ const DashUMTable = ({ onEditUser, filterDays, sortOrder, filterStatus }) => {
                                 <td className="py-4 font-semibold">{user.id}</td>
                                 <td className="py-4">{user.name}</td>
                                 <td className="py-4">{user.role}</td>
+                                <td className="py-4">{user.managedBranch?.code || 'N/A'}</td>
                                 <td>
                                     <span className={`px-3 py-1 text-sm rounded-full ${getStatusClass(user.isVerified)}`}>
                                         {user.isVerified ? 'Verified' : 'Unverified'}

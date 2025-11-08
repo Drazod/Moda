@@ -238,7 +238,12 @@ export const getAllUsersForAdmin = async (req: Request, res: Response) => {
       select: {
         id: true,
         name: true,
+        email: true,
+        phone: true,
+        address: true,
+        points: true,
         role: true,
+        managedBranch: true,
         isVerified: true,
       }
     });
@@ -246,4 +251,117 @@ export const getAllUsersForAdmin = async (req: Request, res: Response) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch users" });
   }
+}
+export const userUpdate = async (req: Request, res: Response) => {
+    if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+
+    const userId = req.user.id;
+    
+    try {
+        const { managedBranchId, points, ...otherData } = req.body;
+
+        // Get current user to check existing data
+        const currentUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { managedBranch: true }
+        });
+
+        if (!currentUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        let updateData: any = { ...otherData };
+        const logs: string[] = [];
+
+        // Handle branch manager assignment
+        if (managedBranchId !== undefined) {
+            if (managedBranchId === null) {
+                // Remove branch manager assignment
+                updateData.managedBranch = { disconnect: true };
+                logs.push(`removed as branch manager`);
+            } else {
+                // Validate branch exists
+                const branch = await prisma.branch.findUnique({
+                    where: { id: parseInt(managedBranchId) },
+                    include: { manager: true }
+                });
+
+                if (!branch) {
+                    return res.status(404).json({ message: "Branch not found" });
+                }
+
+                // Check if branch already has a manager
+                if (branch.manager && branch.manager.id !== userId) {
+                    return res.status(400).json({ 
+                        message: `Branch ${branch.code} is already managed by ${branch.manager.name}` 
+                    });
+                }
+
+                // Check if user has ADMIN role (only admins can manage branches)
+                if (currentUser.role !== 'ADMIN' && currentUser.role !== 'HOST') {
+                    return res.status(400).json({ 
+                        message: "Only users with ADMIN or HOST role can be assigned as branch managers" 
+                    });
+                }
+
+                updateData.managedBranch = { connect: { id: parseInt(managedBranchId) } };
+                logs.push(`assigned as manager of branch ${branch.code}`);
+            }
+        }
+
+        // Handle points update
+        if (points !== undefined) {
+            const pointsValue = parseInt(points);
+            if (isNaN(pointsValue) || pointsValue < 0) {
+                return res.status(400).json({ message: "Points must be a non-negative number" });
+            }
+
+            const pointsDiff = pointsValue - currentUser.points;
+            updateData.points = pointsValue;
+
+            // Log point change in PointHistory
+            if (pointsDiff !== 0) {
+                await prisma.pointHistory.create({
+                    data: {
+                        userId: userId,
+                        points: pointsDiff,
+                        type: 'ADMIN_ADJUSTMENT',
+                        description: `Admin adjustment: ${pointsDiff > 0 ? 'added' : 'deducted'} ${Math.abs(pointsDiff)} points`,
+                        transactionId: null
+                    }
+                });
+                logs.push(`points ${pointsDiff > 0 ? 'increased' : 'decreased'} by ${Math.abs(pointsDiff)} (${currentUser.points} → ${pointsValue})`);
+            }
+        }
+
+        // Update user with new data
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            include: { 
+                managedBranch: true,
+                avatar: true 
+            }
+        });
+
+        // Create log entry if there were significant changes
+        if (logs.length > 0) {
+            await prisma.log.create({
+                data: {
+                    userId: req.user.id,
+                    userName: req.user.name,
+                    action: `updated user ${currentUser.name} (id=${userId}): ${logs.join(', ')}`
+                }
+            });
+        }
+
+        res.status(200).json({
+            message: "User updated successfully", 
+            user: user,
+            changes: logs.length > 0 ? logs : undefined
+        });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
 };

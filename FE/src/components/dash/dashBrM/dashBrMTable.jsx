@@ -30,7 +30,7 @@ const DashBrMTable = ({ onEditBranch, sortOrder, filterStatus }) => {
         if (!confirm('Are you sure you want to delete this branch?')) return;
         
         try {
-            await axiosInstance.delete(`/admin/branches/${branchId}`);
+            await axiosInstance.delete(`/branche/${branchId}`);
             toast.success('Branch deleted successfully');
             fetchBranches(); // Refresh list
         } catch (err) {

@@ -18,6 +18,8 @@ model Branch {
   longitude  Decimal?  @db.Decimal(10, 7)   // e.g. 106.7008060
   hours      Json?                         // {"mon_fri":"09:00-21:00","sat_sun":"10:00-20:00"}
   isActive   Boolean   @default(true)
+  managerId  Int?      @unique              // Branch manager (User with ADMIN role)
+  manager    User?     @relation("BranchManager", fields: [managerId], references: [id])
   // Relations
   stocks     Stock[]
   shippings  Shipping[]
@@ -169,6 +171,7 @@ model User {
   points          Int       @default(0)
   avatarId        Int?      @unique
   avatar          Image?    @relation(fields: [avatarId], references: [id], name: "UserAvatar")
+  managedBranch   Branch?   @relation("BranchManager")
   carts           Cart[]
   comments        Comment[]
   shippings       Shipping[]

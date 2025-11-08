@@ -59,7 +59,7 @@ const DashBrMAddPopup = ({ onClose }) => {
 
         try {
             setLoading(true);
-            await axiosInstance.post('/admin/branches', {
+            await axiosInstance.post('/branch', {
                 ...formData,
                 hours: hoursString
             });
@@ -149,7 +149,7 @@ const DashBrMAddPopup = ({ onClose }) => {
                             <label className="text-sm font-medium text-gray-600">Branch Code</label>
                             <input 
                                 type="text"
-                                name="branchCode"
+                                name="code"
                                 value={formData.code}
                                 onChange={handleChange}
                                 placeholder="Enter branch code"

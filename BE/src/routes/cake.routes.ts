@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { clothesCreate, clothesList, clothesDetail, clothesByKeyword, listClothesByCategory, clothesCreateMany, deleteClothes, updateClothes, updateImage, deleteImage } from '../controllers/cake.controller';
+import { clothesCreate, clothesList, clothesDetail, clothesByKeyword, listClothesByCategory, clothesCreateMany, deleteClothes, updateClothes, updateImage, deleteImage, addClothesToBranch } from '../controllers/cake.controller';
 import authMiddleware from '../middlewares/authentication';
 import authorize from '../middlewares/authorization';
 import multer from 'multer';
@@ -62,17 +62,44 @@ const cakeRoute: Router = Router();
  * @swagger
  * /clothes/list:
  *   get:
- *     summary: Get the list of all clothes
+ *     summary: Get the list of all clothes (optionally filtered by branch stock)
  *     tags: [Clothes]
+ *     parameters:
+ *       - in: query
+ *         name: branchCode
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Optional branch code to get stock quantities for a specific branch (e.g., "HCM-D1")
  *     responses:
  *       200:
- *         description: A list of clothes
+ *         description: A list of clothes. If branchCode is provided, sizes show stock quantity for that branch
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Clothes'
+ *               oneOf:
+ *                 - type: array
+ *                   description: Default response without branchCode
+ *                   items:
+ *                     $ref: '#/components/schemas/Clothes'
+ *                 - type: object
+ *                   description: Response with branchCode filter
+ *                   properties:
+ *                     branch:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                         code:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                     clothes:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Clothes'
+ *       404:
+ *         description: Branch not found (when branchCode is provided but doesn't exist)
  *       500:
  *         description: Internal server error
  */
@@ -362,5 +389,89 @@ cakeRoute.put('/updateImage/:id',
         { name: 'extraImages', maxCount: 4 },
     ]), authMiddleware, authorize(["ADMIN", "HOST"]),
     updateImage);
+
+/**
+ * @swagger
+ * /clothes/{id}/add-to-branch:
+ *   post:
+ *     summary: Add existing clothes to an additional branch
+ *     tags: [Clothes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: The clothes ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - branchCode
+ *               - sizes
+ *             properties:
+ *               branchCode:
+ *                 type: string
+ *                 description: The branch code (e.g., "HCM-D1")
+ *                 example: "HCM-D1"
+ *               sizes:
+ *                 type: array
+ *                 description: Array of sizes with quantities for this branch
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     label:
+ *                       type: string
+ *                       description: Size label (must match existing sizes of the clothes)
+ *                       example: "M"
+ *                     quantity:
+ *                       type: integer
+ *                       description: Stock quantity for this size at this branch
+ *                       example: 50
+ *     responses:
+ *       200:
+ *         description: Successfully added clothes to branch
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 branch:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                     code:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                 stocks:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       branchId:
+ *                         type: integer
+ *                       sizeId:
+ *                         type: integer
+ *                       quantity:
+ *                         type: integer
+ *                       size:
+ *                         type: object
+ *       400:
+ *         description: Invalid input or size label doesn't exist for this clothes
+ *       404:
+ *         description: Clothes or branch not found
+ *       500:
+ *         description: Internal server error
+ */
+cakeRoute.post('/:id/add-to-branch', authMiddleware, authorize(["ADMIN"]), addClothesToBranch);
 
 export default cakeRoute;

@@ -1,6 +1,6 @@
 // src/routes/admin.routes.ts
 import { Router } from 'express';
-import { getAdminOverview, getAllUsersForAdmin, createAdminAccount } from '../controllers/admin.controller';
+import { getAdminOverview, getAllUsersForAdmin, createAdminAccount,userUpdate } from '../controllers/admin.controller';
 import authMiddleware from '../middlewares/authentication';
 import authorize from '../middlewares/authorization';
 
@@ -18,6 +18,8 @@ adminRoute.get('/users', authMiddleware, authorize(['ADMIN', 'HOST']), getAllUse
 
 // Secure admin creation endpoint (only SUPER_ADMIN)
 adminRoute.post('/create-admin', authMiddleware, authorize(['HOST']), createAdminAccount);
+
+adminRoute.put('/user/:id', authMiddleware, authorize(['ADMIN', 'HOST']), userUpdate);
 
 export default adminRoute;
 

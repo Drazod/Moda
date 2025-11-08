@@ -9,8 +9,11 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
     const [name, setName] = useState(isEditMode && product ? product.name : '');
     const [price, setPrice] = useState(isEditMode && product ? product.price : '');
     const [categoryId, setCategoryId] = useState(isEditMode && product ? product.categoryId : '');
+    const [branchCode, setBranchCode] = useState(isEditMode && product ? product.branchCode : '');
     const [showCategoryList, setShowCategoryList] = useState(false);
+    const [showBranchList, setShowBranchList] = useState(false);
     const categoryInputRef = useRef(null);
+    const branchInputRef = useRef(null);
     const [description, setDescription] = useState(isEditMode && product ? product.description : '');
     const [features, setFeatures] = useState(isEditMode && product ? (product.features?.map(f => f.value) || []) : []);
     const [featureInput, setFeatureInput] = useState('');
@@ -23,6 +26,7 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [branches, setBranches] = useState([]);
 
     useEffect(() => {
         // Fetch categories from API
@@ -35,6 +39,16 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
             }
         };
         fetchCategories();
+        // Fetch branches from API
+        const fetchBranches = async () => {
+            try {
+                const res = await axiosInstance.get('/branch/list');
+                setBranches(res.data);
+            } catch (err) {
+                setBranches([]);
+            }
+        };
+        fetchBranches();
     }, []);
 
     const handleFeatureAdd = () => {
@@ -62,7 +76,7 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
         e.preventDefault();
         setError('');
         setSuccess('');
-        if (!name || !price || !categoryId || !description || !mainImage || sizes.every(s => !s.quantity)) {
+        if (!name || !price || !categoryId || !description || !mainImage || sizes.every(s => !s.quantity) || !branchCode) {
             setError('Please fill all required fields, including price, and upload main image.');
             return;
         }
@@ -89,7 +103,7 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
             extraImages.forEach(img => formData.append('extraImages', img));
             formData.append('material', materials);
             formData.append('information', information);
-
+            formData.append('branchCode', branchCode);
             await axiosInstance.post('/clothes/create', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
@@ -179,12 +193,16 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
 
                     {/* right col */}
                     <div>
-                        <label className="text-sm font-medium">Main Image *</label>
-                        <input type="file" accept="image/*" onChange={handleMainImageChange} className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" />
-
-                        <label className="mt-4 block text-sm font-medium">Extra Images</label>
-                        <input type="file" accept="image/*" multiple onChange={handleExtraImagesChange} className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" />
-
+                        <div className='grid grid-cols-2 gap-4 '>
+                        <div className='block'>
+                            <label className="text-sm font-medium">Main Image *</label>
+                            <input type="file" accept="image/*" onChange={handleMainImageChange} className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" />
+                        </div>
+                        <div className='block'>
+                            <label className="text-sm font-medium">Extra Images</label>
+                            <input type="file" accept="image/*" multiple onChange={handleExtraImagesChange} className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]" />
+                        </div>
+                        </div>
                         <label className="mt-4 block text-sm font-medium">Size *</label>
                         <div className="grid grid-cols-5 gap-2 mt-1">
                             {sizes.map(s => (
@@ -200,6 +218,44 @@ const DashPdMProductForm = ({ mode, product, onClose }) => {
 
                         <label className="mt-4 block text-sm font-medium">Information</label>
                         <textarea rows="2" value={information} onChange={e => setInformation(e.target.value)} placeholder="content..." className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE]"></textarea>
+                        <label className="mt-4 block text-sm font-medium">Branch *</label>
+                        <div className="relative">
+                            <input
+                                ref={branchInputRef}
+                                className="mt-1 w-full p-3 rounded-lg bg-[#E5DACE] focus:outline-none focus:ring-2 focus:ring-gray-400"
+                                value={branchCode}
+                                onChange={e => {
+                                    setBranchCode(e.target.value);
+                                    setShowBranchList(true);
+                                }}
+                                onFocus={() => setShowBranchList(true)}
+                                onBlur={() => setTimeout(() => setShowBranchList(false), 150)}
+                                placeholder="Type or select branch"
+                                autoComplete="off"
+                            />
+                            {showBranchList && branches.length > 0 && (
+                                <div className="absolute z-20 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-auto">
+                                    {branches
+                                        .filter(branch => branch.name.toLowerCase().includes(branchCode.toLowerCase()))
+                                        .map(branch => (
+                                            <div
+                                                key={branch.code}
+                                                className="px-4 py-2 cursor-pointer hover:bg-gray-100 text-gray-800 text-base"
+                                                onMouseDown={() => {
+                                                    setBranchCode(branch.code);
+                                                    setShowBranchList(false);
+                                                    if (branchInputRef.current) branchInputRef.current.blur();
+                                                }}
+                                            >
+                                                {branch.code} - {branch.name}
+                                            </div>
+                                        ))}
+                                    {branches.filter(branch => branch.name.toLowerCase().includes(branchCode.toLowerCase())).length === 0 && (
+                                        <div className="px-4 py-2 text-gray-400">No matches</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 

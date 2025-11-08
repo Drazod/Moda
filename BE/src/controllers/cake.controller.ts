@@ -4,9 +4,72 @@ import { uploadToFirebase, deleteImageFromFirebaseAndPrisma } from '../services/
 
 export const clothesList = async (req: Request, res: Response) => {
     try {
+        const { branchCode } = req.query;
+
+        // If branchCode is provided, get stock for that specific branch
+        if (branchCode) {
+            const branch = await prisma.branch.findUnique({
+                where: { code: String(branchCode) }
+            });
+
+            if (!branch) {
+                return res.status(404).json({ message: 'Branch not found' });
+            }
+
+            const listCake = await prisma.clothes.findMany({
+                include: {
+                    category: true,
+                    mainImg: true,
+                    extraImgs: true,
+                    features: true,
+                    sizes: {
+                        include: {
+                            stocks: true // Get all stocks for all branches to calculate available quantity
+                        }
+                    }
+                },
+            });
+
+            // Transform the response to replace size.quantity with stock quantity
+            const transformedList = listCake.map(clothes => ({
+                ...clothes,
+                sizes: clothes.sizes.map(size => {
+                    // Find stock for current branch
+                    const currentBranchStock = size.stocks.find(s => s.branchId === branch.id);
+                    
+                    // Calculate total allocated across all branches
+                    const totalAllocated = size.stocks.reduce((sum, stock) => sum + stock.quantity, 0);
+                    
+                    // Calculate max available for this branch (total - allocated to other branches)
+                    const maxAvailable = size.quantity - totalAllocated;
+                    
+                    return {
+                        id: size.id,
+                        label: size.label,
+                        clothesId: size.clothesId,
+                        totalQuantity: size.quantity, // Total quantity defined for this size
+                        quantity: currentBranchStock?.quantity || 0, // Current stock at this branch
+                        totalAllocated: totalAllocated, // Total allocated across all branches
+                        maxAvailable: Math.max(0, maxAvailable), // Maximum that can be added (can't be negative)
+                    };
+                }),
+                
+            }));
+
+            return res.status(200).json({
+                branch: {
+                    id: branch.id,
+                    code: branch.code,
+                    name: branch.name
+                },
+                clothes: transformedList
+            });
+        }
+
+        // Default behavior: return all clothes with size quantities (no branch filter)
         const listCake = await prisma.clothes.findMany({
             include: {
-                category: true,  // Include the type to get information about the type of each cake
+                category: true,
                 mainImg: true,
                 extraImgs: true,
                 sizes: true,
@@ -15,6 +78,7 @@ export const clothesList = async (req: Request, res: Response) => {
         });
         res.status(200).json(listCake);
     } catch (error) {
+        console.error('Error fetching clothes list:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }
@@ -29,9 +93,7 @@ export const clothesCreate = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "branchId or branchCode is required." });
     }
 
-    const branch = branchId
-      ? await prisma.branch.findUnique({ where: { id: Number(branchId) } })
-      : await prisma.branch.findUnique({ where: { code: String(branchCode) } });
+    const branch = await prisma.branch.findUnique({ where: { code: String(branchCode) } });
 
     if (!branch) {
       return res.status(400).json({ message: "Branch not found." });
@@ -155,7 +217,12 @@ export const clothesCreate = async (req: Request, res: Response) => {
       });
 
       return created;
-    });
+    },
+    {
+        maxWait: 10000, // Wait max 10s to start transaction
+        timeout: 20000, // Transaction can run for max 20s
+    }
+  );
 
     return res.status(201).json({ message: "Successfully created clothes", clothes: result });
   } catch (error) {
@@ -514,4 +581,174 @@ export const deleteImage = async (req: Request, res: Response) => {
         console.error('Error deleting image:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
+};
+
+/**
+ * Add existing clothes to an additional branch
+ * POST /clothes/:id/add-to-branch
+ * Body: { branchCode: string, sizes: [{ label: string, quantity: number }] }
+ */
+export const addClothesToBranch = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { branchCode, sizes } = req.body;
+
+    // Validate input
+    if (!branchCode || !sizes || !Array.isArray(sizes)) {
+      return res.status(400).json({ 
+        message: "branchCode and sizes array are required" 
+      });
+    }
+
+    const clothesId = parseInt(id);
+    if (isNaN(clothesId)) {
+      return res.status(400).json({ message: "Invalid clothes ID" });
+    }
+
+    // Parse sizes
+    let parsedSizes: { label: string; quantity: number }[];
+    try {
+      parsedSizes = sizes.map((s: any) => ({
+        label: String(s.label),
+        quantity: Number(s.quantity) || 0,
+      }));
+    } catch {
+      return res.status(400).json({ message: "Invalid sizes format" });
+    }
+
+    // Check if clothes exists
+    const clothes = await prisma.clothes.findUnique({
+      where: { id: clothesId },
+      include: { sizes: true },
+    });
+
+    if (!clothes) {
+      return res.status(404).json({ message: "Clothes not found" });
+    }
+
+    // Check if branch exists
+    const branch = await prisma.branch.findUnique({
+      where: { code: branchCode },
+    });
+
+    if (!branch) {
+      return res.status(404).json({ message: "Branch not found" });
+    }
+
+    // Auth info for logging
+    const userId = req.user?.id;
+    const userName = req.user?.name;
+    if (!userId || !userName) {
+      return res.status(400).json({ error: "User info not found" });
+    }
+
+    // Create a map of label -> quantity from request
+    const qtyByLabel = new Map<string, number>(
+      parsedSizes.map((s) => [String(s.label), Number(s.quantity) || 0])
+    );
+
+    // Validate that all requested labels exist in clothes sizes
+    const existingSizeLabels = new Set(clothes.sizes.map((s) => s.label));
+    for (const reqLabel of qtyByLabel.keys()) {
+      if (!existingSizeLabels.has(reqLabel)) {
+        return res.status(400).json({ 
+          message: `Size label '${reqLabel}' does not exist for this clothes` 
+        });
+      }
+    }
+
+    // Check stock quantities before adding to branch
+    const sizesToProcess = clothes.sizes.filter((sz) => qtyByLabel.has(sz.label));
+    
+    // Get current stock across all branches for these sizes
+    const allCurrentStocks = await prisma.stock.findMany({
+      where: {
+        sizeId: { in: sizesToProcess.map((s) => s.id) },
+      },
+    });
+
+    // Validate that total stock doesn't exceed size quantity
+    for (const sz of sizesToProcess) {
+      const requestedQty = qtyByLabel.get(sz.label) ?? 0;
+      
+      // Get current stock at this specific branch
+      const currentBranchStock = allCurrentStocks.find(
+        (s) => s.sizeId === sz.id && s.branchId === branch.id
+      );
+      const currentAtThisBranch = currentBranchStock?.quantity ?? 0;
+      
+      // Get total across all branches
+      const totalAllocated = allCurrentStocks
+        .filter((s) => s.sizeId === sz.id)
+        .reduce((sum, stock) => sum + stock.quantity, 0);
+      
+      // Calculate new total if we add the requested quantity
+      const newTotal = totalAllocated + requestedQty;
+
+      if (newTotal > sz.quantity) {
+        return res.status(400).json({
+          message: `Size '${sz.label}' quantity exceeds limit. Total quantity: ${sz.quantity}, Currently allocated: ${totalAllocated}, Requested to add: ${requestedQty}. Available: ${sz.quantity - totalAllocated}`,
+        });
+      }
+    }
+
+    // Upsert stock records for this branch
+    const result = await prisma.$transaction(async (tx) => {
+      // Get current stocks at this branch to add to them
+      const currentBranchStocks = await tx.stock.findMany({
+        where: {
+          branchId: branch.id,
+          sizeId: { in: sizesToProcess.map((s) => s.id) },
+        },
+      });
+
+      await Promise.all(
+        sizesToProcess.map((sz) => {
+          const currentStock = currentBranchStocks.find((s) => s.sizeId === sz.id);
+          const currentQty = currentStock?.quantity ?? 0;
+          const addQty = qtyByLabel.get(sz.label) ?? 0;
+          const newQty = currentQty + addQty; // ADD instead of REPLACE
+
+          return tx.stock.upsert({
+            where: { branchId_sizeId: { branchId: branch.id, sizeId: sz.id } },
+            update: { quantity: newQty },
+            create: {
+              branchId: branch.id,
+              sizeId: sz.id,
+              quantity: addQty,
+            },
+          });
+        })
+      );
+
+      // Log the action
+      await tx.log.create({
+        data: {
+          userId,
+          userName,
+          action: `added clothes '${clothes.name}' (id=${clothes.id}) to branch ${branch.code}`,
+        },
+      });
+
+      // Return updated stock info for this branch
+      const stocks = await tx.stock.findMany({
+        where: {
+          branchId: branch.id,
+          sizeId: { in: sizesToProcess.map((s) => s.id) },
+        },
+        include: { size: true },
+      });
+
+      return stocks;
+    });
+
+    return res.status(200).json({
+      message: `Successfully added clothes to branch ${branch.code}`,
+      branch: { id: branch.id, code: branch.code, name: branch.name },
+      stocks: result,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };

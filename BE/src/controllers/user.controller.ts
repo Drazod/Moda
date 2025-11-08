@@ -147,7 +147,8 @@ export const userProfile = async (req: Request, res: Response) => {
                 id: userId
             },
             include: {
-                avatar: true
+                avatar: true,
+                managedBranch: true
             }
         });
         res.status(200).json({message: "User Profile: ", user: user});

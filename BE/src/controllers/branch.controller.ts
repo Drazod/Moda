@@ -54,11 +54,12 @@ export const getAllBranches = async (req: Request, res: Response) => {
   try {
     const branches = await prisma.branch.findMany({
       select: {
+        id: true,
         code: true,
         name: true
       }
     });
-    res.status(200).json({ branches });
+    res.status(200).json(branches);
   } catch (error) {
     res.status(500).json({ message: "Error fetching branches", error });
   }
