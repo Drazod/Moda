@@ -254,7 +254,24 @@ export const clothesDetail = async (req: Request, res: Response) => {
                 category: true,  // Include the type to get information about the type of this specific cake
                 mainImg: true,
                 extraImgs: true,
-                sizes: true
+                sizes: {
+                    include: {
+                        stocks: {
+                            include: {
+                                branch: {
+                                    select: {
+                                        id: true,
+                                        code: true,
+                                        name: true,
+                                        address: true,
+                                        phone: true,
+                                        isActive: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
         });
 
@@ -262,8 +279,34 @@ export const clothesDetail = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Clothes not found' });
         }
 
-        res.status(200).json(cake);
+        // Transform the response to show stock by branch for each size
+        const transformedCake = {
+            ...cake,
+            sizes: cake.sizes.map(size => {
+                // Calculate total allocated
+
+                
+                return {
+                    id: size.id,
+                    label: size.label,
+                    clothesId: size.clothesId,
+                    totalQuantity: size.quantity, // Total quantity defined for this size
+                    branches: size.stocks.map(stock => ({
+                        branchId: stock.branchId,
+                        branchCode: stock.branch.code,
+                        branchName: stock.branch.name,
+                        address: stock.branch.address,
+                        phone: stock.branch.phone,
+                        isActive: stock.branch.isActive,
+                        quantity: stock.quantity, // Stock at this specific branch
+                    }))
+                };
+            })
+        };
+
+        res.status(200).json(transformedCake);
     } catch (error) {
+        console.error('Error fetching clothes detail:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }

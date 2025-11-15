@@ -32,6 +32,13 @@ const mapCartItems = (apiItems = []) =>
     label: item.Size?.label ?? "",
     selectedColor: item.selectedColor ?? null,
     selectedSize: item.selectedSize ?? null,
+    // Fulfillment data
+    fulfillmentMethod: item.fulfillmentMethod ?? null,
+    sourceBranchId: item.sourceBranchId ?? null,
+    sourceBranchName: item.sourceBranch?.name ?? null,
+    pickupBranchId: item.pickupBranchId ?? null,
+    pickupBranchName: item.pickupBranch?.name ?? null,
+    allocationNote: item.allocationNote ?? null,
   }));
 
 // Áp hạn mức local (nếu bạn lưu stock tạm ở localStorage)
@@ -116,6 +123,7 @@ export function CartProvider({ children }) {
     }
 
     if (syncingRef.current) return;
+    if (!lastChangedItemRef.current) return; // Only sync if there was a change
 
     clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(async () => {
@@ -126,46 +134,25 @@ export function CartProvider({ children }) {
         const one = lastChangedItemRef.current;
 
         if (one) {
-          if (one.cartItemId) {
-            await axiosInstance.post("/cart/add", {
-              cartItemId: one.cartItemId,
-              cakeId: one.id,
-              quantity: one.qty,
-            });
-          } else {
-            await axiosInstance.post("/cart/add", {
-              cakeId: one.id,
-              quantity: one.qty,
-              ...(one.sizeId ? { sizeId: one.sizeId } : {}),
-            });
-          }
-        } else {
-          for (const it of items) {
-            if (it.cartItemId) {
-              await axiosInstance.post("/cart/add", {
-                cartItemId: it.cartItemId,
-                cakeId: it.id,
-                quantity: it.qty,
-              });
-            } else {
-              await axiosInstance.post("/cart/add", {
-                cakeId: it.id,
-                quantity: it.qty,
-                ...(it.sizeId ? { sizeId: it.sizeId } : {}),
-              });
-            }
-          }
+          // Send the changed item to backend
+          await axiosInstance.post("/cart/add", {
+            ...(one.cartItemId ? { cartItemId: one.cartItemId } : {}),
+            cakeId: one.id,
+            sizeId: one.sizeId,
+            quantity: one.qty,
+            ...(one.fulfillmentMethod ? { fulfillmentMethod: one.fulfillmentMethod } : {}),
+            ...(one.sourceBranchId ? { sourceBranchId: one.sourceBranchId } : {}),
+            ...(one.pickupBranchId ? { pickupBranchId: one.pickupBranchId } : {}),
+            ...(one.allocationNote ? { allocationNote: one.allocationNote } : {}),
+          });
         }
 
-        const canonical = await fetchCanonical();
-
-        const canonicalStr = JSON.stringify(canonical);
-        if (canonicalStr !== lastCanonicalRef.current) {
-          lastCanonicalRef.current = canonicalStr;
-          setItems(canonical);
-        }
-      } catch {
-        // Bạn có thể toast.error ở đây nếu muốn
+        // Don't fetch canonical and setItems - this causes infinite loop
+        // The backend will handle the state, we trust our local state
+      } catch (error) {
+        console.error('Cart sync error:', error);
+        // Optionally show error to user
+        // toast.error('Failed to sync cart');
       } finally {
         syncingRef.current = false;
         lastChangedItemRef.current = null;
@@ -220,9 +207,23 @@ export function CartProvider({ children }) {
           "",
       };
 
+      // Extract fulfillment data from options
+      const fulfillmentMethod = options.fulfillment?.method || null;
+      const sourceBranchId = options.fulfillment?.sourceBranchId || null;
+      const pickupBranchId = options.fulfillment?.pickupBranchId || null;
+      const allocationNote = options.fulfillment?.allocationNote || null;
+
       if (idx !== -1) {
         next = [...prev];
-        const updated = { ...next[idx], qty: next[idx].qty + (options.qty || 1) };
+        const updated = { 
+          ...next[idx], 
+          qty: next[idx].qty + (options.qty || 1),
+          // Update fulfillment data if provided
+          ...(fulfillmentMethod ? { fulfillmentMethod } : {}),
+          ...(sourceBranchId ? { sourceBranchId } : {}),
+          ...(pickupBranchId ? { pickupBranchId } : {}),
+          ...(allocationNote ? { allocationNote } : {}),
+        };
         next[idx] = updated;
         lastChangedItemRef.current = updated;
       } else {
@@ -239,6 +240,11 @@ export function CartProvider({ children }) {
           selectedSize: options.selectedSize ?? null,
           sizeId: options.sizeId ?? null,
           qty: options.qty || 1,
+          // Add fulfillment data
+          fulfillmentMethod,
+          sourceBranchId,
+          pickupBranchId,
+          allocationNote,
         };
         next = [...prev, fresh];
         lastChangedItemRef.current = fresh;

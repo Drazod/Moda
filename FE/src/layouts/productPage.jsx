@@ -4,6 +4,9 @@ import Footer from "../components/footer";
 import { useLocation } from "react-router-dom";
 import axiosInstance from "../configs/axiosInstance";
 import { useCart } from "../context/CartContext";
+import FulfillmentOptions from "../components/FulfillmentOptions";
+import ShareProductButton from "../components/product/ShareProductButton";
+import toast from "react-hot-toast";
 
 const formatVND = (v) =>
   (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " VND";
@@ -32,6 +35,10 @@ const ProductDetail = () => {
   const [relatedLoading, setRelatedLoading] = useState(false);
   // ➕ rating + số cmt cho từng sp gợi ý
   const [statsMap, setStatsMap] = useState({}); // { [id]: { avg, total } }
+
+  // Fulfillment options
+  const [showFulfillment, setShowFulfillment] = useState(false);
+  const [fulfillmentData, setFulfillmentData] = useState(null);
 
   const { addToCart, items } = useCart();
 
@@ -65,8 +72,8 @@ const ProductDetail = () => {
           if (res.data.id) {
             cartSizeQuantities[res.data.id] = {};
             res.data.sizes.forEach((s) => {
-              if (s.id && typeof s.quantity === "number") {
-                cartSizeQuantities[res.data.id][s.id] = s.quantity;
+              if (s.id && typeof s.totalQuantity === "number") {
+                cartSizeQuantities[res.data.id][s.id] = s.totalQuantity;
               }
             });
             localStorage.setItem("cartSizeQuantities", JSON.stringify(cartSizeQuantities));
@@ -207,17 +214,17 @@ const ProductDetail = () => {
       product.sizes[0].label
     ) {
       const found = product.sizes.find((s) => s.label === selectedSize);
-      if (typeof found?.quantity === "number") return found.quantity;
+      if (typeof found?.totalQuantity === "number") return found.totalQuantity;
     }
     if (typeof product?.stock === "number") return product.stock;
-    if (typeof product?.quantity === "number") return product.quantity;
+    if (typeof product?.totalQuantity === "number") return product.totalQuantity;
     return Infinity;
   };
 
   const getQtyInCartSameSize = () => {
     const sizeId = getSelectedSizeId();
     return items
-      .filter((it) => it.id === product.id && it.sizeId === sizeId)
+      .filter((it) => it.id === product?.id && it.sizeId === sizeId)
       .reduce((sum, it) => sum + (it.qty || 0), 0);
   };
 
@@ -489,27 +496,136 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Add to cart */}
-            <button
-              className={`mt-6 py-3 px-6 w-full rounded-lg transition text-white ${
-                isOutOfStock ? "bg-gray-400" : "bg-black hover:bg-gray-800"
-              }`}
-              disabled={isOutOfStock}
-              title={isOutOfStock ? "Out of stock for this size" : undefined}
-              onClick={() => {
-                const sizeId = getSelectedSizeId();
-                const safeQty = Math.max(1, Math.min(qty, maxAllowed));
-                if (safeQty <= 0) return;
-                addToCart(product, { selectedColor, selectedSize, sizeId, qty: safeQty });
-              }}
-            >
-              {isOutOfStock ? "Out of stock" : "Add to cart"}
-            </button>
+            {/* Show Fulfillment Options button (if inventory allows) */}
+            {!isOutOfStock && !showFulfillment && (
+              <button
+                className="mt-6 py-3 px-6 w-full rounded-lg transition text-white bg-[#434237] hover:bg-[#353535]"
+                onClick={() => setShowFulfillment(true)}
+              >
+                Choose Fulfillment Option
+              </button>
+            )}
+
+            {/* Fulfillment Options Panel */}
+            {showFulfillment && !isOutOfStock && (
+              <div className=" mx-auto max-w-5xl ">
+                <FulfillmentOptions
+                  product={product}
+                  selectedSize={selectedSize}
+                  requestedQty={qty}
+                  onSelect={(fulfillmentChoice) => {
+                    setFulfillmentData(fulfillmentChoice);
+                    const sizeId = getSelectedSizeId();
+                    const safeQty = Math.max(1, Math.min(qty, maxAllowed));
+                    
+                    // Convert fulfillment data to API format
+                    let fulfillmentPayload = { method: fulfillmentChoice.method };
+                    
+                    if (fulfillmentChoice.method === 'ship') {
+                      // For shipping, use the first source (primary source)
+                      const primarySource = fulfillmentChoice.allocation?.items?.[0];
+                      if (primarySource) {
+                        fulfillmentPayload.sourceBranchId = primarySource.branchId || null;
+                        fulfillmentPayload.allocationNote = fulfillmentChoice.allocation.items
+                          .map(item => `${item.quantity} from ${item.location}`)
+                          .join(', ');
+                      }
+                    } else if (fulfillmentChoice.method === 'pickup') {
+                      // For pickup, use pickupBranchId instead of sourceBranchId
+                      fulfillmentPayload.pickupBranchId = fulfillmentChoice.store?.branchId || null;
+                      fulfillmentPayload.allocationNote = fulfillmentChoice.option?.label || 'Pickup at store';
+                    }
+                    
+                    // Add to cart with fulfillment metadata
+                    addToCart(product, {
+                      selectedColor,
+                      selectedSize,
+                      sizeId,
+                      qty: safeQty,
+                      fulfillment: fulfillmentPayload
+                    });
+
+                    // Show success message based on fulfillment method
+                    if (fulfillmentChoice.method === 'ship') {
+                      const sources = fulfillmentChoice.allocation.items.map(i => i.location).join(', ');
+                      toast.success(`Added to cart! Ships from: ${sources}`);
+                    } else if (fulfillmentChoice.method === 'pickup') {
+                      const option = fulfillmentChoice.option;
+                      if (option.id === 'split') {
+                        toast.success(`Added! Pickup ${option.pickupQty} + Ship ${option.shipQty}`);
+                      } else if (option.id === 'transfer') {
+                        toast.success(`Added! Will be ready for pickup on ${new Date(option.eta).toLocaleDateString()}`);
+                      } else if (option.id === 'reduce') {
+                        toast.success(`Added ${option.pickupQty} items for pickup today`);
+                      } else if (option.id === 'ship-all') {
+                        toast.success('Added to cart! Will ship to home');
+                      }
+                    }
+
+                    // Reset fulfillment UI
+                    setShowFulfillment(false);
+                    setFulfillmentData(null);
+                  }}
+                />
+                <button
+                  className="mt-4 text-blue-500 hover:underline"
+                  onClick={() => {
+                    setShowFulfillment(false);
+                    setFulfillmentData(null);
+                  }}
+                >
+                  ← Back to product
+                </button>
+              </div>
+            )}
+
+            {/* Quick Add to cart (if user doesn't want fulfillment options) */}
+            {!isOutOfStock && !showFulfillment && (
+              <button
+                className="mt-3 py-3 px-6 w-full rounded-lg transition text-gray-700 border border-gray-300 hover:bg-gray-50"
+                onClick={() => {
+                  const sizeId = getSelectedSizeId();
+                  const safeQty = Math.max(1, Math.min(qty, maxAllowed));
+                  if (safeQty <= 0) return;
+                  // Default: ship from warehouse
+                  addToCart(product, { 
+                    selectedColor, 
+                    selectedSize, 
+                    sizeId, 
+                    qty: safeQty,
+                    fulfillment: { method: 'ship' }
+                  });
+                  toast.success('Added to cart! Default: Ship to Home');
+                }}
+              >
+                Quick Add (Ship to Home)
+              </button>
+            )}
+
+            {/* Out of stock button */}
+            {isOutOfStock && (
+              <button
+                className="mt-6 py-3 px-6 w-full rounded-lg transition text-white bg-gray-400"
+                disabled={true}
+                title="Out of stock for this size"
+              >
+                Out of stock
+              </button>
+            )}
+
+            {/* Share Product with Friends */}
+            {!showFulfillment && product && (
+              <div className="mt-4">
+                <ShareProductButton product={product} />
+              </div>
+            )}
           </div>
         </div>
 
+
+
         {/* Details blocks */}
-        {product.details && (
+        {!showFulfillment && product.details && (
           <div
             className="border-t border-[#434237] mt-20 mx-8"
             style={{ borderTopWidth: "0.5px" }}
@@ -533,18 +649,21 @@ const ProductDetail = () => {
         )}
 
         {/* More about this product (no gallery images) */}
-        <section className="mt-20 px-8">
-          <div className="text-center mx-auto">
-            <h2 className="text-2xl mb-4 font-Jsans text-[#353535]">More about this product</h2>
-            <p className="font-Jsans font-light text-base text-[#434237] leading-loose">
-              {product.information ||
-                "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim."}
-            </p>
-          </div>
-        </section>
+        {!showFulfillment && (
+          <section className="mt-20 px-8">
+            <div className="text-center mx-auto">
+              <h2 className="text-2xl mb-4 font-Jsans text-[#353535]">More about this product</h2>
+              <p className="font-Jsans font-light text-base text-[#434237] leading-loose">
+                {product.information ||
+                  "Donec quam felis, ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa quis enim."}
+              </p>
+            </div>
+          </section>
+        )}
 
         {/* Reviews (before suggestions) */}
-        <section className="mt-20 px-8 mx-auto">
+        {!showFulfillment && (
+          <section className="mt-20 px-8 mx-auto">
           <div className="flex items-center text-lg">
             <span className="text-4xl font-kaisei text-[#434237] tracking-wide">
               {Number(ratingStats.averageRating || 0).toFixed(1)}
@@ -620,10 +739,11 @@ const ProductDetail = () => {
               </p>
             </div>
           )}
-        </section>
+          </section>
+        )}
 
         {/* Suggestions carousel — bottom (đÃ SỬA) */}
-        {(!relatedLoading && relatedProducts.length === 0) ? null : (
+        {!showFulfillment && (!relatedLoading && relatedProducts.length === 0) ? null : (
           <section className="mt-20 px-8 relative">
             <div className="flex items-end justify-between mb-6">
               <h2 className="text-2xl font-Jsans text-[#353535]">Gợi ý sản phẩm khác</h2>

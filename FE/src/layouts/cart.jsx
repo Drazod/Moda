@@ -15,7 +15,6 @@ const formatVND = (v) =>
 export default function CartModal({ open, onClose }) {
   const { items, removeFromCart, updateQty } = useCart();
   const { user } = useAuth();
-
   // Points logic
   const [pointsToUse, setPointsToUse] = useState(0);
   const availablePoints = user?.points || 0;
@@ -25,7 +24,7 @@ export default function CartModal({ open, onClose }) {
     address: "",
     phone: "",
     message: "",
-    payment: "store",
+    payment: "",
   });
 
   useEffect(() => {
@@ -291,50 +290,41 @@ export default function CartModal({ open, onClose }) {
 
                   {/* divider */}
                   {i !== items.length - 1 && <div className="mt-4 h-px w-full bg-black/15" />}
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-medium">
+                    <div className="flex items-center gap-3 ">
+                      <span className="text-base font-medium">Fullfillment:</span>
+                      <div className="relative">
+                        <div className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70">{it.pickupBranchName ? it.pickupBranchName : it.sourceBranchName} </div>
+                      </div>
+                    </div>
+
+                    <div className="h-7 w-px text-sm bg-black/20" />
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-base font-medium">Offers:</span>
+                      <button
+                        onClick={() => setShowVouchers(true)}
+                        className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70"
+                      >
+                        {selectedVoucher ? (
+                          <>
+                            {selectedVoucher} <span className="text-xs opacity-70">(applied)</span>
+                          </>
+                        ) : (
+                          <>
+                            Find voucher <span className="translate-x-[2px]">⟶</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                
               );
             })}
 
             {/* payment / offers row */}
-            <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-medium">
-              <div className="flex items-center gap-3 ">
-                <span className="text-base font-medium">Payment:</span>
-                <div className="relative">
-                  <select
-                    name="payment"
-                    value={form.payment}
-                    onChange={handleForm}
-                    className="h-8 rounded-md border border-black/20 bg-[#CDC2AF] px-3 pr-6"
-                    style={{ WebkitAppearance: "none", appearance: "none" }}
-                  >
-                    <option value="store">Take at store</option>
-                    <option value="card">Card</option>
-                    <option value="cod">Cash on delivery</option>
-                  </select>
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">▾</span>
-                </div>
-              </div>
-
-              <div className="h-7 w-px text-sm bg-black/20" />
-
-              <div className="flex items-center gap-3">
-                <span className="text-base font-medium">Offers:</span>
-                <button
-                  onClick={() => setShowVouchers(true)}
-                  className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70"
-                >
-                  {selectedVoucher ? (
-                    <>
-                      {selectedVoucher} <span className="text-xs opacity-70">(applied)</span>
-                    </>
-                  ) : (
-                    <>
-                      Find voucher <span className="translate-x-[2px]">⟶</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+  
           </div>
 
           {/* RIGHT – form */}

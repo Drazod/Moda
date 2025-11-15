@@ -14,6 +14,8 @@ import Register from "./layouts/registerPage";
 import Setting from "./layouts/settingPage";
 import Transactions from "./layouts/transactionHistoryPage";
 import ResetPasswordPage from "./layouts/ResetPasswordPage_new";
+import FriendsPage from "./layouts/friendsPage";
+import ChatPage from "./layouts/chatPage";
  
 // import Settings from "./layouts/settingPage";
 // dash's import
@@ -74,6 +76,16 @@ const App = () => {
         <Route path="/transactions" element={
           <RequireAuth>
             <Transactions />
+          </RequireAuth>
+        } />
+        <Route path="/friends" element={
+          <RequireAuth>
+            <FriendsPage />
+          </RequireAuth>
+        } />
+        <Route path="/chat" element={
+          <RequireAuth>
+            <ChatPage />
           </RequireAuth>
         } />
         {/* dash's Route */}

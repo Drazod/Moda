@@ -9,7 +9,7 @@ const VNPayConfig = {
   tmnCode: "RJOCMWWT",
   hashSecret: "FPP5WJL2BAZHHJP479I8R969UO80Q0S7",
   vnpUrl: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html', // Sandbox URL
-  returnUrl: 'https://moda-production.up.railway.app/vnpay/payment-return', // Update with your return URL
+  returnUrl: 'http://localhost:4000/vnpay/payment-return', // Update with your return URL
 };
 
 // Generate payment URL
@@ -131,7 +131,7 @@ export const handleReturn = async (req: Request, res: Response) => {
           console.error('Error fetching cart/user for address/coupon:', err);
         }
         if (!userId) {
-          return res.redirect('https://moda-six.vercel.app/payment-error?message=NoUser');
+          return res.redirect('http://localhost:5173/payment-error?message=NoUser');
         }
         let transaction;
         try {
@@ -154,13 +154,38 @@ export const handleReturn = async (req: Request, res: Response) => {
             });
           }
 
-          // Decrement size quantity for each item in the cart
-          const cartItems = await prisma.cartItem.findMany({ where: { cartId: orderId } });
+          // Decrement stock quantity for each item in the cart from the appropriate branch
+          const cartItems = await prisma.cartItem.findMany({ 
+            where: { cartId: orderId },
+            include: {
+              sourceBranch: true,
+              pickupBranch: true
+            }
+          });
+          
           for (const item of cartItems) {
-            await prisma.size.update({
-              where: { id: item.sizeId },
-              data: { quantity: { decrement: item.quantity } },
-            });
+            // Determine which branch to decrement stock from
+            // Priority: sourceBranchId (where item ships from) or pickupBranchId (where item is picked up)
+            const branchId = item.sourceBranchId || item.pickupBranchId;
+            
+            if (branchId) {
+              // Decrement stock at the specific branch
+              await prisma.stock.updateMany({
+                where: {
+                  branchId: branchId,
+                  sizeId: item.sizeId
+                },
+                data: {
+                  quantity: { decrement: item.quantity }
+                }
+              });
+            } else {
+              // Fallback: if no branch specified, decrement from Size.quantity (legacy behavior)
+              await prisma.size.update({
+                where: { id: item.sizeId },
+                data: { quantity: { decrement: item.quantity } },
+              });
+            }
           }
 
           // Create transaction details for purchased items (for user history)
@@ -184,7 +209,7 @@ export const handleReturn = async (req: Request, res: Response) => {
         } catch (err) {
           console.error('Error creating transaction/shipping or updating sizes:', err);
           // Optionally redirect to error page
-          return res.redirect('https://moda-six.vercel.app/payment-error?message=DBError');
+          return res.redirect('http://localhost:5173/payment-error?message=DBError');
         }
         // Payment successful, redirect to success page
         if (couponCode) {
@@ -203,13 +228,13 @@ export const handleReturn = async (req: Request, res: Response) => {
           await addPointsFromPayment(userId, transaction.id, amount);
         }
         
-        return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderId}&pointsUsed=${pointsUsed}`);
+        return res.redirect(`http://localhost:5173/payment-success?orderId=${orderId}&pointsUsed=${pointsUsed}`);
       } else {
         // Payment failed, redirect to failure page
-        return res.redirect(`https://moda-six.vercel.app/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
+        return res.redirect(`http://localhost:5173/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
       }
     } else {
       // Invalid signature, redirect to an error page
-      return res.redirect('https://moda-six.vercel.app/payment-error?message=InvalidSignature');
+      return res.redirect('http://localhost:5173/payment-error?message=InvalidSignature');
     }
 };

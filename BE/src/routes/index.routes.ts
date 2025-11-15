@@ -21,6 +21,8 @@ import branchRoute from "./branch.routes";
 import shippingRoute from "./shipping.routes";
 import orderRoute from "./order.routes";
 import couponRoute from "./coupon.routes";
+import friendshipRoute from "./friendship.routes";
+import chatRoute from "./chat.routes";
 
 const route = Router();
 
@@ -45,5 +47,7 @@ route.use('/shipping', shippingRoute);
 route.use('/coupon', couponRoute);
 route.use('/order', orderRoute);
 route.use('/branch', branchRoute);
+route.use('/friendship', friendshipRoute);
+route.use('/chat', chatRoute);
 
 export default route;

@@ -26,6 +26,8 @@ model Branch {
   transactions Transaction[]
   notices    Notice[]
   carts      Cart[]     @relation("PickupBranch")
+  cartItemsSource CartItem[] @relation("CartItemSource")  // Items shipping from this branch
+  cartItemsPickup CartItem[] @relation("CartItemPickup")  // Items being picked up at this branch
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }
@@ -65,8 +67,16 @@ model CartItem {
   sizeId          Int
   totalprice      Float     @default(0)
   quantity        Int
-  Clothes         Clothes      @relation(fields: [ClothesId], references: [id])
-  Size            Size         @relation(fields: [sizeId], references: [id])
+  fulfillmentMethod String  @default("ship") // 'ship' or 'pickup'
+  sourceBranchId  Int?                       // Which branch this item ships from or is picked up at
+  sourceBranch    Branch?   @relation("CartItemSource", fields: [sourceBranchId], references: [id])
+  pickupBranchId  Int?                       // For pickup: which branch to pick up at
+  pickupBranch    Branch?   @relation("CartItemPickup", fields: [pickupBranchId], references: [id])
+  needsTransfer   Boolean   @default(false)  // If item needs transfer from warehouse to pickup location
+  estimatedDate   DateTime?                  // ETA for transfer or delivery
+  allocationNote  String?   @db.VarChar(512) // Notes about allocation (e.g., "Ships from warehouse")
+  Clothes         Clothes   @relation(fields: [ClothesId], references: [id])
+  Size            Size      @relation(fields: [sizeId], references: [id])
   cart            Cart      @relation(fields: [cartId], references: [id])
 
   createdAt       DateTime  @default(now())
@@ -119,6 +129,7 @@ model Clothes {
   transactionDetails TransactionDetail[]
   sizes       Size[]
   features    Feature[]
+  sharedInMessages Message[] // Products shared in messages
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -180,6 +191,14 @@ model User {
   passwordHistory PasswordHistory[]
   pointHistory    PointHistory[]
   refunds         Refund[]
+  // Friendship relations
+  friendRequestsSent     Friendship[] @relation("FriendshipRequester")
+  friendRequestsReceived Friendship[] @relation("FriendshipAddressee")
+  // Conversation relations
+  conversationsAsUser1   Conversation[] @relation("ConversationUser1")
+  conversationsAsUser2   Conversation[] @relation("ConversationUser2")
+  // Message relations
+  messagesSent           Message[] @relation("MessageSender")
   updatedAt       DateTime  @updatedAt
   createdAt       DateTime  @default(now())
   otpCode         String?
@@ -312,6 +331,72 @@ model Refund {
   updatedAt           DateTime          @updatedAt
 }
 
+// Friendship system
+model Friendship {
+  id              Int              @id @default(autoincrement())
+  requesterId     Int              // User who sent the friend request
+  addresseeId     Int              // User who received the friend request
+  status          FriendshipStatus @default(PENDING)
+  requester       User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee       User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([requesterId, addresseeId]) // Prevent duplicate friend requests
+  @@index([requesterId])
+  @@index([addresseeId])
+  @@index([status])
+}
+
+// Chat conversations between users
+model Conversation {
+  id              Int       @id @default(autoincrement())
+  user1Id         Int       // First user in conversation
+  user2Id         Int       // Second user in conversation
+  user1           User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2           User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages        Message[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([user1Id, user2Id]) // One conversation per user pair
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+// Chat messages
+model Message {
+  id              Int          @id @default(autoincrement())
+  conversationId  Int
+  senderId        Int
+  content         String?      @db.Text       // Text message content
+  messageType     MessageType  @default(TEXT) // TEXT, PRODUCT, IMAGE
+  productId       Int?                        // If sharing a product
+  imageUrl        String?      @db.VarChar(512) // If sending an image
+  isRead          Boolean      @default(false)
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  product         Clothes?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+enum FriendshipStatus {
+  PENDING   // Friend request sent, awaiting response
+  ACCEPTED  // Friends
+  BLOCKED   // User blocked
+}
+
+enum MessageType {
+  TEXT      // Regular text message
+  PRODUCT   // Shared product
+  IMAGE     // Image message
+}
+
 enum PointType {
   EARNED_PAYMENT    // Points earned from payment
   RETURNED_REFUND   // Points returned from refund
@@ -325,4 +410,5 @@ enum RefundStatus {
   REJECTED
   COMPLETED
 }
+
 

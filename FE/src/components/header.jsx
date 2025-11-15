@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../index.css";
 import { FaUserCircle, FaShoppingCart } from "react-icons/fa";
+import { IoPersonAdd, IoChatbubble } from "react-icons/io5";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import CartModal from "../layouts/cart";
@@ -40,6 +41,12 @@ export default function Header() {
             shop now
           </button>
         </Link>
+        <Link to="/home#story" className="hover:text-gray-600">
+          our story
+        </Link>
+        <Link to="/home#contact" className="hover:text-gray-600">
+          contact us
+        </Link>
       </div>
 
       {/* Center: Brand */}
@@ -53,12 +60,7 @@ export default function Header() {
 
       {/* Right: Nav + User + Cart */}
       <div className="flex items-center font-light justify-end space-x-6 relative">
-        <Link to="/home#story" className="hover:text-gray-600">
-          our story
-        </Link>
-        <Link to="/home#contact" className="hover:text-gray-600">
-          contact us
-        </Link>
+
 
         {user ? (
           <>
@@ -66,12 +68,12 @@ export default function Header() {
               <FaUserCircle className="text-xl" />
               <span className="text-base font-medium">{displayName}</span>
             </Link>
-            <button
+            {/* <button
               onClick={logout}
               className="text-sm bg-[#E8F1F2] text-[#1D1A05] px-3 py-1 rounded hover:bg-[#D6E5E3] transition"
             >
               Logout
-            </button>
+            </button> */}
           </>
         ) : (
           <Link to="/login" className="flex items-center space-x-2 hover:text-gray-600">
@@ -101,7 +103,12 @@ export default function Header() {
             </span>
           )}
         </button>
-
+        <Link to="/friends" className="hover:text-gray-600" title="Friends">
+          <IoPersonAdd className="text-2xl" />
+        </Link>
+        <Link to="/chat" className="hover:text-gray-600" title="Messages">
+          <IoChatbubble className="text-2xl" />
+        </Link>
         <CartModal open={open} onClose={() => setOpen(false)} />
       </div>
 

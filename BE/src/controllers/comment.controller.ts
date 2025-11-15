@@ -130,16 +130,6 @@ export const getProductComments = async (req: Request, res: Response) => {
             name: true,
             avatar: true
           }
-        },
-        transactionDetail: {
-          include: {
-            size: {
-              select: {
-                id: true,
-                label: true
-              }
-            }
-          }
         }
       },
       orderBy: {
