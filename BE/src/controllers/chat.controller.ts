@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '..';
+import { io } from '../index';
 
 /**
  * Get or create conversation with a friend
@@ -36,24 +37,46 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
       where: { user1Id, user2Id },
       include: {
         user1: {
-          select: { id: true, name: true, email: true, avatar: true }
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            avatar: { 
+              select: { id: true, name: true, url: true } 
+            } 
+          }
         },
         user2: {
-          select: { id: true, name: true, email: true, avatar: true }
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            avatar: { 
+              select: { id: true, name: true, url: true } 
+            } 
+          }
         },
         messages: {
           take: 50,
           orderBy: { createdAt: 'desc' },
           include: {
             sender: {
-              select: { id: true, name: true, avatar: true }
+              select: { 
+                id: true, 
+                name: true, 
+                avatar: { 
+                  select: { id: true, name: true, url: true } 
+                } 
+              }
             },
             product: {
               select: {
                 id: true,
                 name: true,
                 price: true,
-                mainImg: true
+                mainImg: {
+                  select: { id: true, name: true, url: true }
+                }
               }
             }
           }
@@ -66,24 +89,46 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
         data: { user1Id, user2Id },
         include: {
           user1: {
-            select: { id: true, name: true, email: true, avatar: true }
+            select: { 
+              id: true, 
+              name: true, 
+              email: true, 
+              avatar: { 
+                select: { id: true, name: true, url: true } 
+              } 
+            }
           },
           user2: {
-            select: { id: true, name: true, email: true, avatar: true }
+            select: { 
+              id: true, 
+              name: true, 
+              email: true, 
+              avatar: { 
+                select: { id: true, name: true, url: true } 
+              } 
+            }
           },
           messages: {
             take: 50,
             orderBy: { createdAt: 'desc' },
             include: {
               sender: {
-                select: { id: true, name: true, avatar: true }
+                select: { 
+                  id: true, 
+                  name: true, 
+                  avatar: { 
+                    select: { id: true, name: true, url: true } 
+                  } 
+                }
               },
               product: {
                 select: {
                   id: true,
                   name: true,
                   price: true,
-                  mainImg: true
+                  mainImg: {
+                    select: { id: true, name: true, url: true }
+                  }
                 }
               }
             }
@@ -116,10 +161,24 @@ export const getConversations = async (req: Request, res: Response) => {
       },
       include: {
         user1: {
-          select: { id: true, name: true, email: true, avatar: true }
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            avatar: { 
+              select: { id: true, name: true, url: true } 
+            } 
+          }
         },
         user2: {
-          select: { id: true, name: true, email: true, avatar: true }
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            avatar: { 
+              select: { id: true, name: true, url: true } 
+            } 
+          }
         },
         messages: {
           take: 1,
@@ -231,6 +290,21 @@ export const sendMessage = async (req: Request, res: Response) => {
       data: { updatedAt: new Date() }
     });
     
+    // Emit socket event to both users in the conversation
+    const receiverId = conversation.user1Id === req.user.id ? conversation.user2Id : conversation.user1Id;
+    
+    // Emit to receiver
+    io.to(String(receiverId)).emit('new-message', {
+      conversationId,
+      message
+    });
+    
+    // Emit to sender (for their other devices/tabs)
+    io.to(String(req.user.id)).emit('new-message', {
+      conversationId,
+      message
+    });
+    
     res.status(201).json({ message: "Message sent", data: message });
   } catch (error) {
     console.error("Error sending message:", error);
@@ -272,7 +346,13 @@ export const getMessages = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
       include: {
         sender: {
-          select: { id: true, name: true, avatar: true }
+          select: { 
+            id: true, 
+            name: true, 
+            avatar: { 
+              select: { id: true, name: true, url: true } 
+            } 
+          }
         },
         product: {
           select: {
@@ -280,7 +360,9 @@ export const getMessages = async (req: Request, res: Response) => {
             name: true,
             price: true,
             description: true,
-            mainImg: true
+            mainImg: {
+              select: { id: true, name: true, url: true }
+            }
           }
         }
       }
@@ -324,6 +406,13 @@ export const markMessagesAsRead = async (req: Request, res: Response) => {
         isRead: false
       },
       data: { isRead: true }
+    });
+    
+    // Emit socket event to the other user (sender) so they know their messages were read
+    const otherUserId = conversation.user1Id === req.user.id ? conversation.user2Id : conversation.user1Id;
+    io.to(String(otherUserId)).emit('messages-read', {
+      conversationId: parseInt(conversationId),
+      readByUserId: req.user.id
     });
     
     res.status(200).json({ message: "Messages marked as read" });
@@ -380,7 +469,13 @@ export const shareProduct = async (req: Request, res: Response) => {
       },
       include: {
         sender: {
-          select: { id: true, name: true, avatar: true }
+          select: { 
+            id: true, 
+            name: true, 
+            avatar: { 
+              select: { id: true, name: true, url: true } 
+            } 
+          }
         },
         product: {
           select: {
@@ -388,7 +483,9 @@ export const shareProduct = async (req: Request, res: Response) => {
             name: true,
             price: true,
             description: true,
-            mainImg: true
+            mainImg: {
+              select: { id: true, name: true, url: true }
+            }
           }
         }
       }
@@ -398,6 +495,21 @@ export const shareProduct = async (req: Request, res: Response) => {
     await prisma.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() }
+    });
+    
+    // Emit socket event to both users in the conversation
+    const receiverId = conversation.user1Id === req.user.id ? conversation.user2Id : conversation.user1Id;
+    
+    // Emit to receiver
+    io.to(String(receiverId)).emit('new-message', {
+      conversationId,
+      message
+    });
+    
+    // Emit to sender (for their other devices/tabs)
+    io.to(String(req.user.id)).emit('new-message', {
+      conversationId,
+      message
     });
     
     res.status(201).json({ message: "Product shared", data: message });

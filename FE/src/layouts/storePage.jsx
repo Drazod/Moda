@@ -12,6 +12,7 @@ import smallright from "../assets/store/smallright.png";
 import down from "../assets/store/down.png";
 import alt from "../assets/store/alt.png";
 import axiosInstance from '../configs/axiosInstance';
+import { HiOutlineSparkles,HiSparkles } from "react-icons/hi2";
 
 const FashionTemplate = () => {
   const navigate = useNavigate();
@@ -193,7 +194,6 @@ const formatVND = (v) =>
   return (
     <div className="relative-container noise-overlay min-h-screen flex flex-col">
       <Header />
-
       {/* Hero Section */}
       <section className="relative pt-52 h-full flex flex-col items-center justify-center">
         {/* Hero Title */}
@@ -300,201 +300,216 @@ const formatVND = (v) =>
 
 
       {/* Product Grid Section */}
-      <section className=" grid grid-cols-4 gap-2 py-8 h-full items-center justify-center font-abeezee">
-        {/* Breadcrumbs */}
-        <div className="col-start-2 col-span-3 container mb-6 ">
-          <div></div> {/* Empty space for the sidebar */}
-          <div className="col-span-3">
-            <p className="text-sm">
-              <a href="/" className="hover:underline">Home</a> / <span>Products</span>
-            </p>
-            <h1 className="text-2xl font-bold mt-2">PRODUCTS</h1>
-          </div>
-        </div>
+      <section className="py-8 h-full font-abeezee ">
+        <div className="w-full px-8 flex gap-8">
+          {/* Left Sidebar - Categories */}
+          <aside className="w-64 border-t border-[#434237] flex-shrink-0 space-y-6 pt-4">
+            {/* Category Links */}
+            <div className="space-y-0">
+              <button
+                onClick={() => handleCategoryClick('NEW')}
+                className={`block w-full text-left py-1.5 text-sm transition-colors ${
+                  selectedCategory === 'NEW'
+                    ? 'font-normal text-[#434237]'
+                    : 'text-[#8B7355] hover:text-[#434237]'
+                }`}
+              >
+                All Products
+              </button>
+              <button
+                onClick={() => handleCategoryClick('NEW')}
+                className="block w-full text-left py-1.5 text-sm text-[#8B7355] hover:text-[#434237]"
+              >
+                New Arrivals
+              </button>
+              <button
+                onClick={() => handleCategoryClick('BEST SELLERS')}
+                className={`block w-full text-left py-1.5 text-sm transition-colors ${
+                  selectedCategory === 'BEST SELLERS'
+                    ? 'font-normal text-[#434237]'
+                    : 'text-[#8B7355] hover:text-[#434237]'
+                }`}
+              >
+                Finish Samples
+              </button>
+              <button className="block w-full text-left py-1.5 text-sm text-[#8B7355] hover:text-[#434237]">
+                Quick Ship
+              </button>
+            </div>
 
-        {/* Main Layout */}
-        <div className="h-full col-start-1 col-span-1 px-12 tracking-widest">
-          {/* Sidebar - Filters */}
-          <aside className="col-start-1 space-y-10">
-            {/* Filters Title */}
-            <h2 className="text-xl">Filters</h2>
-
-            {/* Size Filter */}
+            {/* Categories Section */}
             <div>
-              <h3 className="text-sm text-gray-700 mb-2">Size</h3>
-              <div className="flex flex-wrap text-center gap-2">
-                {["S", "M", "L", "XL", "2X"].map((size, index) => (
+              <h3 className="font-normal text-sm mb-2 text-[#434237]">Categories</h3>
+              <div className="space-y-0">
+                {categories.slice(1).map((category, index) => (
                   <button
                     key={index}
-                    className="px-3 py-1 h-9 w-9 text-center justify-center items-center text-sm border border-[#A3A3A3] text-gray-800  hover:bg-gray-200 transition"
+                    onClick={() => handleCategoryClick(category)}
+                    className={`block w-full text-left py-1.5 pl-4 text-sm transition-colors relative ${
+                      selectedCategory === category
+                        ? 'font-normal text-[#434237]'
+                        : 'text-[#8B7355] hover:text-[#434237]'
+                    }`}
                   >
-                    {size}
+                    { selectedCategory === category && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-black rounded-full"></span>
+                    )}
+                    {category}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Collapsible Categories */}
-            {sections.map((section, index) => (
-              <div key={index} className="border-b border-[#C9C9C9] border-dashed pb-2">
-                {/* Section Header */}
-                <div
-                  className="flex justify-between items-center cursor-pointer"
-                  onClick={() => toggleSection(section.name)}
-                >
-                  <h3 className="text-sm text-gray-700">{section.name}</h3>
-                  <button className="text-gray-700 hover:text-gray-900 transition">
-                    {openSections[section.name] ? "▲" : "▼"} {/* Toggle Icon */}
-                  </button>
-                </div>
-
-                {/* Collapsible Content */}
-                {openSections[section.name] && (
-                  <ul className="mt-2 space-y-2 pl-4">
-                    {section.options.map((option, idx) => (
-                      <li key={idx} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="form-checkbox text-gray-800 rounded mr-2"
-                          onChange={() => handleCheckboxChange(section.name.toLowerCase(), option)}
-                          checked={selectedFilters[section.name.toLowerCase()]?.includes(
-                            option
-                          )}
-                        />
-                        <span className="text-sm text-gray-700">{option}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+            {/* Collections */}
+            <div>
+              <h3 className="font-normal text-sm mb-2 text-[#434237]">Collections</h3>
+              <div className="space-y-0">
+                <button className="block w-full text-left py-1.5 text-sm text-[#8B7355] hover:text-[#434237]">
+                  Featured
+                </button>
+                <button className="block w-full text-left py-1.5 text-sm text-[#8B7355] hover:text-[#434237]">
+                  Seasonal
+                </button>
               </div>
-            ))}
+            </div>
+          </aside>
 
+          {/* Main Content Area */}
+          <div className="flex-1 border-t border-[#434237] text-sm font-normal">
+            {/* Top Header */}
+            <div className="flex items-center justify-between my-2">
+              <div className="flex items-center  gap-2">
+                <h1 className="text-2xl text-gray-800">
+                  {selectedCategory === 'NEW' ? 'All Products' : selectedCategory}
+                </h1>
+                <span className="text-sm text-gray-500 mt-2">{filteredProducts.length}</span>
+              </div>
 
-              {/* Price Range Section */}
-              <div className="border-b border-gray-300 pb-2">
-                <div
-                  className="flex justify-between items-center cursor-pointer"
-                  onClick={() => toggleSection("Price Range")}
-                >
-                  <h3 className="text-sm text-gray-700">Price Range</h3>
-                  <button className="text-gray-700 hover:text-gray-900 transition">
-                    {openSections["Price Range"] ? "▲" : "▼"}
+              <div className="flex items-center gap-6">
+                {/* Search Box */}
+                <div className="flex items-center bg-transparent border border-[#434237] px-4 py-2 rounded-full">
+                  <input
+                    type="text"
+                    placeholder={isAiSearchMode ? "AI Search..." : "Search"}
+                    className="bg-transparent text-gray-700  focus:outline-none w-48 ml-2 text-sm"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                  />
+                  <button
+                    onClick={() => {
+                      setIsAiSearchMode(!isAiSearchMode);
+                      setSearchTerm("");
+                    }}
+                    className={`ml-2 px-2 py-1 text-xl transition-colors rounded-full ${
+                      isAiSearchMode 
+                        ? 'bg-[#BFAF92] text-[#434237] border border-[#434237] hover:bg-gray-200' 
+                        : 'bg-[#BFAF92] text-white border border-white hover:bg-gray-200'
+                    }`}
+                    title={isAiSearchMode ? "Switch to Normal Search" : "Switch to AI Search"}
+                  >
+                    {isAiSearchMode ? <HiSparkles /> : <HiOutlineSparkles />}
                   </button>
                 </div>
 
-                {openSections["Price Range"] && (
-                  <div className="mt-2 px-4">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={priceRange[1]}
-                      onChange={(e) =>
-                        setPriceRange([priceRange[0], Number(e.target.value)])
-                      }
-                      className="w-full appearance-none h-2 bg-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-600"
-                    />
-                    <div className="flex justify-between text-sm text-gray-700 mt-1">
-                      <span>${priceRange[0]}</span>
-                      <span>${priceRange[1]}</span>
+                {/* Filter Button */}
+                <button 
+                  onClick={() => toggleSection('filters')}
+                  className="flex items-center gap-2 text-sm text-gray-700 hover:text-black"
+                >
+                  <span>+ Filter</span>
+                </button>
+
+                {/* View Options */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">View:</span>
+                  <button className="px-2 py-1 text-sm text-gray-700 hover:text-black">S</button>
+                  <button className="px-2 py-1 text-sm text-gray-700 hover:text-black">M</button>
+                  <button className="px-2 py-1 text-sm font-semibold text-black">L</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Advanced Filters - Collapsible */}
+            {openSections['filters'] && (
+              <div className="mb-6 p-4 bg-white rounded-lg shadow-sm">
+                <div className="grid grid-cols-4 gap-6">
+                  {/* Size Filter */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2">Size</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {["S", "M", "L", "XL", "2X"].map((size, index) => (
+                        <button
+                          key={index}
+                          className="px-3 py-1 text-sm border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                        >
+                          {size}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                )}
+
+                  {/* Other Filters */}
+                  {sections.slice(0, 3).map((section, index) => (
+                    <div key={index}>
+                      <h3 className="text-sm font-semibold mb-2">{section.name}</h3>
+                      <div className="space-y-1">
+                        {section.options.slice(0, 3).map((option, idx) => (
+                          <label key={idx} className="flex items-center text-sm">
+                            <input
+                              type="checkbox"
+                              className="mr-2 rounded"
+                              onChange={() => handleCheckboxChange(section.name.toLowerCase(), option)}
+                              checked={selectedFilters[section.name.toLowerCase()]?.includes(option)}
+                            />
+                            <span className="text-gray-700">{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-          </aside>
-        </div>
-        
-
-        {/* Product Grid */}
-        <div className="col-start-2 col-span-3 pr-12">
-          {/* Sort & Search */}
-          <div className="container h-[50px] mx-auto mb-6 flex flex-col lg:flex-row items-center lg:justify-between space-y-4 lg:space-y-0">
-            {/* Search Box */}
-            <div className="flex h-[50px] items-center bg-[#BFAF92] px-4 py-2 w-full lg:w-1/2 relative">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="w-6 h-6 text-gray-600"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m0 0a7 7 0 11-2 2 7 7 0 012-2z" />
-              </svg>
-              <input
-                type="text"
-                placeholder={isAiSearchMode ? "AI Search (e.g., 'red summer dress')" : "Search"}
-                className="bg-transparent text-gray-700 placeholder-gray-600 focus:outline-none w-full ml-2"
-                value={searchTerm}
-                onChange={handleSearchChange}
-              />
-              <button
-                onClick={() => {
-                  setIsAiSearchMode(!isAiSearchMode);
-                  setSearchTerm("");
-                }}
-                className={`ml-2 px-3 py-1 text-xs font-medium rounded transition-colors ${
-                  isAiSearchMode 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-                title={isAiSearchMode ? "Switch to Normal Search" : "Switch to AI Search"}
-              >
-                {isAiSearchMode ? "🤖 AI" : "🔍"}
-              </button>
-            </div>
-
-            {/* Sort Categories */}
-            <div className="grid grid-cols-5 h-[50px] justify-center gap-1">
-              {categories.map((category, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleCategoryClick(category)} // Update selected category
-                  className={`px-4 h-[25px] text-sm border border-[#A3A3A3] transition-all duration-300 ${
-                    selectedCategory === category
-                      ? " text-black border-black"
-                      : " text-[#5E5E5E] hover:bg-gray-200"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
+            )}
 
           {/* Product Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {loading ? (
-              <div className="col-span-3 text-center text-xl text-gray-500 py-12">Loading...</div>
+              <div className="col-span-4 text-center text-xl text-gray-500 py-12">Loading...</div>
             ) : error ? (
-              <div className="col-span-3 text-center text-xl text-red-500 py-12">{error}</div>
+              <div className="col-span-4 text-center text-xl text-red-500 py-12">{error}</div>
             ) : filteredProducts.length === 0 ? (
-              <div className="col-span-3 text-center text-xl text-gray-400 py-12">No products found.</div>
+              <div className="col-span-4 text-center text-xl text-gray-400 py-12">No products found.</div>
             ) : (
               filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="cursor-pointer hover:shadow-lg transition rounded-lg p-2"
+                  className="cursor-pointer group"
                   onClick={() => navigate(`/product?id=${product.id}`)}
                 >
-                  <div className="relative">
+                  {/* Product Image */}
+                  <div className="relative bg-[#E8E4DC] mb-3 overflow-hidden" style={{ aspectRatio: '3/4' }}>
                     <img
                       src={product.mainImg?.url || product.image || ''}
                       alt={product.name}
-                      className="w-full h-[650px] object-cover rounded"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
 
-                  <p className="text-sm text-gray-500">{product.category?.name || '-'}</p>
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-bold text-gray-700">{product.name}</h3>
-                    <span className="text-lg font-semibold text-gray-600">{formatVND(product.price)} </span>
+                  {/* Product Info */}
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-normal text-gray-800 group-hover:underline">
+                      {product.name}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {formatVND(product.price)}
+                    </p>
                   </div>
                 </div>
               ))
             )}
           </div>
         </div>
+      </div>
       </section>
 
 

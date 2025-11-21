@@ -22,6 +22,20 @@ export function initSocket(server: HttpServer) {
     } else {
       console.log("Socket connected without userId:", socket.id);
     }
+    
+    // Handle typing indicator
+    socket.on('typing', (data: { conversationId: number; receiverId: number; isTyping: boolean }) => {
+      io.to(String(data.receiverId)).emit('user-typing', {
+        conversationId: data.conversationId,
+        userId: userId,
+        isTyping: data.isTyping
+      });
+    });
+    
+    // Handle disconnection
+    socket.on('disconnect', () => {
+      console.log(`Socket ${socket.id} disconnected`);
+    });
   });
   return io;
 }

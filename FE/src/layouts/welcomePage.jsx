@@ -38,7 +38,7 @@ const Welcome = () => {
     <>
       {/* SEO Meta Tags */}
       <Helmet>
-        <title>Fresh Vegan Chocolate Chip Cookie Dough | Yumeow-Cookie</title>
+        <title>Moda | Fashion Ecommerce & Socialize</title>
         <meta
           name="description"
           content="Enjoy the best vegan chocolate chip cookie dough at Yumeow-Cookie. Order now for freshly baked vegan cookies!"

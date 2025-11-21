@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/header';
-import Footer from '../components/footer';
+import SideNav from '../components/SideNav';
+import CartModal from './cart';
 import axiosInstance from '../configs/axiosInstance';
 import toast from 'react-hot-toast';
 import { 
@@ -10,7 +10,8 @@ import {
   IoCloseCircle, 
   IoSearch,
   IoChatbubbleOutline,
-  IoPersonRemoveOutline 
+  IoPersonRemoveOutline,
+  IoPaperPlaneOutline
 } from 'react-icons/io5';
 
 const FriendsPage = () => {
@@ -22,6 +23,8 @@ const FriendsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [showMessagePopup, setShowMessagePopup] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'friends') {
@@ -126,111 +129,109 @@ const FriendsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <div className="max-w-6xl mx-auto px-4 py-8 mt-20">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#434237]">Friends</h1>
-          <p className="text-gray-600 mt-2">Connect with friends and share your favorite products</p>
+    <div className="flex min-h-screen relative-container">
+      {/* Side Navigation */}
+      <SideNav onCartOpen={() => setCartOpen(true)} />
+
+      {/* Main Content */}
+      <div className="flex-1 ml-64 ">
+        {/* Top Section with Search */}
+        <div className="border-b noise-overlay border-gray-200 px-8 py-6 flex items-center justify-between">
+          <h1 className="text-2xl font-normal">Friends</h1>
+          
+          {/* Search Bar */}
+          <div className="flex-1 max-w-md mx-8">
+            <div className="relative">
+              <IoSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.trim()) {
+                    setActiveTab('search');
+                  }
+                }}
+                onKeyPress={(e) => e.key === 'Enter' && searchUsers()}
+                placeholder="Search friends..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:bg-gray-200"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={searchUsers}
+            disabled={searchLoading}
+            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 font-medium disabled:opacity-50"
+          >
+            {searchLoading ? 'Searching...' : 'Search'}
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('friends')}
-            className={`pb-3 px-4 font-medium transition ${
-              activeTab === 'friends'
-                ? 'border-b-2 border-[#434237] text-[#434237]'
-                : 'text-gray-500 hover:text-[#434237]'
-            }`}
-          >
-            My Friends ({friends.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`pb-3 px-4 font-medium transition relative ${
-              activeTab === 'requests'
-                ? 'border-b-2 border-[#434237] text-[#434237]'
-                : 'text-gray-500 hover:text-[#434237]'
-            }`}
-          >
-            Requests
-            {pendingRequests.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {pendingRequests.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`pb-3 px-4 font-medium transition ${
-              activeTab === 'search'
-                ? 'border-b-2 border-[#434237] text-[#434237]'
-                : 'text-gray-500 hover:text-[#434237]'
-            }`}
-          >
-            Find Friends
-          </button>
-        </div>
+        {/* Content Area */}
+        <div className="px-8 py-6">
+          {/* Tabs */}
+          <div className="flex gap-8 mb-6 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('friends')}
+              className={`pb-3 font-medium text-sm transition ${
+                activeTab === 'friends'
+                  ? 'border-b-2 border-black text-black'
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              My Friends ({friends.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('requests')}
+              className={`pb-3 font-medium text-sm transition relative ${
+                activeTab === 'requests'
+                  ? 'border-b-2 border-black text-black'
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              Requests
+              {pendingRequests.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+          </div>
 
         {/* Search Tab */}
         {activeTab === 'search' && (
           <div>
-            <div className="flex gap-2 mb-6">
-              <div className="flex-1 relative">
-                <IoSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && searchUsers()}
-                  placeholder="Search by name or email..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#434237]"
-                />
-              </div>
-              <button
-                onClick={searchUsers}
-                disabled={searchLoading}
-                className="px-6 py-3 bg-[#727269] text-white rounded-lg hover:bg-[#353535] transition disabled:opacity-50"
-              >
-                {searchLoading ? 'Searching...' : 'Search'}
-              </button>
-            </div>
-
             {searchResults.length > 0 ? (
-              <div className="grid gap-4">
+              <div className="grid gap-4 max-w-2xl">
                 {searchResults.map((user) => (
-                  <div key={user.id} className="bg-white p-4 rounded-lg shadow-sm flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl font-semibold text-gray-600">
+                  <div key={user.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-600">
                         {user.name?.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-[#434237]">{user.name}</h3>
-                        <p className="text-sm text-gray-500">{user.email}</p>
+                        <h3 className="font-semibold text-sm">{user.name}</h3>
+                        <p className="text-xs text-gray-500">{user.email}</p>
                       </div>
                     </div>
                     
                     {!user.friendshipStatus && (
                       <button
                         onClick={() => sendFriendRequest(user.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#434237] text-white rounded-lg hover:bg-[#353535] transition"
+                        className="px-4 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition"
                       >
-                        <IoPersonAdd/>
-                        Add Friend
+                        Follow
                       </button>
                     )}
                     {user.friendshipStatus === 'pending' && (
-                      <span className="text-sm text-gray-500">Request Sent</span>
+                      <span className="text-xs text-gray-500 px-4 py-1.5 bg-gray-100 rounded-lg">Requested</span>
                     )}
                     {user.friendshipStatus === 'friends' && (
                       <button
                         onClick={() => startChat(user.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+                        className="px-4 py-1.5 bg-gray-200 text-black text-sm font-medium rounded-lg hover:bg-gray-300 transition"
                       >
-                        <IoChatbubbleOutline />
                         Message
                       </button>
                     )}
@@ -255,32 +256,30 @@ const FriendsPage = () => {
             {loading ? (
               <div className="text-center py-12">Loading...</div>
             ) : pendingRequests.length > 0 ? (
-              <div className="grid gap-4">
+              <div className="grid gap-4 max-w-2xl">
                 {pendingRequests.map((request) => (
-                  <div key={request.id} className="bg-white p-4 rounded-lg shadow-sm flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl font-semibold text-gray-600">
+                  <div key={request.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-600">
                         {request.requester?.name?.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-[#434237]">{request.requester?.name}</h3>
-                        <p className="text-sm text-gray-500">{request.requester?.email}</p>
+                        <h3 className="font-semibold text-sm">{request.requester?.name}</h3>
+                        <p className="text-xs text-gray-500">{request.requester?.email}</p>
                       </div>
                     </div>
                     
                     <div className="flex gap-2">
                       <button
                         onClick={() => acceptRequest(request.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
+                        className="px-4 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition"
                       >
-                        <IoCheckmarkCircle />
                         Accept
                       </button>
                       <button
                         onClick={() => rejectRequest(request.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                        className="px-4 py-1.5 bg-gray-200 text-black text-sm font-medium rounded-lg hover:bg-gray-300 transition"
                       >
-                        <IoCloseCircle />
                         Reject
                       </button>
                     </div>
@@ -301,36 +300,36 @@ const FriendsPage = () => {
             {loading ? (
               <div className="text-center py-12">Loading...</div>
             ) : friends.length > 0 ? (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid gap-4 max-w-2xl">
                 {friends.map((friend) => (
-                    <div key={friend.id} className="bg-white p-4 rounded-lg shadow-sm flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl font-semibold text-gray-600">
-                          {friend?.name?.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-[#434237]">{friend?.name}</h3>
-                          <p className="text-sm text-gray-500">{friend?.email}</p>
-                        </div>
+                  <div key={friend.id} className="flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-gray-200 flex items-center justify-center text-lg font-semibold text-gray-600">
+                        {friend?.name?.charAt(0).toUpperCase()}
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => startChat(friend.id)}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-                          title="Send message"
-                        >
-                          <IoChatbubbleOutline />
-                        </button>
-                        <button
-                          onClick={() => removeFriend(friend.id)}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
-                          title="Remove friend"
-                        >
-                          <IoPersonRemoveOutline />
-                        </button>
+                      <div>
+                        <h3 className="font-semibold text-sm">{friend?.name}</h3>
+                        <p className="text-xs text-gray-500">{friend?.email}</p>
                       </div>
                     </div>
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startChat(friend.id)}
+                        className="px-4 py-1.5 bg-gray-200 text-black text-sm font-medium rounded-lg hover:bg-gray-300 transition"
+                        title="Send message"
+                      >
+                        Message
+                      </button>
+                      <button
+                        onClick={() => removeFriend(friend.id)}
+                        className="px-4 py-1.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 transition"
+                        title="Remove friend"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -338,7 +337,7 @@ const FriendsPage = () => {
                 <p>You don't have any friends yet</p>
                 <button
                   onClick={() => setActiveTab('search')}
-                  className="mt-4 px-6 py-2 bg-[#434237] text-white rounded-lg hover:bg-[#353535] transition"
+                  className="mt-4 px-6 py-2 bg-black text-white text-sm rounded-lg hover:bg-gray-800 transition"
                 >
                   Find Friends
                 </button>
@@ -346,9 +345,50 @@ const FriendsPage = () => {
             )}
           </div>
         )}
+        </div>
+
+        {/* Suggested Users Section (Right Side) */}
+        <div className="fixed right-0 top-0 w-80 h-screen border-l border-gray-200 p-8 overflow-y-auto bg-white hidden xl:block">
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-500">Suggested for you</h2>
+              <button className="text-xs font-semibold text-black">See All</button>
+            </div>
+            
+            {/* Suggested users would go here - using friends as placeholder */}
+            <div className="space-y-4">
+              {friends.slice(0, 5).map((friend) => (
+                <div key={friend.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600">
+                      {friend?.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-xs">{friend?.name}</h3>
+                      <p className="text-xs text-gray-400">Suggested</p>
+                    </div>
+                  </div>
+                  <button className="text-xs font-semibold text-blue-500 hover:text-blue-600">
+                    Follow
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Footer />
+      {/* Message Popup Button (Bottom Right) */}
+      <button
+        onClick={() => navigate('/chat')}
+        className="fixed bottom-6 right-6 bg-black text-white p-4 rounded-full shadow-lg hover:bg-gray-800 transition z-50"
+        title="Messages"
+      >
+        <IoPaperPlaneOutline className="text-2xl" />
+      </button>
+
+      {/* Cart Modal */}
+      <CartModal open={cartOpen} onClose={() => setCartOpen(false)} />
     </div>
   );
 };
