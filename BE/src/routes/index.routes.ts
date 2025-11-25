@@ -23,6 +23,7 @@ import orderRoute from "./order.routes";
 import couponRoute from "./coupon.routes";
 import friendshipRoute from "./friendship.routes";
 import chatRoute from "./chat.routes";
+import virtualTryOnRoute from "./virtualTryOn.routes";
 
 const route = Router();
 
@@ -49,5 +50,6 @@ route.use('/order', orderRoute);
 route.use('/branch', branchRoute);
 route.use('/friendship', friendshipRoute);
 route.use('/chat', chatRoute);
+route.use('/virtual-tryon', virtualTryOnRoute);
 
 export default route;

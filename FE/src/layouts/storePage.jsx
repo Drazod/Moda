@@ -13,6 +13,7 @@ import down from "../assets/store/down.png";
 import alt from "../assets/store/alt.png";
 import axiosInstance from '../configs/axiosInstance';
 import { HiOutlineSparkles,HiSparkles } from "react-icons/hi2";
+import VirtualTryOn from '../components/VirtualTryOn';
 
 const FashionTemplate = () => {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ const FashionTemplate = () => {
   const [selectedCategory, setSelectedCategory] = useState("NEW"); 
   const [searchTerm, setSearchTerm] = useState("");
   const [isAiSearchMode, setIsAiSearchMode] = useState(false);
+  const [showVirtualTryOn, setShowVirtualTryOn] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -484,15 +487,31 @@ const formatVND = (v) =>
                 <div
                   key={product.id}
                   className="cursor-pointer group"
-                  onClick={() => navigate(`/product?id=${product.id}`)}
                 >
                   {/* Product Image */}
-                  <div className="relative bg-[#E8E4DC] mb-3 overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                  <div 
+                    className="relative bg-[#E8E4DC] mb-3 overflow-hidden" 
+                    style={{ aspectRatio: '3/4' }}
+                    onClick={() => navigate(`/product?id=${product.id}`)}
+                  >
                     <img
                       src={product.mainImg?.url || product.image || ''}
                       alt={product.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
+                    
+                    {/* Virtual Try-On Button - appears on hover */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProduct(product);
+                        setShowVirtualTryOn(true);
+                      }}
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#BFAF92] text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2 font-semibold text-sm hover:bg-[#a89d7e] z-10"
+                    >
+                      <HiSparkles className="text-lg" />
+                      Try On
+                    </button>
                   </div>
 
                   {/* Product Info */}
@@ -565,6 +584,17 @@ const formatVND = (v) =>
 
       {/* Footer Section */}
       <Footer />
+      
+      {/* Virtual Try-On Modal */}
+      {showVirtualTryOn && selectedProduct && (
+        <VirtualTryOn
+          product={selectedProduct}
+          onClose={() => {
+            setShowVirtualTryOn(false);
+            setSelectedProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 };
