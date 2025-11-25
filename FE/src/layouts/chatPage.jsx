@@ -352,7 +352,7 @@ const ChatPage = () => {
             
             {/* Search */}
             <div className="relative">
-              <IoSearchOutline className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              <IoSearchOutline className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-700" />
               <input
                 type="text"
                 value={searchQuery}
@@ -365,7 +365,7 @@ const ChatPage = () => {
 
           {/* Your Note */}
           <div className="px-4 py-2 ">
-            <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-900 rounded-lg transition">
+            <div className="flex items-center gap-3 rounded-lg transition">
               <div className="relative">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center">
                   <img className="w-16 h-16 rounded-full object-cover"
@@ -403,14 +403,14 @@ const ChatPage = () => {
                   <div
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
-                    className={`px-4 py-1 cursor-pointer transition ${
+                    className={`px-4 h-20 py-1 cursor-pointer transition flex items-center ${
                       isSelected ? 'bg-[#BFAF92]/50' : 'hover:bg-[#BFAF92]/50'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 w-full">
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center">
-                          <div className="w-11 h-11 rounded-full bg-gray-700 flex items-center justify-center text-lg font-semibold">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center">
+                          <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center text-lg font-semibold">
                             {friend?.name?.charAt(0).toUpperCase()}
                           </div>
                         </div>

@@ -18,12 +18,14 @@ import VirtualTryOn from '../components/VirtualTryOn';
 const FashionTemplate = () => {
   const navigate = useNavigate();
   const [openSections, setOpenSections] = useState({});
-  const [priceRange, setPriceRange] = useState([0, 100]); 
+  const [priceRange, setPriceRange] = useState([0, 1000000]); 
   const [selectedCategory, setSelectedCategory] = useState("NEW"); 
   const [searchTerm, setSearchTerm] = useState("");
   const [isAiSearchMode, setIsAiSearchMode] = useState(false);
   const [showVirtualTryOn, setShowVirtualTryOn] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -146,12 +148,11 @@ const formatVND = (v) =>
 
   // Filter products based on selected filters
   const filteredProducts = products.filter((product) => {
-    const { availability, gender, colors, collections, tags, ratings } = selectedFilters;
-
     // Skip text search filtering if in AI mode (AI already filtered)
     if (!isAiSearchMode && searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
       return false;
     }
+
     // Handle category logic
     if (selectedCategory !== "NEW") {
       const categoryName = product.category?.name?.toLowerCase() || "";
@@ -160,34 +161,28 @@ const formatVND = (v) =>
       }
     }
 
-    // Check availability (if available in real data)
-    if (availability.length && product.availability && !availability.includes(product.availability)) {
+    // Check price range
+    if (product.price < priceRange[0] || product.price > priceRange[1]) {
       return false;
     }
 
-    // Check gender (if available in real data)
-    if (gender.length && product.gender && !gender.includes(product.gender)) {
-      return false;
+    // Check size availability
+    if (selectedSizes.length > 0) {
+      const productSizes = product.sizes || [];
+      const hasSelectedSize = productSizes.some(size => 
+        selectedSizes.includes(size.label) && size.quantity > 0
+      );
+      if (!hasSelectedSize) {
+        return false;
+      }
     }
 
-    // Check colors (if available in real data)
-    if (colors.length && product.colors && !colors.some(c => product.colors.includes(c))) {
-      return false;
-    }
-
-    // Check collections (if available in real data)
-    if (collections.length && product.collection && !collections.includes(product.collection)) {
-      return false;
-    }
-
-    // Check tags (if available in real data)
-    if (tags.length && product.tags && !tags.some((tag) => product.tags.includes(tag))) {
-      return false;
-    }
-
-    // Check ratings (if available in real data)
-    if (ratings.length && product.rating && !ratings.includes(product.rating)) {
-      return false;
+    // Check availability (only show in-stock items)
+    if (showOnlyAvailable) {
+      const totalStock = (product.sizes || []).reduce((sum, size) => sum + size.quantity, 0);
+      if (totalStock === 0) {
+        return false;
+      }
     }
 
     return true; // Product passes all filters
@@ -380,155 +375,165 @@ const formatVND = (v) =>
           {/* Main Content Area */}
           <div className="flex-1 border-t border-[#434237] text-sm font-normal">
             {/* Top Header */}
-            <div className="flex items-center justify-between my-2">
-              <div className="flex items-center  gap-2">
+            <div className="flex items-start justify-between my-2">
+              <div className="flex items-center gap-2">
                 <h1 className="text-2xl text-gray-800">
                   {selectedCategory === 'NEW' ? 'All Products' : selectedCategory}
                 </h1>
                 <span className="text-sm text-gray-500 mt-2">{filteredProducts.length}</span>
               </div>
-
-              <div className="flex items-center gap-6">
-                {/* Search Box */}
-                <div className="flex items-center bg-transparent border border-[#434237] px-4 py-2 rounded-full">
-                  <input
-                    type="text"
-                    placeholder={isAiSearchMode ? "AI Search..." : "Search"}
-                    className="bg-transparent text-gray-700  focus:outline-none w-48 ml-2 text-sm"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
-                  <button
-                    onClick={() => {
-                      setIsAiSearchMode(!isAiSearchMode);
-                      setSearchTerm("");
-                    }}
-                    className={`ml-2 px-2 py-1 text-xl transition-colors rounded-full ${
-                      isAiSearchMode 
-                        ? 'bg-[#BFAF92] text-[#434237] border border-[#434237] hover:bg-gray-200' 
-                        : 'bg-[#BFAF92] text-white border border-white hover:bg-gray-200'
-                    }`}
-                    title={isAiSearchMode ? "Switch to Normal Search" : "Switch to AI Search"}
-                  >
-                    {isAiSearchMode ? <HiSparkles /> : <HiOutlineSparkles />}
-                  </button>
-                </div>
-
-                {/* Filter Button */}
-                <button 
-                  onClick={() => toggleSection('filters')}
-                  className="flex items-center gap-2 text-sm text-gray-700 hover:text-black"
-                >
-                  <span>+ Filter</span>
-                </button>
-
-                {/* View Options */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">View:</span>
-                  <button className="px-2 py-1 text-sm text-gray-700 hover:text-black">S</button>
-                  <button className="px-2 py-1 text-sm text-gray-700 hover:text-black">M</button>
-                  <button className="px-2 py-1 text-sm font-semibold text-black">L</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Advanced Filters - Collapsible */}
-            {openSections['filters'] && (
-              <div className="mb-6 p-4 bg-white rounded-lg shadow-sm">
-                <div className="grid grid-cols-4 gap-6">
-                  {/* Size Filter */}
-                  <div>
-                    <h3 className="text-sm font-semibold mb-2">Size</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {["S", "M", "L", "XL", "2X"].map((size, index) => (
-                        <button
-                          key={index}
-                          className="px-3 py-1 text-sm border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
-                        >
-                          {size}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Other Filters */}
-                  {sections.slice(0, 3).map((section, index) => (
-                    <div key={index}>
-                      <h3 className="text-sm font-semibold mb-2">{section.name}</h3>
-                      <div className="space-y-1">
-                        {section.options.slice(0, 3).map((option, idx) => (
-                          <label key={idx} className="flex items-center text-sm">
-                            <input
-                              type="checkbox"
-                              className="mr-2 rounded"
-                              onChange={() => handleCheckboxChange(section.name.toLowerCase(), option)}
-                              checked={selectedFilters[section.name.toLowerCase()]?.includes(option)}
-                            />
-                            <span className="text-gray-700">{option}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-          {/* Product Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {loading ? (
-              <div className="col-span-4 text-center text-xl text-gray-500 py-12">Loading...</div>
-            ) : error ? (
-              <div className="col-span-4 text-center text-xl text-red-500 py-12">{error}</div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="col-span-4 text-center text-xl text-gray-400 py-12">No products found.</div>
-            ) : (
-              filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="cursor-pointer group"
-                >
-                  {/* Product Image */}
-                  <div 
-                    className="relative bg-[#E8E4DC] mb-3 overflow-hidden" 
-                    style={{ aspectRatio: '3/4' }}
-                    onClick={() => navigate(`/product?id=${product.id}`)}
-                  >
-                    <img
-                      src={product.mainImg?.url || product.image || ''}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              <div className="flex flex-col items-end gap-3">
+                <div className="flex items-center gap-6">
+                  {/* Search Box */}
+                  <div className="flex  items-center bg-transparent border border-[#434237] px-4 py-2 rounded-full">
+                    <input
+                      type="text"
+                      placeholder={isAiSearchMode ? "AI Search..." : "Search"}
+                      className="bg-transparent text-gray-700  focus:outline-none w-48 ml-2 text-sm"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
                     />
-                    
-                    {/* Virtual Try-On Button - appears on hover */}
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedProduct(product);
-                        setShowVirtualTryOn(true);
+                      onClick={() => {
+                        setIsAiSearchMode(!isAiSearchMode);
+                        setSearchTerm("");
                       }}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#BFAF92] text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2 font-semibold text-sm hover:bg-[#a89d7e] z-10"
+                      className={`ml-2 px-2 py-1 text-xl transition-colors rounded-full ${
+                        isAiSearchMode 
+                          ? 'bg-[#BFAF92] text-[#434237] border border-[#434237] hover:bg-gray-200' 
+                          : 'bg-[#BFAF92] text-white border border-white hover:bg-gray-200'
+                      }`}
+                      title={isAiSearchMode ? "Switch to Normal Search" : "Switch to AI Search"}
                     >
-                      <HiSparkles className="text-lg" />
-                      Try On
+                      {isAiSearchMode ? <HiSparkles /> : <HiOutlineSparkles />}
                     </button>
                   </div>
 
-                  {/* Product Info */}
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-normal text-gray-800 group-hover:underline">
-                      {product.name}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {formatVND(product.price)}
-                    </p>
+                  {/* Filter Button */}
+                  <button 
+                    onClick={() => toggleSection('filters')}
+                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-black"
+                  >
+                    <span>+ Filter</span>
+                  </button>
+
+                  {/* View Options */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-700">View:</span>
+                    <button className="px-2 py-1 text-sm text-gray-700 hover:text-black">S</button>
+                    <button className="px-2 py-1 text-sm text-gray-700 hover:text-black">M</button>
+                    <button className="px-2 py-1 text-sm font-semibold text-black">L</button>
                   </div>
                 </div>
-              ))
-            )}
+              
+                {/* Advanced Filters - Collapsible */}
+                {openSections['filters'] && (
+                  <div className="w-full font-normal">
+                    <div className="grid grid-cols-2 gap-8">
+                      {/* Price Range Filter */}
+                      <div>
+                        <h3 className="text-sm mb-2">Price Range</h3>
+                        <div className="space-y-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="1000000"
+                            step="10000"
+                            value={priceRange[1]}
+                            onChange={(e) => setPriceRange([0, parseInt(e.target.value)])}
+                            className="w-full"
+                          />
+                          <div className="text-xs text-gray-600">
+                            {formatVND(priceRange[0])} - {formatVND(priceRange[1])}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Size Filter */}
+                      <div>
+                        <h3 className="text-sm  mb-2">Size</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {["S", "M", "L", "XL", "2XL"].map((size) => (
+                            <button
+                              key={size}
+                              onClick={() => {
+                                setSelectedSizes(prev => 
+                                  prev.includes(size) 
+                                    ? prev.filter(s => s !== size)
+                                    : [...prev, size]
+                                );
+                              }}
+                              className={`px-3 py-1 text-sm transition ${
+                                selectedSizes.includes(size)
+                                  ? 'bg-[#BFAF92] text-white border-[#BFAF92]'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Product Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {loading ? (
+                <div className="col-span-4 text-center text-xl text-gray-500 py-12">Loading...</div>
+              ) : error ? (
+                <div className="col-span-4 text-center text-xl text-red-500 py-12">{error}</div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="col-span-4 text-center text-xl text-gray-400 py-12">No products found.</div>
+              ) : (
+                filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="cursor-pointer group"
+                  >
+                    {/* Product Image */}
+                    <div 
+                      className="relative bg-[#E8E4DC] mb-3 overflow-hidden" 
+                      style={{ aspectRatio: '3/4' }}
+                      onClick={() => navigate(`/product?id=${product.id}`)}
+                    >
+                      <img
+                        src={product.mainImg?.url || product.image || ''}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      
+                      {/* Virtual Try-On Button - appears on hover */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProduct(product);
+                          setShowVirtualTryOn(true);
+                        }}
+                        className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-[#BFAF92] text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center gap-2 font-semibold text-sm hover:bg-[#a89d7e] z-10"
+                      >
+                        <HiSparkles className="text-lg" />
+                        Try On
+                      </button>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-normal text-gray-800 group-hover:underline">
+                        {product.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {formatVND(product.price)}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
-      </div>
       </section>
 
 

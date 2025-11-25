@@ -498,12 +498,15 @@ const ProductDetail = () => {
 
             {/* Show Fulfillment Options button (if inventory allows) */}
             {!isOutOfStock && !showFulfillment && (
-              <button
-                className="mt-6 py-3 px-6 w-full rounded-lg transition text-white bg-[#434237] hover:bg-[#353535]"
-                onClick={() => setShowFulfillment(true)}
-              >
-                Choose Fulfillment Option
-              </button>
+              <div className="mt-6 flex gap-2">
+                <button
+                  className="flex-1 py-3 px-6 rounded-lg transition text-white bg-[#434237] hover:bg-[#353535]"
+                  onClick={() => setShowFulfillment(true)}
+                >
+                  Choose Fulfillment Option
+                </button>
+                {product && <ShareProductButton product={product} />}
+              </div>
             )}
 
             {/* Fulfillment Options Panel */}
@@ -604,19 +607,15 @@ const ProductDetail = () => {
 
             {/* Out of stock button */}
             {isOutOfStock && (
-              <button
-                className="mt-6 py-3 px-6 w-full rounded-lg transition text-white bg-gray-400"
-                disabled={true}
-                title="Out of stock for this size"
-              >
-                Out of stock
-              </button>
-            )}
-
-            {/* Share Product with Friends */}
-            {!showFulfillment && product && (
-              <div className="mt-4">
-                <ShareProductButton product={product} />
+              <div className="mt-6 flex gap-2">
+                <button
+                  className=" flex-1 py-3 px-6 w-full rounded-lg transition text-white bg-gray-400"
+                  disabled={true}
+                  title="Out of stock for this size"
+                >
+                  Out of stock
+                </button>
+                {product && <ShareProductButton product={product} />}
               </div>
             )}
           </div>
