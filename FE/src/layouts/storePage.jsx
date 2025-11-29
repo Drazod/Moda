@@ -73,49 +73,6 @@ const formatVND = (v) =>
     }));
   };
 
-  const sections = [
-    { name: "Availability", options: ["Available", "Out of Stock"] },
-    { name: "Gender", options: ["Men", "Women", "Kids"] },
-    { name: "Colors", options: ["Red", "Blue", "Green"] },
-    { name: "Collections", options: ["Spring", "Summer", "Winter"] },
-    { name: "Tags", options: ["Casual", "Formal", "Sports"] },
-    { name: "Ratings", options: ["1 Star", "2 Stars", "3 Stars", "4 Stars", "5 Stars"] },
-  ];
-
-  const [selectedFilters, setSelectedFilters] = useState({
-    availability: [],
-    gender: [],
-    colors: [],
-    collections: [],
-    tags: [],
-    ratings: [],
-  });
-  
-  const handleCheckboxChange = (filterType, option) => {
-    setSelectedFilters((prev) => {
-      // Ensure the filterType key exists
-      const updatedFilters = { ...prev };
-      if (!Array.isArray(updatedFilters[filterType])) {
-        updatedFilters[filterType] = [];
-      }
-  
-      // Toggle the option in the filter
-      if (updatedFilters[filterType].includes(option)) {
-        // Remove the option if it already exists
-        updatedFilters[filterType] = updatedFilters[filterType].filter(
-          (item) => item !== option
-        );
-      } else {
-        // Add the option if it doesn't exist
-        updatedFilters[filterType] = [...updatedFilters[filterType], option];
-      }
-  
-      console.log("Updated Filters:", updatedFilters);
-      return updatedFilters; // Return the updated filters object
-    });
-  };
-  
-  
   // AI Search function
   const performAiSearch = async (query) => {
     if (!query.trim()) return;

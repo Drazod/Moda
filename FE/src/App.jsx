@@ -6,6 +6,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Welcome from "./layouts/welcomePage";
 import Home from "./layouts/homePage";
 import Store from "./layouts/storePage";
+import FittingRoom from "./layouts/fittingRoom.jsx";
 import Product from "./layouts/productPage";
 import CartModal from "./layouts/cart";
 import ProfilePage from "./layouts/profilePage";
@@ -47,6 +48,7 @@ const App = () => {
         <Route path="/home" element={<Home/>}/>
         <Route path="/store" element={<Store/>}/>
         <Route path="/product" element={<Product/>}/>
+        <Route path="/fitting-room" element={<FittingRoom/>}/>
         <Route path="/cart" element={<CartModal/>}/>
         <Route path="/payment-success" element={<PaymentSuccess/>}/>
         {/* <Route path="/payment-fail" element={<PaymentFail/>}/> */}

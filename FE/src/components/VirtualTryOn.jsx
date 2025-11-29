@@ -188,7 +188,6 @@ const VirtualTryOn = ({ product, onClose }) => {
   // Download result
   const downloadResult = () => {
     if (!processedImage) return;
-    
     const link = document.createElement('a');
     link.href = processedImage;
     link.download = `virtual-tryon-${product?.name || 'result'}.jpg`;
