@@ -26,10 +26,17 @@ export default function Header() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+      const rootElement = document.getElementById('root');
+      if (rootElement) {
+        setScrolled(rootElement.scrollTop > 50);
+      }
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    
+    const rootElement = document.getElementById('root');
+    if (rootElement) {
+      rootElement.addEventListener("scroll", handleScroll);
+      return () => rootElement.removeEventListener("scroll", handleScroll);
+    }
   }, []);
 
   const displayName = user?.name || user?.username || user?.email || "Profile";
@@ -45,7 +52,7 @@ export default function Header() {
       {/* Center: Brand */}
       {!isMobile && (
         <div className="flex ">
-          <Link to="/home">
+          <Link to="/">
             <h1 className="text-[40px] font-dancing font-semibold mr-6">Moda</h1>
           </Link>
         </div>
@@ -66,6 +73,9 @@ export default function Header() {
         </Link>
         <Link to="/home#contact" className="hover:text-gray-600">
           Contact 
+        </Link>
+        <Link to="/fitting-room" className="hover:text-gray-600">
+          Virtual Try-on 
         </Link>
       </div>
       <div className="flex items-center space-x-6 col-span-1">

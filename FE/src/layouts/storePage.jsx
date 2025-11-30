@@ -31,17 +31,20 @@ const FashionTemplate = () => {
   const [error, setError] = useState("");
   const [categories, setCategories] = useState([
     "NEW",
-    "SHIRT",
-    "POLO SHIRTS",
-    "SHORT",
-    "SUITS",
-    "BEST SELLERS",
-    "T-SHIRT",
-    "JEANS",
-    "JACKETS",
-    "COATS",
   ]);
-const formatVND = (v) =>
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await axiosInstance.get('/category/list');
+        const fetchedCategories = res.data.map(cat => cat.name);
+        setCategories(["NEW", ...fetchedCategories]);
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+  const formatVND = (v) =>
   (Number(v) || 0).toLocaleString("vi-VN", {
     maximumFractionDigits: 0,
   }) + " VND";

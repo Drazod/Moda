@@ -20,11 +20,58 @@ const Home = () => {
   const [showVoucherPanel, setShowVoucherPanel] = useState(false);
 
   useEffect(() => {
+    const rootElement = document.getElementById('root');
+    
+    // Override window properties to make AOS work with custom scroll container
+    let scrollTop = 0;
+    
+    // Store original property descriptors
+    const originalPageYOffset = Object.getOwnPropertyDescriptor(window, 'pageYOffset');
+    const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
+    
+    // Override pageYOffset and scrollY to return root's scroll position
+    Object.defineProperty(window, 'pageYOffset', {
+      get: () => rootElement?.scrollTop || 0,
+      configurable: true
+    });
+    
+    Object.defineProperty(window, 'scrollY', {
+      get: () => rootElement?.scrollTop || 0,
+      configurable: true
+    });
+    
+    // Initialize AOS
     AOS.init({
       duration: 1000,
       offset: 200, 
-      easing: "ease-in-out", 
+      easing: "ease-in-out",
+      once: false,
+      mirror: true,
     });
+    
+    // Listen to root scroll and trigger AOS refresh
+    if (rootElement) {
+      const handleScroll = () => {
+        scrollTop = rootElement.scrollTop;
+        AOS.refresh();
+      };
+      
+      rootElement.addEventListener('scroll', handleScroll);
+      
+      // Initial refresh
+      setTimeout(() => AOS.refresh(), 100);
+      
+      return () => {
+        rootElement.removeEventListener('scroll', handleScroll);
+        // Restore original property descriptors
+        if (originalPageYOffset) {
+          Object.defineProperty(window, 'pageYOffset', originalPageYOffset);
+        }
+        if (originalScrollY) {
+          Object.defineProperty(window, 'scrollY', originalScrollY);
+        }
+      };
+    }
   }, []);
 
   const handleVoucherApply = (voucher) => {
@@ -45,7 +92,7 @@ const Home = () => {
           </h1>
           <div className="mt-10">
             <a
-              href="/store"
+              href="/fitting-room"
               className=" text-black border-[0.5px] border-black py-2 px-6 rounded-full hover:bg-gray-700"
             >
                 <span>TRY ON NOW</span>
@@ -222,7 +269,7 @@ const Home = () => {
 
 
       {/* Contact Section */}
-      <div id="contact" className="grid grid-cols-1  relative mt-10 z-0">
+      <div id="contact" className="grid grid-cols-1 items-center justify-between relative mt-10 z-0">
         <div className="w-full col-span-1">
           <Contact />
         </div>

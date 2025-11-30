@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { IoClose, IoCamera, IoCloudUpload, IoDownload, IoRefresh } from 'react-icons/io5';
+import { IoClose, IoCamera, IoCloudUpload, IoDownload, IoRefresh, IoInformationCircleOutline } from 'react-icons/io5';
 import Header from '../components/header';
 import Footer from '../components/footer';
 import {HiSparkles} from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import axiosInstance from '../configs/axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import { div } from 'framer-motion/client';
+import { BsArrowRight } from "react-icons/bs";
+import featurepic from "../assets/homepage/featurepic.png";
+import author from "../assets/homepage/author.png";
 
 const FittingRoom = () => {
     const navigate = useNavigate();
@@ -20,28 +22,81 @@ const FittingRoom = () => {
     const [selectedProduct, setSelectedProduct] = useState(null); 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [showGuide, setShowGuide] = useState(false);
+    const [currentStep, setCurrentStep] = useState(0);
+
+    const tryOnSectionRef = useRef(null);
+    const uploadRef = useRef(null);
+    const productListRef = useRef(null);
+    const actionButtonsRef = useRef(null);
+
+    const guideSteps = [
+    {
+        id: "upload",
+        title: "Step 1 · Add your photo",
+        description: "Upload a clear full-body photo or use your camera to take one.",
+    },
+    {
+        id: "productList",
+        title: "Step 2 · Pick a product",
+        description: "Choose an item from the right panel. The selected one will be highlighted.",
+    },
+    {
+        id: "actions",
+        title: "Step 3 · Try it on",
+        description: "Click “Try On This Product” to see the outfit on you.",
+    },
+        {
+        id: "actions",
+        title: "Step 4 · Result & Download",
+        description: "You will see the final result and can download your outfit.",
+    }
+    ];
 
     const fileInputRef = useRef(null);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
+    const PAGE_SIZE = 6;
+    const [page, setPage] = useState(1);
+    const totalPages = Math.ceil(products?.length / PAGE_SIZE);
+    const paginatedProducts = products?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-// Start camera
-const startCamera = async () => {
-    try {
-    const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-        width: 1280, 
-        height: 720,
-        facingMode: 'user' 
-        } 
-    });
-    setStream(mediaStream);
-    setUseCamera(true);
-    } catch (error) {
-    toast.error('Failed to access camera. Please check permissions.');
-    console.error('Camera error:', error);
-    }
-};
+    // Start camera
+    const startCamera = async () => {
+        try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+            width: 1280, 
+            height: 720,
+            facingMode: 'user' 
+            } 
+        });
+        setStream(mediaStream);
+        setUseCamera(true);
+        } catch (error) {
+        toast.error('Failed to access camera. Please check permissions.');
+        console.error('Camera error:', error);
+        }
+    };
+useEffect(() => {
+  if (!tryOnSectionRef.current) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setShowGuide(true);
+          setCurrentStep(0);
+        }
+      });
+    },
+    { threshold: 0.3 }
+  );
+
+  observer.observe(tryOnSectionRef.current);
+
+  return () => observer.disconnect();
+}, []);
 
 // Update video element when stream changes
 useEffect(() => {
@@ -147,7 +202,7 @@ const handleImageUpload = (file) => {
 
 // Virtual try-on processing
 const processVirtualTryOn = async () => {
-    if (!userImage || !product) {
+    if (!userImage || !selectedProduct) {
     toast.error('Please upload your photo first');
     return;
     }
@@ -242,12 +297,106 @@ useEffect(() => {
 return (
     <div className="relative-container noise-overlay min-h-screen flex flex-col">
         <Header/>
-            <div className="flex mt-52 max-h-[80vh] px-4 py-8">
-                <div className="w-3/4  grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section className="container mt-20 mx-auto py-16 px-8 flex flex-col lg:flex-row ">
+            {/* Left Content */}
+            <div className="lg:w-1/2 ">
+                <h1 className="text-4xl lg:text-6xl font-bold">
+                EXPLORE Exclusive STYLES WITHOUT Borders!
+                </h1>
+                <div className="mt-10">
+                <a
+                    href="/store"
+                    className=" text-black border-[0.5px] border-black py-2 px-6 rounded-full hover:bg-gray-700"
+                >
+                    <span>TRY ON NOW</span>
+                    <BsArrowRight className="ml-2 inline-block text-2xl pb-1" />
+                </a>
+                </div>
+                <div className="space-x-8 flex flex-col lg:flex-row mt-80">
+                <div className="lg:w-1/2">
+                    <div className="bg-[#BFAF92] w-full h-[150px] shadow-md flex justify-center items-end">
+                    <img 
+                        src={author}
+                        alt="" 
+                    />
+                    </div>
+                </div>
+                <p className="lg:w-1/2 text-lg" style={{ fontFamily: "'Josefin Sans', serif" }}>
+                    Discover the latest trends that let you shine effortlessly.
+                </p>
+                </div>
+            </div>
+            {/* Right Image */}
+            <div className="lg:w-1/2 mt-8 lg:mt-0  items-center">
+                <img
+                src={featurepic}
+                alt="Hero Image"
+                className=" w-full"
+                />
+            </div>
+        </section>
+            
+        <div  ref={tryOnSectionRef} className="flex max-h-[80vh] px-4 py-8 gap-2">
+            <div className="w-2/4  gap-6 border-t border-[#434237] pt-4 px-2">
+                <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-semibold text-[#434237]">1. Upload Your Photo</h3>
+                    <div className="relative">
+                        <button
+                            onClick={() => {
+                                setShowGuide(prev => prev && currentStep === 0 ? false : true);
+                                setCurrentStep(0);
+                            }}
+                            className="p-1 hover:bg-[#BFAF92]/20 rounded-full transition"
+                            title="Show guide"
+                        >
+                            <IoInformationCircleOutline className="text-2xl text-[#BFAF92]" />
+                        </button>
+                        {showGuide && currentStep === 0 && (
+                            <div className="absolute left-0 top-10 z-50 w-80 max-w-[90vw]">
+                                <div className="bg-white border border-[#BFAF92] rounded-2xl shadow-xl p-4">
+                                    <button
+                                        onClick={() => setShowGuide(false)}
+                                        className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100"
+                                    >
+                                        <IoClose className="text-sm" />
+                                    </button>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#BFAF92] text-white">
+                                            <HiSparkles className="text-base" />
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                            Virtual Try-On Guide
+                                        </span>
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-[#1D1A05] mb-1">
+                                        {guideSteps[0].title}
+                                    </h4>
+                                    <p className="text-xs text-gray-700 mb-3">
+                                        {guideSteps[0].description}
+                                    </p>
+                                    <div className="flex justify-between items-center">
+                                        <button
+                                            onClick={() => setShowGuide(false)}
+                                            className="text-xs text-gray-500 hover:underline"
+                                        >
+                                            Skip
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentStep(1)}
+                                            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#BFAF92] text-white hover:bg-[#a89d7e]"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                
                 {!userImage && !useCamera ? (
                 // Upload/Camera Selection
-
-                <div className="max-h-[80vh] grid grid-rows-1 md:grid-rows-2 gap-6">
+                <div ref={uploadRef} className="grid grid-rows-1 md:grid-rows-2 gap-6">
                     {/* Upload Option */}
                     <div className=" grid grid-cols-2 gap-6">
                         <div
@@ -302,80 +451,197 @@ return (
                 // Camera View
                 <div className="space-y-6">
                     <div className="relative bg-black rounded-2xl overflow-hidden aspect-video">
-                    <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="w-full h-full object-cover"
-                    />
-                    <canvas ref={canvasRef} className="hidden" />
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover"
+                        />
+                        <canvas ref={canvasRef} className="hidden" />
                     </div>
                     
                     <div className="flex gap-4 justify-center">
-                    <button
-                        onClick={capturePhoto}
-                        className="px-8 py-3 bg-[#BFAF92] text-white rounded-full hover:bg-[#a89d7e] transition font-semibold"
-                    >
-                        <IoCamera className="inline mr-2" />
-                        Capture Photo
-                    </button>
-                    <button
-                        onClick={stopCamera}
-                        className="px-8 py-3 bg-gray-400 text-white rounded-full hover:bg-gray-500 transition font-semibold"
-                    >
-                        Cancel
-                    </button>
+                        <button
+                            onClick={capturePhoto}
+                            className="px-8 py-3 bg-[#BFAF92] text-white rounded-full hover:bg-[#a89d7e] transition font-semibold"
+                        >
+                            <IoCamera className="inline mr-2" />
+                            Capture Photo
+                        </button>
+                        <button
+                            onClick={stopCamera}
+                            className="px-8 py-3 bg-gray-400 text-white rounded-full hover:bg-gray-500 transition font-semibold"
+                        >
+                            Cancel
+                        </button>
                     </div>
                 </div>
                 ) : (
                 // Try-On Processing View
                 <div className="max-h-[80vh] grid grid-rows-2 gap-6">
                     {/* Original Photo */}
-                        <div>
-                            <h3 className="text-lg font-semibold mb-2">Your Photo</h3>
-                            <div className="bg-black  max-h-[30vh] rounded-2xl overflow-hidden">
-                                <img
-                                src={userImage}
-                                alt="Your photo"
-                                className="w-full object-contain max-h-[30vh]"
-                                />
-                            </div>
-                        </div>
-                        <div className="border-2 max-h-[30vh] border-dashed border-[#BFAF92] rounded-2xl p-12 flex flex-col items-center justify-center hover:bg-[#E8E4DC] transition">
-                            <img 
-                                src={selectedProduct?.mainImg?.url} 
-                                alt={"Product"}
-                                className="w-full h-auto object-contain max-h-[30vh]"
-                            />
-                        </div>
-                   
-                </div>
-                )}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">
-                            {processedImage ? 'Virtual Try-On Result' : 'Product'}
-                        </h3>
-                        <div className="relative bg-black rounded-2xl overflow-hidden">
-                            {processedImage ? (
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">Your Photo</h3>
+                        <div className="bg-black  max-h-[30vh] rounded-2xl overflow-hidden">
                             <img
-                                src={processedImage}
-                                alt="Try-on result"
-                                className="w-full h-auto"
+                            src={userImage}
+                            alt="Your photo"
+                            className="w-full object-contain max-h-[30vh]"
                             />
-                            
-                            ) : (
-                            <div className="border-2  border-dashed border-[#BFAF92] rounded-2xl p-12 flex flex-col items-center justify-center hover:bg-[#E8E4DC] transition">
-                                <p className="text-gray-500">No result yet</p>
-                            </div>
-                            )}
                         </div>
                     </div>
+                    <div className="border-2 max-h-[30vh] border-dashed border-[#BFAF92] rounded-2xl p-12 flex flex-col items-center justify-center hover:bg-[#E8E4DC] transition">
+                        <img 
+                            src={selectedProduct?.mainImg?.url} 
+                            alt={"Product"}
+                            className="w-full h-auto object-contain max-h-[30vh]"
+                        />
+                    </div>
                 </div>
+                )}
+            </div>
 
+            
 
-             
-                <div className="w-1/4 max-h-screen p-6 border-2 m-2 grid grid-cols-2 gap-6">
+            <div className="grow border-t border-[#434237] pt-4 px-2">
+                <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-xl font-semibold text-[#434237]"> Result</h3>
+                    <div className="relative">
+                        <button
+                            onClick={() => {
+                                setShowGuide(prev => prev && currentStep === 3 ? false : true);
+                                setCurrentStep(3);
+                            }}
+                            className="p-1 hover:bg-[#BFAF92]/20 rounded-full transition"
+                            title="Show guide"
+                        >
+                            <IoInformationCircleOutline className="text-2xl text-[#BFAF92]" />
+                        </button>
+                        {showGuide && currentStep === 3 && (
+                            <div className="absolute left-1/2 -translate-x-1/2 top-10 z-50 w-80 max-w-[90vw]">
+                                <div className="bg-white border border-[#BFAF92] rounded-2xl shadow-xl p-4">
+                                    <button
+                                        onClick={() => setShowGuide(false)}
+                                        className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100"
+                                    >
+                                        <IoClose className="text-sm" />
+                                    </button>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#BFAF92] text-white">
+                                            <HiSparkles className="text-base" />
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                            Virtual Try-On Guide
+                                        </span>
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-[#1D1A05] mb-1">
+                                        {guideSteps[3].title}
+                                    </h4>
+                                    <p className="text-xs text-gray-700 mb-3">
+                                        {guideSteps[3].description}
+                                    </p>
+                                    <div className="flex justify-between items-center">
+                                        <button
+                                            onClick={() => setCurrentStep(2)}
+                                            className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            onClick={() => setShowGuide(false)}
+                                            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#BFAF92] text-white hover:bg-[#a89d7e]"
+                                        >
+                                            Got it
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="relative max-h-screen bg-black rounded-2xl overflow-hidden">
+                    {processedImage ? (
+                    <img
+                        src={processedImage}
+                        alt="Try-on result"
+                        className="w-auto"
+                    />
+                    
+                    ) : (
+                    <div className="border-2  border-dashed border-[#BFAF92] rounded-2xl p-12 flex flex-col items-center justify-center hover:bg-[#E8E4DC] transition">
+                        <p className="text-gray-500">No result yet</p>
+                    </div>
+                    )}
+                </div>
+            </div>
+            
+            <div  ref={productListRef} className="w-1/4 border-t border-[#434237] pt-4 px-2">
+                {/* Section Title */}
+                <div className="flex items-center gap-2 mb-4">
+                    <h3 className="text-xl font-semibold text-[#434237]">2. Select Product</h3>
+                    <div className="relative">
+                        <button
+                            onClick={() => {
+                                setShowGuide(prev => prev && currentStep === 1 ? false : true);
+                                setCurrentStep(1);
+                            }}
+                            className="p-1 hover:bg-[#BFAF92]/20 rounded-full transition"
+                            title="Show guide"
+                        >
+                            <IoInformationCircleOutline className="text-2xl text-[#BFAF92]" />
+                        </button>
+                        {showGuide && currentStep === 1 && (
+                            <div className="absolute right-0 top-10 z-50 w-80 max-w-[90vw]">
+                                <div className="bg-white border border-[#BFAF92] rounded-2xl shadow-xl p-4">
+                                    <button
+                                        onClick={() => setShowGuide(false)}
+                                        className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100"
+                                    >
+                                        <IoClose className="text-sm" />
+                                    </button>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#BFAF92] text-white">
+                                            <HiSparkles className="text-base" />
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                            Virtual Try-On Guide
+                                        </span>
+                                    </div>
+                                    <h4 className="text-sm font-semibold text-[#1D1A05] mb-1">
+                                        {guideSteps[1].title}
+                                    </h4>
+                                    <p className="text-xs text-gray-700 mb-3">
+                                        {guideSteps[1].description}
+                                    </p>
+                                    <div className="flex justify-between items-center">
+                                        <button
+                                            onClick={() => setCurrentStep(0)}
+                                            className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                        >
+                                            Back
+                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => setShowGuide(false)}
+                                                className="text-xs text-gray-500 hover:underline"
+                                            >
+                                                Skip
+                                            </button>
+                                            <button
+                                                onClick={() => setCurrentStep(2)}
+                                                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#BFAF92] text-white hover:bg-[#a89d7e]"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div className="border-[#BFAF92] border-4 grid grid-cols-2 rounded-2xl p-6 gap-4">
                     {loading ? (
                         <div className="col-span-2 text-center text-xl text-gray-500 py-12">Loading...</div>
                     ) : error ? (
@@ -383,7 +649,7 @@ return (
                     ) : products.length === 0 ? (
                         <div className="col-span-2 text-center text-xl text-gray-400 py-12">No products found.</div>
                     ) : (
-                        products.map((product) => (
+                        paginatedProducts.map((product) => (
                         <div
                             key={product.id}
                             className="cursor-pointer "
@@ -391,9 +657,9 @@ return (
                             {/* Product Image */}
                             <div 
                             onClick={() => handleProductClick(product)}
-                            className={`relative bg-[#E8E4DC] mb-3 overflow-hidden aspect-square ${
+                            className={`relative bg-[#E8E4DC]  overflow-hidden aspect-square ${
                                 selectedProduct === product
-                                    ? 'border-4 border-[#BFAF92]'
+                                    ? 'border-4 border-[#434237]'
                                     : 'border-0'
                                 }`}
                             >
@@ -416,11 +682,91 @@ return (
                         ))
                     )}
                 </div>
+                
+                {/* Pagination Dots */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-4 pt-4 pb-3">
+                        {[...Array(totalPages)].map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setPage(i + 1)}
+                            className={`w-2 h-2 rounded-full focus:outline-none transition-all duration-150 ${page === i + 1 ? 'bg-[#BFAF92] shadow' : 'bg-gray-400'}`}
+                            aria-label={`Go to page ${i + 1}`}
+                        >
+                        </button>
+                        ))}
+                    </div>
+                )}
             </div>
+        </div>
             
-            {/* Action Buttons */}
-            {userImage && !useCamera && (
-            <div className="flex gap-4 justify-center px-4 pb-8">
+        {/* Action Buttons */}
+        <div className="mt-6 px-4 pb-8">
+            {/* Section Title */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+                <h3 className="text-xl font-semibold text-[#434237]">3. Try It On</h3>
+                <div className="relative">
+                    <button
+                        onClick={() => {
+                            setShowGuide(prev => prev && currentStep === 2 ? false : true);
+                            setCurrentStep(2);
+                        }}
+                        className="p-1 hover:bg-[#BFAF92]/20 rounded-full transition"
+                        title="Show guide"
+                    >
+                        <IoInformationCircleOutline className="text-2xl text-[#BFAF92]" />
+                    </button>
+                    {showGuide && currentStep === 2 && (
+                        <div className="absolute left-1/2 -translate-x-1/2 top-10 z-50 w-80 max-w-[90vw]">
+                            <div className="bg-white border border-[#BFAF92] rounded-2xl shadow-xl p-4">
+                                <button
+                                    onClick={() => setShowGuide(false)}
+                                    className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-100"
+                                >
+                                    <IoClose className="text-sm" />
+                                </button>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-[#BFAF92] text-white">
+                                        <HiSparkles className="text-base" />
+                                    </div>
+                                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                                        Virtual Try-On Guide
+                                    </span>
+                                </div>
+                                <h4 className="text-sm font-semibold text-[#1D1A05] mb-1">
+                                    {guideSteps[2].title}
+                                </h4>
+                                <p className="text-xs text-gray-700 mb-3">
+                                    {guideSteps[2].description}
+                                </p>
+                                <div className="flex justify-between items-center">
+                                    <button
+                                        onClick={() => setCurrentStep(1)}
+                                        className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Back
+                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setShowGuide(false)}
+                                            className="text-xs text-gray-500 hover:underline"
+                                        >
+                                            Skip
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentStep(3)}
+                                            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#BFAF92] text-white hover:bg-[#a89d7e]"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div ref={actionButtonsRef} className="flex gap-4 justify-center">
                 {!processedImage ? (
                 <>
                     <button
@@ -454,23 +800,24 @@ return (
                     onClick={downloadResult}
                     className="px-8 py-3 bg-[#BFAF92] text-white rounded-full hover:bg-[#a89d7e] transition font-semibold"
                     >
-                    <IoDownload className="inline mr-2" />
-                    Download Result
+                        <IoDownload className="inline mr-2" />
+                        Download Result
                     </button>
                     <button
                     onClick={reset}
                     className="px-8 py-3 bg-gray-400 text-white rounded-full hover:bg-gray-500 transition font-semibold"
                     >
-                    <IoRefresh className="inline mr-2" />
-                    Try Again
+                        <IoRefresh className="inline mr-2" />
+                        Try Again
                     </button>
                 </>
                 )}
             </div>
-            )}
-        <div className="mt-8 bg-[#E8E4DC] rounded-2xl p-6">
-            <h4 className="font-semibold mb-3 text-[#1D1A05]">Tips for Best Results:</h4>
-            <ul className="space-y-2 text-sm text-gray-700">
+        </div>
+            
+        <div className="mt-2 p-6 font-Jsans">
+            <h2 className="text-2xl mb-4">Tips for Best Results:</h2>
+            <ul className="space-y-2 text-[#434237] text-sm font-light leading-relaxed">
               <li>• Stand against a plain background</li>
               <li>• Ensure good lighting (natural light works best)</li>
               <li>• Face the camera directly with arms at your sides</li>
