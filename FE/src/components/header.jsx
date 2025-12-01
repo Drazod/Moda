@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "../index.css";
 import { FaUserCircle, FaShoppingCart } from "react-icons/fa";
-import { IoPersonAdd, IoChatbubble } from "react-icons/io5";
+import { IoPersonAdd, IoChatbubble, IoSearchOutline, IoCloseCircle } from "react-icons/io5";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import CartModal from "../layouts/cart";
@@ -13,6 +13,8 @@ export default function Header() {
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { user, logout } = useAuth();
   const { items } = useCart();
@@ -38,6 +40,21 @@ export default function Header() {
       return () => rootElement.removeEventListener("scroll", handleScroll);
     }
   }, []);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // TODO: Implement search functionality
+      console.log("Searching for:", searchQuery);
+      // For now, just log the search query
+      // You can navigate to a search results page or filter products
+    }
+  };
+
+  const closeSearch = () => {
+    setSearchQuery("");
+    setSearchOpen(false);
+  };
 
   const displayName = user?.name || user?.username || user?.email || "Profile";
 
@@ -82,7 +99,42 @@ export default function Header() {
         <Link to="/friends" className="hover:text-gray-600" title="Friends">
           Friends
         </Link>
-        <span>Search</span>
+        
+        {/* Expandable Search */}
+        <div className="relative">
+          {!searchOpen ? (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center space-x-2 hover:text-gray-600 cursor-pointer transition-all"
+            >
+              <IoSearchOutline className="text-xl" />
+              <span>Search</span>
+            </button>
+          ) : (
+            <form onSubmit={handleSearch} className="flex items-center relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    closeSearch();
+                  }
+                }}
+                placeholder="Search clothes or keywords..."
+                autoFocus
+                className="w-64 pl-4 pr-10 py-2 rounded-full bg-white text-black border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#BFAF92] transition-all duration-300 shadow-md"
+              />
+              <button
+                type="button"
+                onClick={closeSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <IoCloseCircle className="text-xl" />
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
       {/* Right: Nav + User + Cart */}

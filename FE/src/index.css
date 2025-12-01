@@ -107,3 +107,40 @@ input:-webkit-autofill:focus {
   border-bottom: 1px solid rgba(255,255,255,0.4);
 }
 
+/* Continuous scrolling animations for product grid */
+@keyframes scroll-down {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes scroll-up {
+  0% {
+    transform: translateY(-50%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-scroll-down {
+  animation: scroll-down 30s linear infinite;
+}
+
+.animate-scroll-up {
+  animation: scroll-up 25s linear infinite;
+}
+
+.animate-scroll-down-slow {
+  animation: scroll-down 35s linear infinite;
+}
+
+/* Pause animation on hover */
+.animate-scroll-down:hover,
+.animate-scroll-up:hover,
+.animate-scroll-down-slow:hover {
+  animation-play-state: paused;
+}

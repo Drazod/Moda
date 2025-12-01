@@ -6,9 +6,8 @@ import {HiSparkles} from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import axiosInstance from '../configs/axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import { BsArrowRight } from "react-icons/bs";
 import featurepic from "../assets/homepage/featurepic.png";
-import author from "../assets/homepage/author.png";
+import banner from  "../assets/tryon/tryonBanner.png";
 
 const FittingRoom = () => {
     const navigate = useNavigate();
@@ -297,42 +296,134 @@ useEffect(() => {
 return (
     <div className="relative-container noise-overlay min-h-screen flex flex-col">
         <Header/>
-        <section className="container mt-20 mx-auto py-16 px-8 flex flex-col lg:flex-row ">
-            {/* Left Content */}
-            <div className="lg:w-1/2 ">
-                <h1 className="text-4xl lg:text-6xl font-bold">
-                EXPLORE Exclusive STYLES WITHOUT Borders!
-                </h1>
-                <div className="mt-10">
-                <a
-                    href="/store"
-                    className=" text-black border-[0.5px] border-black py-2 px-6 rounded-full hover:bg-gray-700"
-                >
-                    <span>TRY ON NOW</span>
-                    <BsArrowRight className="ml-2 inline-block text-2xl pb-1" />
-                </a>
-                </div>
-                <div className="space-x-8 flex flex-col lg:flex-row mt-80">
-                <div className="lg:w-1/2">
-                    <div className="bg-[#BFAF92] w-full h-[150px] shadow-md flex justify-center items-end">
-                    <img 
-                        src={author}
-                        alt="" 
+        {/* Hero Section */}
+        <section className="relative mt-16 grid grid-cols-3 px-4 py-8 bg-[#E8DCC4] min-h-[90vh]  items-center justify-center overflow-hidden">
+            {/* Background Images */}
+            <div className=" max-h-[80vh] z-10">
+                <img
+                    src={banner}
+                    alt="Fashion model left"
+                    className="w-full h-auto object-cover grayscale"
+                />
+            </div>
+
+
+            {/* Center Content */}
+            <div className="relative z-20 text-center px-4 max-w-2xl">
+                {/* Top Small Image Group */}
+                <div className="mb-6 flex justify-center">
+                    <img
+                        src={featurepic}
+                        alt="Fashion group"
+                        className="w-80 h-32 object-cover rounded-sm shadow-lg"
                     />
-                    </div>
                 </div>
-                <p className="lg:w-1/2 text-lg" style={{ fontFamily: "'Josefin Sans', serif" }}>
-                    Discover the latest trends that let you shine effortlessly.
+
+                {/* Main Title */}
+                <h1 className="text-7xl font-bold text-[#434237] mb-2 tracking-tight">
+                    VIRTUAL
+                </h1>
+                <h1 className="text-7xl font-bold text-[#434237] mb-8 tracking-widest" style={{ 
+                    WebkitTextStroke: '2px #434237',
+                    WebkitTextFillColor: 'transparent',
+                    letterSpacing: '0.1em'
+                }}>
+                    TRY-ON
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-lg text-[#434237] mb-8 tracking-wide uppercase">
+                    EXPLORE STYLE WITHOUT BORDERS
                 </p>
+
+                {/* CTA Button */}
+                <button
+                    onClick={() => {
+                        tryOnSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="bg-black text-white px-12 py-4 rounded-full text-lg font-semibold hover:bg-gray-800 transition-all duration-300 shadow-lg"
+                >
+                    TRY NOW
+                </button>
+
+                {/* Bottom Small Image */}
+                <div className="mt-8 flex justify-center">
+                    <img
+                        src={featurepic}
+                        alt="Fashion duo"
+                        className="w-64 h-40 object-cover rounded-sm shadow-lg bg-[#FFB5B5]"
+                    />
                 </div>
             </div>
-            {/* Right Image */}
-            <div className="lg:w-1/2 mt-8 lg:mt-0  items-center">
-                <img
-                src={featurepic}
-                alt="Hero Image"
-                className=" w-full"
-                />
+            <div className="grid grid-cols-3 gap-3 max-h-[80vh] overflow-hidden">
+                {/* Column 1 - Scrolls Down */}
+                <div className="flex flex-col gap-3 animate-scroll-down">
+                    {[...products, ...products].slice(0, 12).map((product, idx) => (
+                        <div
+                            key={`col1-${idx}`}
+                            onClick={() => handleProductClick(product)}
+                            className={`cursor-pointer flex-shrink-0 ${
+                                selectedProduct?._id === product._id
+                                    ? 'border-2 border-[#434237]'
+                                    : ''
+                            }`}
+                        >
+                            <div className="relative bg-[#E8E4DC] overflow-hidden aspect-square ">
+                                <img
+                                    src={product.mainImg?.url || product.image || ''}
+                                    alt={product.name}
+                                    className="w-full h-auto object-cover"
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Column 2 - Scrolls Up */}
+                <div className="flex flex-col gap-3 animate-scroll-up">
+                    {[...products, ...products].slice(3, 15).map((product, idx) => (
+                        <div
+                            key={`col2-${idx}`}
+                            onClick={() => handleProductClick(product)}
+                            className={`cursor-pointer flex-shrink-0 ${
+                                selectedProduct?._id === product._id
+                                    ? 'border-2 border-[#434237]'
+                                    : ''
+                            }`}
+                        >
+                            <div className="relative bg-[#E8E4DC] overflow-hidden aspect-square ">
+                                <img
+                                    src={product.mainImg?.url || product.image || ''}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Column 3 - Scrolls Down */}
+                <div className="flex flex-col gap-3 animate-scroll-down-slow">
+                    {[...products, ...products].slice(6, 18).map((product, idx) => (
+                        <div
+                            key={`col3-${idx}`}
+                            onClick={() => handleProductClick(product)}
+                            className={`cursor-pointer flex-shrink-0 ${
+                                selectedProduct?._id === product._id
+                                    ? 'border-2 border-[#434237]'
+                                    : ''
+                            }`}
+                        >
+                            <div className="relative bg-[#E8E4DC] overflow-hidden aspect-square ">
+                                <img
+                                    src={product.mainImg?.url || product.image || ''}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         </section>
             
