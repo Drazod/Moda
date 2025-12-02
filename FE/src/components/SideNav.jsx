@@ -32,7 +32,7 @@ const SideNav = ({ onCartOpen }) => {
   const navItems = [
     { icon: IoHomeOutline, label: 'Home', path: '/home' },
     { icon: IoSearchOutline, label: 'Search', path: '/store' },
-    { icon: IoCompassOutline, label: 'Explore', path: '/store' },
+    { icon: IoCompassOutline, label: 'Explore', path: '/explore' },
     // { icon: IoFilmOutline, label: 'Reels', path: '/store' },
     { icon: IoPaperPlaneOutline, label: 'Messages', path: '/chat' },
     { icon: IoHeartOutline, label: 'Notifications', path: '/profile' },

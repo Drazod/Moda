@@ -17,6 +17,8 @@ import Transactions from "./layouts/transactionHistoryPage";
 import ResetPasswordPage from "./layouts/ResetPasswordPage_new";
 import FriendsPage from "./layouts/friendsPage";
 import ChatPage from "./layouts/chatPage";
+
+import ExplorePage from "./layouts/explorePage";
  
 // import Settings from "./layouts/settingPage";
 // dash's import
@@ -47,6 +49,8 @@ const App = () => {
         <Route path="/" element={<Welcome/>}/>
         <Route path="/home" element={<Home/>}/>
         <Route path="/store" element={<Store/>}/>
+        
+        <Route path="/explore" element={<ExplorePage/>}/>
         <Route path="/product" element={<Product/>}/>
         <Route path="/fitting-room" element={<FittingRoom/>}/>
         <Route path="/cart" element={<CartModal/>}/>

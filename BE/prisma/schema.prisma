@@ -199,6 +199,10 @@ model User {
   conversationsAsUser2   Conversation[] @relation("ConversationUser2")
   // Message relations
   messagesSent           Message[] @relation("MessageSender")
+  // Post relations
+  posts                  Post[]
+  postLikes              PostLike[]
+  postComments           PostComment[]
   updatedAt       DateTime  @updatedAt
   createdAt       DateTime  @default(now())
   otpCode         String?
@@ -409,6 +413,61 @@ enum RefundStatus {
   APPROVED
   REJECTED
   COMPLETED
+}
+
+// Instagram-like posts
+model Post {
+  id              Int           @id @default(autoincrement())
+  userId          Int
+  caption         String?       @db.Text
+  location        String?       @db.VarChar(255)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images          PostImage[]
+  likes           PostLike[]
+  comments        PostComment[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PostImage {
+  id              Int       @id @default(autoincrement())
+  postId          Int
+  imageUrl        String    @db.VarChar(512)
+  order           Int       @default(0) // Display order
+  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+
+  @@index([postId])
+}
+
+model PostLike {
+  id              Int       @id @default(autoincrement())
+  postId          Int
+  userId          Int
+  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+
+  @@unique([postId, userId]) // One like per user per post
+  @@index([postId])
+  @@index([userId])
+}
+
+model PostComment {
+  id              Int       @id @default(autoincrement())
+  postId          Int
+  userId          Int
+  content         String    @db.Text
+  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([postId])
+  @@index([userId])
 }
 
 
