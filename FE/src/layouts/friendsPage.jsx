@@ -129,14 +129,15 @@ const FriendsPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen relative-container">
+    <div className="flex min-h-screen relative-container font-Jsans">
       {/* Side Navigation */}
       <SideNav onCartOpen={() => setCartOpen(true)} />
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 ">
+      <div className="flex w-full ml-64 ">
         {/* Top Section with Search */}
-        <div className="border-b noise-overlay border-gray-200 px-8 py-6 flex items-center justify-between">
+        <div className='xl:w-3/4'>
+        <div className="noise-overlay px-8 py-6 flex items-center justify-between">
           <h1 className="text-2xl font-normal">Friends</h1>
           
           {/* Search Bar */}
@@ -158,20 +159,12 @@ const FriendsPage = () => {
               />
             </div>
           </div>
-
-          <button
-            onClick={searchUsers}
-            disabled={searchLoading}
-            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 font-medium disabled:opacity-50"
-          >
-            {searchLoading ? 'Searching...' : 'Search'}
-          </button>
         </div>
 
         {/* Content Area */}
         <div className="px-8 py-6">
           {/* Tabs */}
-          <div className="flex gap-8 mb-6 border-b border-gray-200">
+          <div className="flex gap-8 mb-6 ">
             <button
               onClick={() => setActiveTab('friends')}
               className={`pb-3 font-medium text-sm transition ${
@@ -219,7 +212,7 @@ const FriendsPage = () => {
                     {!user.friendshipStatus && (
                       <button
                         onClick={() => sendFriendRequest(user.id)}
-                        className="px-4 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition"
+                        className="px-4 py-1.5 bg-[#434237] text-white text-sm font-medium rounded-lg hover:bg-[#5a594f] transition"
                       >
                         Follow
                       </button>
@@ -346,9 +339,10 @@ const FriendsPage = () => {
           </div>
         )}
         </div>
+        </div>
 
         {/* Suggested Users Section (Right Side) */}
-        <div className="fixed right-0 top-0 w-80 h-screen border-l border-gray-200 p-8 overflow-y-auto bg-white hidden xl:block">
+        <div className="w-1/4 h-screen  p-6 overflow-y-auto hidden xl:block">
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-500">Suggested for you</h2>

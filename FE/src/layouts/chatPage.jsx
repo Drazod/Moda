@@ -415,7 +415,7 @@ const ChatPage = () => {
                           </div>
                         </div>
                         {conv.unreadCount > 0 && (
-                          <span className="absolute -bottom-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+                          <span className="absolute -bottom-1 -right-1 bg-[#434237] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
                             {conv.unreadCount}
                           </span>
                         )}
@@ -449,7 +449,7 @@ const ChatPage = () => {
                 <p className="text-gray-400 text-sm">No messages yet</p>
                 <button
                   onClick={() => navigate('/friends')}
-                  className="mt-4 px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition"
+                  className="mt-4 px-4 py-2 bg-[#434237] text-white text-sm rounded-lg hover:bg-[#5a594f] transition"
                 >
                   Find Friends
                 </button>
@@ -573,7 +573,7 @@ const ChatPage = () => {
                     <p className="text-gray-400 text-sm mb-6">Send a message to start a chat.</p>
                     <button
                       onClick={() => setMessageInput('Hello!')}
-                      className="px-6 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition"
+                      className="px-6 py-2 bg-[#434237] text-white text-sm font-semibold rounded-lg hover:bg-[#5a594f] transition"
                     >
                       Send message
                     </button>
@@ -601,7 +601,7 @@ const ChatPage = () => {
                     <button
                       onClick={sendMessage}
                       disabled={sending}
-                      className="text-blue-500 font-semibold text-sm hover:text-blue-400 transition disabled:opacity-50"
+                      className="text-[#434237] font-semibold text-sm hover:text-[#5a594f] transition disabled:opacity-50"
                     >
                       Send
                     </button>
@@ -623,7 +623,7 @@ const ChatPage = () => {
                 <p className="text-gray-400 text-sm mb-6">Send private messages to a friend or group.</p>
                 <button
                   onClick={() => navigate('/friends')}
-                  className="px-6 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition"
+                  className="px-6 py-2 bg-[#434237] text-white text-sm font-semibold rounded-lg hover:bg-[#5a594f] transition"
                 >
                   Send message
                 </button>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState,useEffect } from 'react';
 import "../index.css";
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -22,10 +22,12 @@ const SideNav = ({ onCartOpen }) => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { items } = useCart();
+  const [isCollapsed, setIsCollapsed] = useState();
   const cartCount = items.reduce((sum, it) => sum + (it.qty || 0), 0);
   
-  // Collapse sidebar on all pages except friends page
-  const isCollapsed = location.pathname !== '/friends';
+  useEffect(() => {
+    setIsCollapsed(location.pathname !== '/friends');
+  }, [location.pathname]);
 
   const navItems = [
     { icon: IoHomeOutline, label: 'Home', path: '/home' },
@@ -40,11 +42,19 @@ const SideNav = ({ onCartOpen }) => {
   ];
 
   return (
-    <div className={`fixed left-0 top-0 h-screen bg-[#BFAF92] border-r border-gray-200 flex flex-col py-8 z-40 transition-all duration-300 ${
-      isCollapsed ? 'w-20 px-3' : 'w-64 px-3'
-    }`}>
+    <div 
+      className={`fixed left-0 top-0 h-screen bg-[#E6DAC4] flex flex-col py-8 z-40 transition-all duration-300 ${
+        isCollapsed ? 'w-20 px-3' : 'w-64 px-3'
+      }`}
+      onMouseEnter={() => setIsCollapsed(false)}
+      onMouseLeave={() => {
+        if (location.pathname !== '/friends') {
+          setIsCollapsed(true);
+        }
+      }}
+    >
       {/* Logo */}
-      <Link to="/home" className={`px-3 mb-10 ${isCollapsed ? 'text-center' : ''}`}>
+      <Link to="/home" className="px-3 mb-10 text-center">
         {isCollapsed ? (
           <h1 className="text-2xl font-dancing font-semibold text-[#434237]">M</h1>
         ) : (
