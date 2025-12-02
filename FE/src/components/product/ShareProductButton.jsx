@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { IoShareSocialOutline, IoClose, IoSearchOutline, IoChevronForward } from 'react-icons/io5';
-import { FaFacebookMessenger } from 'react-icons/fa';
+
 import axiosInstance from '../../configs/axiosInstance';
 import toast from 'react-hot-toast';
 
@@ -144,7 +144,7 @@ const ShareProductButton = ({ product }) => {
             {/* Send via Messenger Section */}
             <div className="p-4 bg-[#242424]">
               <div className="flex items-center gap-2 mb-3">
-                <FaFacebookMessenger className="text-blue-500 text-xl" />
+                
                 <h4 className="text-white font-semibold">Send via Messenger</h4>
               </div>
 

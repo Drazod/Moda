@@ -16,14 +16,13 @@ const DashPdMProductsTable = ({ onEditProduct, onUpdateStock, isHost }) => {
             setError(null);
             try {
                 const params = {};
-                
                 // Add branchCode for admin users
                 if (!isHost && user?.managedBranch?.code) {
-                    params.branchCode = user.managedBranch.code;
+                    params.branchCode = user.managedBranch?.code;
                 }
                 
                 const res = await axiosInstance.get('/clothes/list', { params });
-                if (user.managedBranch.code) {
+                if (user.managedBranch?.code) {
                 setProducts(res.data.clothes);
                 console.log(res.data.clothes);
                 }
