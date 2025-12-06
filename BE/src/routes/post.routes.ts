@@ -39,7 +39,7 @@ const postRoute: Router = Router();
  *               caption:
  *                 type: string
  *                 description: Post caption/description
- *                 example: "Beautiful sunset at the beach! 🌅"
+ *                 example: "Beautiful sunset at the beach! "
  *               location:
  *                 type: string
  *                 description: Location where the photo was taken

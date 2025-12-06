@@ -3,22 +3,30 @@ title Quản lí giao hàng
 actor Quản trị viên
 participant Client
 participant Controller
-participant Shipping service
+participant Transaction service
 database Database
 activate Quản trị viên
 activate Client
 activate Controller
-activate Shipping service
+activate Transaction service
 activate Database
 Quản trị viên->Client:Vào giao diện quản lí giao hàng
 opt 
 Quản trị viên->Client:Tìm kiếm đơn hàng qua các bộ lọc
 end
-Client->Controller:sendGetShippingPageRequest()
-Controller->Shipping service:forwardRequest()
-Shipping service->Shipping service:calculatePaginationData()
-Shipping service->Database:queryShippingData()
-Database-->Shipping service:returnListOfShipping()
-Shipping service-->Controller:sendListOfShipping()
-Controller-->Client:responseListOfShipping()
+Client->Controller:sendGetTransactionPageRequest()
+Controller->Transaction service:forwardRequest()
+Transaction service->Transaction service:calculatePaginationData()
+Transaction service->Database:queryShippingData()
+Database-->Transaction service:returnListOfTransaction()
+Transaction service-->Controller:sendListOfTransaction()
+Controller-->Client:responseListOfTransaction()
 Client-->Quản trị viên:Hiển thị danh sách các đơn đang giao
+Quản trị viên->Client:Thay đổi trạng thái giao hàng
+Client->Controller:sendUpdateTransactionState()
+Controller->Transaction service:forwardRequest()
+Transaction service->Database:modifyState()
+Database-->Transaction service:return()
+Transaction service --> Controller:sendResult()
+Controller --> Client:reponseResult()
+Client --> Quản trị viên: Cập nhật trạng thái đơn hàng

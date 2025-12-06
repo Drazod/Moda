@@ -1,0 +1,35 @@
+title Quản lí bạn bè - Thêm bạn bè
+
+actor Người dùng
+participant Client
+participant Controller
+participant Friendship service
+database Database
+activate Người dùng
+activate Client
+activate Controller
+activate Friendship service
+activate Database
+
+Người dùng->Client:Mở giao diện tìm kiếm & thêm bạn bè
+opt
+Người dùng->Client:Nhập từ khóa và tìm kiếm người dùng
+Client->Controller:sendSearchUsersRequest(query)
+Controller->Friendship service:forwardRequest()
+Friendship service->Database:queryUsersAndFriendshipStatus()
+Database-->Friendship service:returnUsersWithStatus()
+Friendship service-->Controller:sendSearchResult()
+Controller-->Client:responseSearchResult()
+Client-->Người dùng:Hiển thị danh sách người dùng & trạng thái kết bạn
+end
+
+Người dùng->Client:Chọn người dùng và nhấn "Thêm bạn / Gửi lời mời kết bạn"
+Client->Controller:sendFriendRequest(addresseeId)
+Controller->Friendship service:forwardRequest()
+Friendship service->Database:checkUserExistsAndExistingFriendship()
+Database-->Friendship service:returnCheckResult()
+Friendship service->Database:createFriendship(status = PENDING)
+Database-->Friendship service:returnNewFriendship()
+Friendship service-->Controller:sendResult()
+Controller-->Client:responseResult()
+Client-->Người dùng:Thông báo gửi lời mời kết bạn thành công

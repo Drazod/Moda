@@ -106,23 +106,16 @@ export async function getAdminOverview(req: Request, res: Response) {
     const revenuePrev = revPrev.amount ?? 0;
 
     // ---------- KPI: products ----------
-    const [productsTotal, productsNewCurr, productsNewPrev] = await Promise.all(
-      [
-        prisma.clothes.count(),
-        prisma.clothes.count({ where: { createdAt: { gte: r.from, lt: r.to } } }),
-        prisma.clothes.count({
-          where: { createdAt: { gte: rPrev.from, lt: rPrev.to } },
-        }),
-      ]
-    );
+    const [productsTotal, productsNewCurr, productsNewPrev] = await Promise.all([
+      prisma.clothes.count(),
+      prisma.clothes.count({ where: { createdAt: { gte: r.from, lt: r.to } } }),
+      prisma.clothes.count({
+        where: { createdAt: { gte: rPrev.from, lt: rPrev.to } },
+      }),
+    ]);
 
     // ---------- KPI: customers ----------
-    const [
-      customersTotal,
-      customersNewCurr,
-      customersNewPrev,
- 
-    ] = await Promise.all([
+    const [customersTotal, customersNewCurr, customersNewPrev] = await Promise.all([
       prisma.user.count({ where: { role: 'USER' } }),
       prisma.user.count({
         where: { role: 'USER', createdAt: { gte: r.from, lt: r.to } },
@@ -131,47 +124,37 @@ export async function getAdminOverview(req: Request, res: Response) {
         where: { role: 'USER', createdAt: { gte: rPrev.from, lt: rPrev.to } },
       }),
     ]);
-    const activeCustomersCurr =
-    (await prisma.cart.groupBy({
-        by: [Prisma.CartScalarFieldEnum.userId],
-        where: { state: 'ORDERED', createdAt: { gte: r.from, lt: r.to } },
-    })).length;
 
+    const activeCustomersCurr = (
+      await prisma.cart.groupBy({
+        by: ['userId'],
+        where: { state: 'ORDERED', createdAt: { gte: r.from, lt: r.to } },
+      })
+    ).length;
 
     // ---------- Top selling products (by quantity) ----------
-    // Sum quantities for ORDERED carts in range
-    const grouped = await prisma.cartItem.groupBy({
-      by: ['ClothesId'],
+    const grouped = await prisma.transactionDetail.groupBy({
+      by: ['clothesId'],
       _sum: { quantity: true },
-      where: {
-        cart: {
-          is: {
-            state: 'ORDERED',
-            createdAt: { gte: r.from, lt: r.to },
-          },
-        },
-      },
       orderBy: { _sum: { quantity: 'desc' } },
       take: 10,
     });
 
-    const ids = grouped.map((g) => g.ClothesId);
+    const ids = grouped.map((g) => g.clothesId);
+    
     const [clothesRows, lastBuys] = await Promise.all([
       prisma.clothes.findMany({
         where: { id: { in: ids } },
-        include: { category: true },
+        include: { 
+          category: true,
+          mainImg: { select: { url: true } }
+        },
       }),
       Promise.all(
         ids.map((id) =>
-          prisma.cartItem.findFirst({
+          prisma.transactionDetail.findFirst({
             where: {
-              ClothesId: id,
-              cart: {
-                is: {
-                  state: 'ORDERED',
-                  createdAt: { gte: r.from, lt: r.to },
-                },
-              },
+              clothesId: id,
             },
             orderBy: { createdAt: 'desc' },
             select: { createdAt: true },
@@ -186,16 +169,20 @@ export async function getAdminOverview(req: Request, res: Response) {
     );
 
     const topSelling = grouped.map((g) => {
-      const c = clothesById.get(g.ClothesId)!;
+      const c = clothesById.get(g.clothesId)!;
       return {
         id: c.id,
         name: c.name,
         category: c.category?.name ?? null,
-        lastBuyDate: lastBuyById.get(g.ClothesId),
-        orderQuantity: g._sum.quantity ?? 0,
+        image: c.mainImg?.url ?? null,
+        price: c.price,
+        lastBuyDate: lastBuyById.get(g.clothesId),
+        orderQuantity: g._sum?.quantity ?? 0,
       };
     });
+
     const live = await getPresenceCounts();
+
     // ---------- Build response ----------
     res.json({
       range: { from: r.from, to: r.to },
@@ -207,11 +194,11 @@ export async function getAdminOverview(req: Request, res: Response) {
           previousTotal: revenuePrev,
         },
         products: {
-          total: productsTotal,
+          total: productsNewCurr,
           addedInRange: productsNewCurr,
           changePct: pctChange(productsNewCurr, productsNewPrev),
         },
-        timeSpentHrs: null, // no field in schema; fill from analytics if available
+        timeSpentHrs: null,
         customers: {
           total: customersTotal,
           newInRange: customersNewCurr,
@@ -220,10 +207,10 @@ export async function getAdminOverview(req: Request, res: Response) {
       },
       topSellingProducts: topSelling,
       webStatus: {
-        webLoadPct: live.webLoadPct, // not derivable from DB schema
-        totalConnects: live.totalConnects, // analytics/system metric; provide from another service
+        webLoadPct: live.webLoadPct,
+        totalConnects: live.totalConnects,
         customersActiveInRange: live.customersOnline,
-        guests: live.guestsOnline, // no guest model; carts require userId
+        guests: live.guestsOnline,
       },
     });
   } catch (err) {
