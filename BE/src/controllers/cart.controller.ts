@@ -152,6 +152,35 @@ export const placeOrder = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Cannot place order with empty cart" });
     }
 
+    // 🔒 RACE CONDITION PREVENTION: Validate stock availability before placing order
+    for (const item of cart.items) {
+      const branchId = item.sourceBranchId || item.pickupBranchId;
+      
+      if (branchId) {
+        const stock = await prisma.stock.findFirst({
+          where: {
+            branchId: branchId,
+            sizeId: item.sizeId
+          }
+        });
+        
+        if (!stock || stock.quantity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Insufficient stock for item. Available: ${stock?.quantity || 0}, Requested: ${item.quantity}`,
+            clothesId: item.ClothesId,
+            branchId: branchId
+          });
+        }
+      } else if (item.Size) {
+        if (item.Size.quantity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Insufficient stock for size. Available: ${item.Size.quantity}, Requested: ${item.quantity}`,
+            sizeId: item.sizeId
+          });
+        }
+      }
+    }
+
     // Update cart state to ORDERED
     const updatedCart = await prisma.cart.update({
       where: { id: parseInt(id) },

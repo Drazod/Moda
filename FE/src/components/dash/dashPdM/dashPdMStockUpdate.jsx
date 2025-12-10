@@ -5,24 +5,44 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../../context/AuthContext';
 
 const DashPdMStockUpdate = ({ product, onClose }) => {
+    // ============================================================================
+    // HOOKS & STATE
+    // ============================================================================
     const { user } = useAuth();
     const branchCode = user?.managedBranch?.code;
+    const [loading, setLoading] = useState(false);
+
+    // Calculate available quantity from ONLINE-WH branch only
+    const calculateMaxAvailable = (size) => {
+        if (!size.branches || !Array.isArray(size.branches)) {
+            return size.totalQuantity || 0;
+        }
+        const onlineWarehouse = size.branches.find(branch => branch.branchCode === 'ONLINE-WH');
+        return onlineWarehouse?.quantity || 0;
+    };
 
     const [sizes, setSizes] = useState(
         product?.sizes?.map(size => ({
             label: size.label,
-            availableQuantity: size.quantity || 0,
-            maxAvailable: size.maxAvailable || 0,
+            sizeId: size.id,
+            currentBranchQty: size.quantity || 0,
+            maxAvailable: calculateMaxAvailable(size),
             addQuantity: 0
         })) || []
     );
-    const [loading, setLoading] = useState(false);
 
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+    const getSelectedItems = () => sizes.filter(s => s.addQuantity > 0);
+
+    // ============================================================================
+    // EVENT HANDLERS
+    // ============================================================================
     const handleQuantityChange = (index, value) => {
         const newSizes = [...sizes];
         const numValue = parseInt(value) || 0;
         
-        // Ensure we don't add more than available
         if (numValue > newSizes[index].maxAvailable) {
             toast.error(`Cannot add more than ${newSizes[index].maxAvailable} items for size ${newSizes[index].label}`);
             return;
@@ -34,7 +54,6 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
 
     const handleFocus = (index) => {
         const newSizes = [...sizes];
-        // Clear the value if it's 0
         if (newSizes[index].addQuantity === 0) {
             newSizes[index].addQuantity = '';
         }
@@ -43,11 +62,22 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
 
     const handleBlur = (index) => {
         const newSizes = [...sizes];
-        // Set back to 0 if empty
         if (newSizes[index].addQuantity === '' || newSizes[index].addQuantity === null) {
             newSizes[index].addQuantity = 0;
         }
         setSizes(newSizes);
+    };
+
+    const handleReset = () => {
+        setSizes(
+            product?.sizes?.map(size => ({
+                label: size.label,
+                sizeId: size.id,
+                currentBranchQty: size.quantity || 0,
+                maxAvailable: calculateMaxAvailable(size),
+                addQuantity: 0
+            })) || []
+        );
     };
 
     const handleSubmit = async (e) => {
@@ -58,13 +88,10 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
             return;
         }
 
-        // Filter out sizes with 0 quantity
-        const sizesToAdd = sizes
-            .filter(s => s.addQuantity > 0)
-            .map(s => ({
-                label: s.label,
-                quantity: s.addQuantity
-            }));
+        const sizesToAdd = getSelectedItems().map(s => ({
+            label: s.label,
+            quantity: s.addQuantity
+        }));
 
         if (sizesToAdd.length === 0) {
             toast.error('Please add at least one size with quantity > 0');
@@ -79,7 +106,6 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
             });
             toast.success('Stock added to branch successfully');
             onClose();
-            // Trigger refresh
             window.location.reload();
         } catch (err) {
             toast.error(err?.response?.data?.message || 'Failed to add stock to branch');
@@ -88,16 +114,9 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
         }
     };
 
-    const handleReset = () => {
-        setSizes(
-            product?.sizes?.map(size => ({
-                label: size.label,
-                availableQuantity: size.quantity || 0,
-                maxAvailable: size.maxAvailable || 0,
-                addQuantity: 0
-            })) || []
-        );
-    };
+    // ============================================================================
+    // RENDER
+    // ============================================================================
 
     if (!product) return null;
 
@@ -131,12 +150,12 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
                                     <div key={size.label} className="grid grid-cols-3 gap-4 items-center mb-3 pb-3 border-b last:border-b-0">
                                         <div>
                                             <label className="text-sm font-medium text-gray-700">Size {size.label}</label>
-                                            <div className="text-xs text-gray-500">Quanity: {size.maxAvailable}</div>
+                                            <div className="text-xs text-gray-500">ONLINE-WH: {size.maxAvailable}</div>
                                         </div>
                                         <div>
-                                            <label className="text-sm text-gray-600 block mb-1">Available</label>
+                                            <label className="text-sm text-gray-600 block mb-1">Current Branch</label>
                                             <div className="px-3 py-2 bg-gray-100 rounded-lg text-center font-semibold">
-                                                {size.availableQuantity}
+                                                {size.currentBranchQty}
                                             </div>
                                         </div>
                                         <div>
@@ -160,13 +179,13 @@ const DashPdMStockUpdate = ({ product, onClose }) => {
                             <div className="bg-blue-50 p-4 rounded-lg">
                                 <h4 className="font-semibold text-blue-900 mb-2">Summary</h4>
                                 <div className="space-y-1 text-sm">
-                                    {sizes.filter(s => s.addQuantity > 0).map(size => (
+                                    {getSelectedItems().map(size => (
                                         <div key={size.label} className="flex justify-between">
                                             <span>Size {size.label}:</span>
                                             <span className="font-semibold">{size.addQuantity} items</span>
                                         </div>
                                     ))}
-                                    {sizes.filter(s => s.addQuantity > 0).length === 0 && (
+                                    {getSelectedItems().length === 0 && (
                                         <div className="text-gray-500">No items selected</div>
                                     )}
                                 </div>

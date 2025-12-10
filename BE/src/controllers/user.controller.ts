@@ -7,11 +7,11 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
             where: { userId },
             orderBy: { createdAt: 'desc' },
             include: {
-                shipping: true,
                 transactionDetails: {
                     include: {
                         clothes: true,
                         size: true,
+                        shipping: true,
                         refunds: {
                             orderBy: { createdAt: 'desc' }
                         },
@@ -53,12 +53,10 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
         const result = transactions.map((t) => {
             const { date, time } = formatDateTime(t.createdAt);
             
-            // Get state from first associated shipping record, if available
-            let state = t.shipping && t.shipping.length > 0 ? t.shipping[0].State : undefined;
-            
             // Map transaction details with refund and comment information
             const items = t.transactionDetails.map(td => {
                 const availableForRefund = td.quantity - td.refundedQuantity;
+                const itemState = td.shipping?.State; // Get state from each transaction detail's shipping
                 
                 // Get refund status for this item
                 let refundStatus = 'NONE';
@@ -78,7 +76,7 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                     userComment = td.comments[0]; // Most recent comment by this user
                 } else {
                     // Can comment if order is complete and user hasn't commented yet
-                    canComment = state === 'COMPLETE';
+                    canComment = itemState === 'COMPLETE';
                 }
 
                 return {
@@ -90,10 +88,11 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
                     originalQuantity: td.quantity,
                     refundedQuantity: td.refundedQuantity,
                     availableForRefund: availableForRefund,
-                    canRefund: availableForRefund > 0 && state === 'COMPLETE',
+                    canRefund: availableForRefund > 0 && itemState === 'COMPLETE',
                     refundStatus: refundStatus,
                     latestRefundReason: latestRefund?.reason || null,
                     latestRefundAdminNote: latestRefund?.adminNote || null,
+                    state: itemState, // Add state for each transaction detail
                     hasCommented: hasCommented,
                     canComment: canComment,
                     userComment: userComment ? {
@@ -116,11 +115,10 @@ export const userTransactionHistory = async (req: Request, res: Response) => {
             return {
                 orderId: `#${t.id}`,
                 detail, // Keep for backward compatibility
-                items, // New detailed item information
+                items, // New detailed item information with individual states
                 date,
                 time,
                 price: formatPrice(t.amount),
-                state, // Transaction state from shipping
                 canRefundAny: items.some(item => item.canRefund),
                 canCommentAny: items.some(item => item.canComment),
                 hasCommentedAny: items.some(item => item.hasCommented)

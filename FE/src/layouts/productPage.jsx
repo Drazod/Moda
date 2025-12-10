@@ -8,45 +8,69 @@ import FulfillmentOptions from "../components/FulfillmentOptions";
 import ShareProductButton from "../components/product/ShareProductButton";
 import toast from "react-hot-toast";
 
-const formatVND = (v) =>
-  (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " VND";
-
 const ProductDetail = () => {
+  // ============================================================================
+  // HOOKS & STATE
+  // ============================================================================
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const productId = searchParams.get("id");
+  const { addToCart, items } = useCart();
 
+  // Product State
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Selection State
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
-  const [activeTab, setActiveTab] = useState("description");
   const [qty, setQty] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Comments & rating
+  // UI State
+  const [activeTab, setActiveTab] = useState("description");
+  const [showFulfillment, setShowFulfillment] = useState(false);
+  const [fulfillmentData, setFulfillmentData] = useState(null);
+
+  // Comments & Rating State
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [ratingStats, setRatingStats] = useState({ averageRating: 0, totalReviews: 0 });
 
-  // Other products (carousel)
+  // Related Products State
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
-  // ➕ rating + số cmt cho từng sp gợi ý
-  const [statsMap, setStatsMap] = useState({}); // { [id]: { avg, total } }
+  const [statsMap, setStatsMap] = useState({});
 
-  // Fulfillment options
-  const [showFulfillment, setShowFulfillment] = useState(false);
-  const [fulfillmentData, setFulfillmentData] = useState(null);
+  // Carousel Refs
+  const sliderRef = useRef(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
 
-  const { addToCart, items } = useCart();
-
-  // ===== Images list: main first, then extra =====
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
   const imageUrls = [
     product?.mainImg?.url,
     ...(product?.extraImgs ? product.extraImgs.map((i) => i.url) : []),
   ].filter(Boolean);
+
+  let sizes = [];
+  if (Array.isArray(product?.sizes)) {
+    if (typeof product.sizes[0] === "string") sizes = product.sizes;
+    else if (typeof product.sizes[0] === "object" && product.sizes[0].label) {
+      sizes = product.sizes.map((s) => s.label);
+    }
+  }
+  const colors = product?.colors || [];
+
+  const maxAllowed = getMaxQtyAllowed();
+  const isOutOfStock = maxAllowed <= 0;
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
 
   useEffect(() => {
     if (!productId) {
@@ -60,7 +84,7 @@ const ProductDetail = () => {
       .then((res) => {
         setProduct(res.data);
 
-        // Sync size stock to localStorage for CartContext (optional)
+        // Sync size stock to localStorage for CartContext
         if (Array.isArray(res.data.sizes)) {
           let cartSizeQuantities = {};
           try {
@@ -72,15 +96,19 @@ const ProductDetail = () => {
           if (res.data.id) {
             cartSizeQuantities[res.data.id] = {};
             res.data.sizes.forEach((s) => {
-              if (s.id && typeof s.totalQuantity === "number") {
-                cartSizeQuantities[res.data.id][s.id] = s.totalQuantity;
+              if (s.id) {
+                // Calculate total from branches if available
+                const totalQty = s.branches && Array.isArray(s.branches)
+                  ? s.branches.reduce((sum, branch) => sum + (branch.quantity || 0), 0)
+                  : (typeof s.totalQuantity === "number" ? s.totalQuantity : 0);
+                cartSizeQuantities[res.data.id][s.id] = totalQty;
               }
             });
             localStorage.setItem("cartSizeQuantities", JSON.stringify(cartSizeQuantities));
           }
         }
 
-        // defaults
+        // Set defaults
         if (res.data.colors?.length) setSelectedColor(res.data.colors[0]);
         if (res.data.sizes?.length) {
           const first = res.data.sizes[0];
@@ -92,7 +120,6 @@ const ProductDetail = () => {
       .finally(() => setLoading(false));
   }, [productId]);
 
-  // Fetch comments
   useEffect(() => {
     if (!productId) return;
 
@@ -118,7 +145,6 @@ const ProductDetail = () => {
     fetchComments();
   }, [productId]);
 
-  // Fetch list for carousel (no related needed)
   useEffect(() => {
     if (!productId) return;
 
@@ -161,7 +187,6 @@ const ProductDetail = () => {
     };
   }, [productId]);
 
-  // Lấy rating & số cmt cho tối đa 12 sp đầu
   useEffect(() => {
     if (!relatedProducts?.length) return;
     const top = relatedProducts.slice(0, 12);
@@ -185,80 +210,6 @@ const ProductDetail = () => {
     });
   }, [relatedProducts]);
 
-  // ===== Stock helpers =====
-  let sizes = [];
-  if (Array.isArray(product?.sizes)) {
-    if (typeof product.sizes[0] === "string") sizes = product.sizes;
-    else if (typeof product.sizes[0] === "object" && product.sizes[0].label) {
-      sizes = product.sizes.map((s) => s.label);
-    }
-  }
-  const colors = product?.colors || [];
-
-  const getSelectedSizeId = () => {
-    if (
-      Array.isArray(product?.sizes) &&
-      typeof product.sizes[0] === "object" &&
-      product.sizes[0].label
-    ) {
-      const found = product.sizes.find((s) => s.label === selectedSize);
-      return found?.id;
-    }
-    return undefined;
-  };
-
-  const getSizeStock = () => {
-    if (
-      Array.isArray(product?.sizes) &&
-      typeof product.sizes[0] === "object" &&
-      product.sizes[0].label
-    ) {
-      const found = product.sizes.find((s) => s.label === selectedSize);
-      if (typeof found?.totalQuantity === "number") return found.totalQuantity;
-    }
-    if (typeof product?.stock === "number") return product.stock;
-    if (typeof product?.totalQuantity === "number") return product.totalQuantity;
-    return Infinity;
-  };
-
-  const getQtyInCartSameSize = () => {
-    const sizeId = getSelectedSizeId();
-    return items
-      .filter((it) => it.id === product?.id && it.sizeId === sizeId)
-      .reduce((sum, it) => sum + (it.qty || 0), 0);
-  };
-
-  const getMaxQtyAllowed = () => {
-    const stock = getSizeStock();
-    const inCart = getQtyInCartSameSize();
-    return Math.max(0, stock - inCart);
-  };
-
-  const maxAllowed = getMaxQtyAllowed();
-  const isOutOfStock = maxAllowed <= 0;
-
-  // Stepper
-  const incQty = () => setQty((q) => Math.min(q + 1, Math.max(1, maxAllowed)));
-  const decQty = () => setQty((q) => Math.max(1, q - 1));
-  const onQtyInput = (e) => {
-    const v = parseInt(e.target.value, 10);
-    const safe = Number.isNaN(v) ? 1 : Math.max(1, Math.min(v, Math.max(1, maxAllowed)));
-    setQty(safe);
-  };
-
-  // ===== Carousel refs & handlers =====
-  const sliderRef = useRef(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
-
-  const updateArrows = () => {
-    const el = sliderRef.current;
-    if (!el) return;
-    const EPS = 2;
-    setCanLeft(el.scrollLeft > EPS);
-    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - EPS);
-  };
-
   useEffect(() => {
     const el = sliderRef.current;
     if (!el) return;
@@ -272,7 +223,68 @@ const ProductDetail = () => {
     };
   }, [relatedProducts.length]);
 
-  const scrollByAmount = (dir = 1) => {
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+  function formatVND(v) {
+    return (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " VND";
+  }
+
+  // ============================================================================
+  // STOCK & QUANTITY HELPERS
+  // ============================================================================
+  function getSelectedSizeId() {
+    if (
+      Array.isArray(product?.sizes) &&
+      typeof product.sizes[0] === "object" &&
+      product.sizes[0].label
+    ) {
+      const found = product.sizes.find((s) => s.label === selectedSize);
+      return found?.id;
+    }
+    return undefined;
+  }
+
+  function getSizeStock() {
+    if (
+      Array.isArray(product?.sizes) &&
+      typeof product.sizes[0] === "object" &&
+      product.sizes[0].label
+    ) {
+      const found = product.sizes.find((s) => s.label === selectedSize);
+      if (found?.branches && Array.isArray(found.branches)) {
+        return found.branches.reduce((sum, branch) => sum + (branch.quantity || 0), 0);
+      }
+      if (typeof found?.totalQuantity === "number") return found.totalQuantity;
+    }
+    return 0;
+  }
+
+  function getQtyInCartSameSize() {
+    const sizeId = getSelectedSizeId();
+    return items
+      .filter((it) => it.id === product?.id && it.sizeId === sizeId)
+      .reduce((sum, it) => sum + (it.qty || 0), 0);
+  }
+
+  function getMaxQtyAllowed() {
+    const stock = getSizeStock();
+    const inCart = getQtyInCartSameSize();
+    return Math.max(0, stock - inCart);
+  }
+
+  // ============================================================================
+  // CAROUSEL HELPERS
+  // ============================================================================
+  function updateArrows() {
+    const el = sliderRef.current;
+    if (!el) return;
+    const EPS = 2;
+    setCanLeft(el.scrollLeft > EPS);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - EPS);
+  }
+
+  function scrollByAmount(dir = 1) {
     const el = sliderRef.current;
     if (!el) return;
     const first = el.querySelector("a");
@@ -286,16 +298,32 @@ const ProductDetail = () => {
       el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.9), behavior: "smooth" });
     }
     setTimeout(updateArrows, 300);
+  }
+
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+  const incQty = () => setQty((q) => Math.min(q + 1, Math.max(1, maxAllowed)));
+  const decQty = () => setQty((q) => Math.max(1, q - 1));
+  const onQtyInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    const safe = Number.isNaN(v) ? 1 : Math.max(1, Math.min(v, Math.max(1, maxAllowed)));
+    setQty(safe);
   };
 
   const handleNextImage = () => {
     if (!imageUrls.length) return;
     setCurrentImageIndex((i) => (i === imageUrls.length - 1 ? 0 : i + 1));
   };
+
   const handlePrevImage = () => {
     if (!imageUrls.length) return;
     setCurrentImageIndex((i) => (i === 0 ? imageUrls.length - 1 : i - 1));
   };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   if (loading) {
     return (
@@ -571,7 +599,7 @@ const ProductDetail = () => {
                   }}
                 />
                 <button
-                  className="mt-4 text-blue-500 hover:underline"
+                  className="mt-4 text-[#434237] hover:underline"
                   onClick={() => {
                     setShowFulfillment(false);
                     setFulfillmentData(null);

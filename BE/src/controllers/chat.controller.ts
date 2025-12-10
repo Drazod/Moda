@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '..';
 import { io } from '../index';
+import { stringToBinary, binaryToString } from '../utils/binary';
+import { setCache, getCache, delCachePattern, delCache } from '../config/redis';
 
 /**
  * Get or create conversation with a friend
@@ -137,7 +139,17 @@ export const getOrCreateConversation = async (req: Request, res: Response) => {
       });
     }
     
-    res.status(200).json({ conversation });
+    // Decode binary content in messages (keep encrypted as-is)
+    const decodedConversation = {
+      ...conversation,
+      messages: conversation.messages.map(msg => ({
+        ...msg,
+        content: msg.content ? (msg.isEncrypted ? msg.content : binaryToString(msg.content)) : null,
+        isEncrypted: msg.isEncrypted
+      }))
+    };
+    
+    res.status(200).json({ conversation: decodedConversation });
   } catch (error) {
     console.error("Error getting/creating conversation:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -206,10 +218,17 @@ export const getConversations = async (req: Request, res: Response) => {
         
         const otherUser = conv.user1Id === req.user!.id ? conv.user2 : conv.user1;
         
+        // Decode binary content in last message (keep encrypted as-is)
+        const lastMessage = conv.messages[0] ? {
+          ...conv.messages[0],
+          content: conv.messages[0].content ? (conv.messages[0].isEncrypted ? conv.messages[0].content : binaryToString(conv.messages[0].content)) : null,
+          isEncrypted: conv.messages[0].isEncrypted
+        } : null;
+        
         return {
           id: conv.id,
           otherUser,
-          lastMessage: conv.messages[0] || null,
+          lastMessage,
           unreadCount,
           updatedAt: conv.updatedAt
         };
@@ -228,14 +247,25 @@ export const getConversations = async (req: Request, res: Response) => {
  * POST /chat/message
  */
 export const sendMessage = async (req: Request, res: Response) => {
-  const { conversationId, content, messageType = 'TEXT', productId, imageUrl } = req.body;
+  const { 
+    conversationId, 
+    content, 
+    encryptedContent,
+    iv,
+    encryptedAESKey,
+    aesKey,
+    messageType = 'TEXT', 
+    productId, 
+    imageUrl, 
+    isEncrypted = false 
+  } = req.body;
   
   if (!req.user) return res.status(401).json({ message: "User not authenticated" });
   if (!conversationId) return res.status(400).json({ message: "conversationId is required" });
   
-  // Validate message content based on type
-  if (messageType === 'TEXT' && !content) {
-    return res.status(400).json({ message: "content is required for text messages" });
+  // Validate message content based on type and encryption
+  if (messageType === 'TEXT' && !content && !encryptedContent) {
+    return res.status(400).json({ message: "content or encryptedContent is required for text messages" });
   }
   if (messageType === 'PRODUCT' && !productId) {
     return res.status(400).json({ message: "productId is required for product messages" });
@@ -263,10 +293,16 @@ export const sendMessage = async (req: Request, res: Response) => {
       data: {
         conversationId,
         senderId: req.user.id,
-        content: content || null,
+        // If encrypted, store encryption data; otherwise encode plain text to binary
+        content: isEncrypted ? null : (content ? stringToBinary(content) : null),
+        encryptedContent: isEncrypted ? encryptedContent : null,
+        iv: isEncrypted ? iv : null,
+        encryptedAESKey: isEncrypted ? encryptedAESKey : null,
+        aesKey: isEncrypted ? aesKey : null,
         messageType,
         productId: productId || null,
-        imageUrl: imageUrl || null
+        imageUrl: imageUrl || null,
+        isEncrypted
       },
       include: {
         sender: {
@@ -293,19 +329,26 @@ export const sendMessage = async (req: Request, res: Response) => {
     // Emit socket event to both users in the conversation
     const receiverId = conversation.user1Id === req.user.id ? conversation.user2Id : conversation.user1Id;
     
+    // Prepare message for transmission (keep encrypted content as-is, decode plain text)
+    const messageData = {
+      ...message,
+      content: message.content ? (message.isEncrypted ? message.content : binaryToString(message.content)) : null,
+      isEncrypted: message.isEncrypted
+    };
+    
     // Emit to receiver
     io.to(String(receiverId)).emit('new-message', {
       conversationId,
-      message
+      message: messageData
     });
     
     // Emit to sender (for their other devices/tabs)
     io.to(String(req.user.id)).emit('new-message', {
       conversationId,
-      message
+      message: messageData
     });
     
-    res.status(201).json({ message: "Message sent", data: message });
+    res.status(201).json({ message: "Message sent", data: messageData });
   } catch (error) {
     console.error("Error sending message:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -368,7 +411,20 @@ export const getMessages = async (req: Request, res: Response) => {
       }
     });
     
-    res.status(200).json({ messages: messages.reverse() });
+    // Return messages with encryption fields intact for frontend decryption
+    const processedMessages = messages.map(msg => ({
+      ...msg,
+      // Only decode binary content for plain text messages
+      content: msg.isEncrypted ? null : (msg.content ? binaryToString(msg.content) : null),
+      // Keep all encryption fields for E2E encrypted messages
+      encryptedContent: msg.encryptedContent || undefined,
+      iv: msg.iv || undefined,
+      encryptedAESKey: msg.encryptedAESKey || undefined,
+      aesKey: msg.aesKey || undefined,
+      isEncrypted: msg.isEncrypted
+    }));
+    
+    res.status(200).json({ messages: processedMessages.reverse() });
   } catch (error) {
     console.error("Error getting messages:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -458,14 +514,15 @@ export const shareProduct = async (req: Request, res: Response) => {
       return res.status(403).json({ message: "Not authorized" });
     }
     
-    // Create message with product
+    // Create message with product (encode to binary)
     const message = await prisma.message.create({
       data: {
         conversationId,
         senderId: req.user.id,
-        content: customMessage || `Check out this product: ${product.name}`,
+        content: stringToBinary(customMessage || `Check out this product: ${product.name}`),
         messageType: 'PRODUCT',
-        productId
+        productId,
+        isEncrypted: false // Product shares are never encrypted
       },
       include: {
         sender: {
@@ -500,21 +557,195 @@ export const shareProduct = async (req: Request, res: Response) => {
     // Emit socket event to both users in the conversation
     const receiverId = conversation.user1Id === req.user.id ? conversation.user2Id : conversation.user1Id;
     
+    // Decode binary content for transmission
+    const messageData = {
+      ...message,
+      content: message.content ? binaryToString(message.content) : null,
+      isEncrypted: false
+    };
+    
     // Emit to receiver
     io.to(String(receiverId)).emit('new-message', {
       conversationId,
-      message
+      message: messageData
     });
     
     // Emit to sender (for their other devices/tabs)
     io.to(String(req.user.id)).emit('new-message', {
       conversationId,
-      message
+      message: messageData
     });
     
-    res.status(201).json({ message: "Product shared", data: message });
+    res.status(201).json({ message: "Product shared", data: messageData });
   } catch (error) {
     console.error("Error sharing product:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+/**
+ * Get another user's public key for E2E encryption
+ * POST /chat/public-key
+ * Body: { otherUserId: number }
+ */
+export const getUserPublicKey = async (req: Request, res: Response) => {
+  const otherUserId = parseInt(req.params.otherUserId, 10);
+  
+  if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+  
+  if (!otherUserId) {
+    return res.status(400).json({ message: "otherUserId is required" });
+  }
+  
+  try {
+    // Verify they are friends first (security)
+    const friendship = await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { requesterId: req.user.id, addresseeId: otherUserId, status: 'ACCEPTED' },
+          { requesterId: otherUserId, addresseeId: req.user.id, status: 'ACCEPTED' }
+        ]
+      }
+    });
+    
+    if (!friendship) {
+      return res.status(403).json({ 
+        message: "Can only get public keys of friends" 
+      });
+    }
+    
+    // Check cache first
+    const cacheKey = `user:${otherUserId}:publicKey`;
+    const cached = await getCache(cacheKey);
+    
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+    
+    // Get from database
+    const user = await prisma.user.findUnique({
+      where: { id: otherUserId },
+      select: { 
+        id: true, 
+        name: true,
+        publicKey: true,
+        publicKeyDevice: true,
+        publicKeyUpdatedAt: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (!user.publicKey) {
+      return res.status(404).json({ 
+        message: "User has not set up encryption keys yet",
+        requiresSetup: true
+      });
+    }
+    
+    const response = {
+      userId: user.id,
+      name: user.name,
+      publicKey: user.publicKey,
+      device: user.publicKeyDevice || 'Unknown device',
+      lastUpdated: user.publicKeyUpdatedAt
+    };
+    
+    // Cache for 1 hour
+    await setCache(cacheKey, response, 3600);
+    
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error getting public key:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * Set/Update user's own public key and encrypted private key backup
+ * POST /chat/setup-encryption
+ * Body: { publicKey: string, encryptedPrivateKey: string, privateKeyIV: string, deviceId: string }
+ */
+export const setupEncryption = async (req: Request, res: Response) => {
+  const { publicKey, encryptedPrivateKey, privateKeyIV, deviceId } = req.body;
+  
+  if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+  
+  if (!publicKey) {
+    return res.status(400).json({ 
+      message: "publicKey is required" 
+    });
+  }
+  
+  try {
+    // Update user's encryption keys (including encrypted private key backup)
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        publicKey,
+        encryptedPrivateKey: encryptedPrivateKey || null,
+        privateKeyIV: privateKeyIV || null,
+        publicKeyDevice: deviceId || 'Unknown device',
+        publicKeyUpdatedAt: new Date()
+      }
+    });
+    
+    // Clear cache
+    await delCache(`user:${req.user.id}:publicKey`);
+    
+    res.status(200).json({ 
+      message: "Encryption keys updated successfully",
+      device: deviceId || 'Unknown device',
+      updatedAt: new Date()
+    });
+  } catch (error) {
+    console.error("Error setting up encryption:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * Get user's encrypted private key backup from server
+ * GET /chat/encrypted-keys
+ */
+export const getEncryptedKeys = async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+  
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        encryptedPrivateKey: true,
+        privateKeyIV: true,
+        publicKey: true,
+        publicKeyDevice: true,
+        publicKeyUpdatedAt: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (!user.encryptedPrivateKey || !user.privateKeyIV) {
+      return res.status(404).json({ 
+        message: "No encrypted keys found on server",
+        requiresSetup: true
+      });
+    }
+    
+    res.status(200).json({
+      encryptedPrivateKey: user.encryptedPrivateKey,
+      privateKeyIV: user.privateKeyIV,
+      publicKey: user.publicKey,
+      device: user.publicKeyDevice,
+      lastUpdated: user.publicKeyUpdatedAt
+    });
+  } catch (error) {
+    console.error("Error getting encrypted keys:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+

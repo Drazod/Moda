@@ -710,7 +710,14 @@ export const addClothesToBranch = async (req: Request, res: Response) => {
       },
     });
 
-    // Validate that total stock doesn't exceed size quantity
+    // Find ONLINE-WH branch for reallocation
+    const onlineWarehouse = await prisma.branch.findUnique({
+      where: { code: 'ONLINE-WH' }
+    });
+
+    // Validate stock availability and prepare reallocation
+    const reallocationMap = new Map<number, { fromWarehouse: number; addNew: number }>();
+    
     for (const sz of sizesToProcess) {
       const requestedQty = qtyByLabel.get(sz.label) ?? 0;
       
@@ -720,22 +727,34 @@ export const addClothesToBranch = async (req: Request, res: Response) => {
       );
       const currentAtThisBranch = currentBranchStock?.quantity ?? 0;
       
+      // Get current stock at ONLINE-WH
+      const warehouseStock = onlineWarehouse 
+        ? allCurrentStocks.find((s) => s.sizeId === sz.id && s.branchId === onlineWarehouse.id)
+        : null;
+      const warehouseQty = warehouseStock?.quantity ?? 0;
+      
       // Get total across all branches
       const totalAllocated = allCurrentStocks
         .filter((s) => s.sizeId === sz.id)
         .reduce((sum, stock) => sum + stock.quantity, 0);
       
-      // Calculate new total if we add the requested quantity
-      const newTotal = totalAllocated + requestedQty;
-
-      if (newTotal > sz.quantity) {
+      // Calculate how much we can reallocate from warehouse
+      const canReallocate = Math.min(requestedQty, warehouseQty);
+      const needNew = requestedQty - canReallocate;
+      
+      // Calculate available unallocated stock
+      const availableNew = sz.quantity - totalAllocated;
+      
+      if (needNew > availableNew) {
         return res.status(400).json({
-          message: `Size '${sz.label}' quantity exceeds limit. Total quantity: ${sz.quantity}, Currently allocated: ${totalAllocated}, Requested to add: ${requestedQty}. Available: ${sz.quantity - totalAllocated}`,
+          message: `Size '${sz.label}' quantity exceeds limit. Total quantity: ${sz.quantity}, Currently allocated: ${totalAllocated}, Requested to add: ${requestedQty}, Available in ONLINE-WH: ${warehouseQty}, Available unallocated: ${availableNew}`,
         });
       }
+      
+      reallocationMap.set(sz.id, { fromWarehouse: canReallocate, addNew: needNew });
     }
 
-    // Upsert stock records for this branch
+    // Upsert stock records for this branch and reallocate from ONLINE-WH
     const result = await prisma.$transaction(async (tx) => {
       // Get current stocks at this branch to add to them
       const currentBranchStocks = await tx.stock.findMany({
@@ -746,11 +765,27 @@ export const addClothesToBranch = async (req: Request, res: Response) => {
       });
 
       await Promise.all(
-        sizesToProcess.map((sz) => {
+        sizesToProcess.map(async (sz) => {
           const currentStock = currentBranchStocks.find((s) => s.sizeId === sz.id);
           const currentQty = currentStock?.quantity ?? 0;
           const addQty = qtyByLabel.get(sz.label) ?? 0;
-          const newQty = currentQty + addQty; // ADD instead of REPLACE
+          const newQty = currentQty + addQty;
+          
+          const reallocation = reallocationMap.get(sz.id);
+          
+          // If reallocating from ONLINE-WH, decrement warehouse stock
+          if (reallocation && reallocation.fromWarehouse > 0 && onlineWarehouse) {
+            await tx.stock.updateMany({
+              where: {
+                branchId: onlineWarehouse.id,
+                sizeId: sz.id,
+                quantity: { gte: reallocation.fromWarehouse } // Ensure stock is available
+              },
+              data: {
+                quantity: { decrement: reallocation.fromWarehouse }
+              }
+            });
+          }
 
           return tx.stock.upsert({
             where: { branchId_sizeId: { branchId: branch.id, sizeId: sz.id } },

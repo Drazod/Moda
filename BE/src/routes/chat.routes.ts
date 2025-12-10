@@ -5,9 +5,13 @@ import {
   sendMessage,
   getMessages,
   markMessagesAsRead,
-  shareProduct
+  shareProduct,
+  getUserPublicKey,
+  setupEncryption,
+  getEncryptedKeys
 } from '../controllers/chat.controller';
 import authMiddleware from '../middlewares/authentication';
+import { rateLimitMiddleware } from '../middlewares/rateLimit';
 
 const chatRoute: Router = Router();
 
@@ -79,7 +83,24 @@ chatRoute.post('/conversation', getOrCreateConversation);
  *                 example: 3
  *               content:
  *                 type: string
+ *                 description: Message content (plain text for unencrypted messages)
  *                 example: Hey! How are you?
+ *               encryptedContent:
+ *                 type: string
+ *                 description: AES encrypted message content (base64)
+ *                 example: U2FsdGVkX1...
+ *               iv:
+ *                 type: string
+ *                 description: Initialization Vector for AES encryption (base64)
+ *                 example: 5fY3X8k2...
+ *               encryptedAESKey:
+ *                 type: string
+ *                 description: AES key encrypted with recipient's RSA public key (base64)
+ *                 example: abc123...
+ *               aesKey:
+ *                 type: string
+ *                 description: Plain AES key (stored for sender to decrypt own messages)
+ *                 example: xyz789...
  *               messageType:
  *                 type: string
  *                 enum: [TEXT, PRODUCT, IMAGE]
@@ -91,13 +112,29 @@ chatRoute.post('/conversation', getOrCreateConversation);
  *               imageUrl:
  *                 type: string
  *                 example: https://example.com/image.jpg
+ *               isEncrypted:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Set to true if using E2E encryption (AES hybrid)
+ *                 example: false
  *           examples:
  *             textMessage:
- *               summary: Send text message
+ *               summary: Send plain text message
  *               value:
  *                 conversationId: 3
  *                 content: Hey! How are you?
  *                 messageType: TEXT
+ *                 isEncrypted: false
+ *             encryptedMessage:
+ *               summary: Send E2E encrypted message (AES hybrid)
+ *               value:
+ *                 conversationId: 3
+ *                 encryptedContent: U2FsdGVkX1+abc123...
+ *                 iv: 5fY3X8k2...
+ *                 encryptedAESKey: rsa_encrypted_aes_key_base64...
+ *                 aesKey: plain_aes_key_for_sender...
+ *                 messageType: TEXT
+ *                 isEncrypted: true
  *             productMessage:
  *               summary: Send product message
  *               value:
@@ -114,8 +151,10 @@ chatRoute.post('/conversation', getOrCreateConversation);
  *     responses:
  *       201:
  *         description: Message sent
+ *       429:
+ *         description: Rate limit exceeded (max 30 messages per minute)
  */
-chatRoute.post('/message', sendMessage);
+chatRoute.post('/message', rateLimitMiddleware('send-message', 30, 60), sendMessage);
 
 /**
  * @swagger
@@ -207,6 +246,106 @@ chatRoute.put('/messages/read/:conversationId', markMessagesAsRead);
  *       201:
  *         description: Product shared successfully
  */
-chatRoute.post('/share-product', shareProduct);
+chatRoute.post('/share-product', rateLimitMiddleware('share-product', 20, 60), shareProduct);
+
+/**
+ * @swagger
+ * /chat/public-key:
+ *   post:
+ *     summary: Get another user's public encryption key (E2E)
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - otherUserId
+ *             properties:
+ *               otherUserId:
+ *                 type: integer
+ *                 description: The friend's user ID
+ *     responses:
+ *       200:
+ *         description: Friend's public key with device and timestamp
+ *       403:
+ *         description: Not friends with this user
+ */
+chatRoute.get('/public-key/:otherUserId', getUserPublicKey);
+
+/**
+ * @swagger
+ * /chat/setup-encryption:
+ *   post:
+ *     summary: Set up or update encryption keys with server backup
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - publicKey
+ *             properties:
+ *               publicKey:
+ *                 type: string
+ *                 description: RSA public key in PEM format
+ *               encryptedPrivateKey:
+ *                 type: string
+ *                 description: Private key encrypted with user's PIN (for server backup)
+ *               privateKeyIV:
+ *                 type: string
+ *                 description: IV used to encrypt the private key
+ *               deviceId:
+ *                 type: string
+ *                 description: Device identifier (e.g., "Chrome on Windows", "iPhone 15")
+ *     responses:
+ *       200:
+ *         description: Encryption setup successful
+ */
+chatRoute.post('/setup-encryption', setupEncryption);
+
+/**
+ * @swagger
+ * /chat/encrypted-keys:
+ *   get:
+ *     summary: Retrieve encrypted private key backup from server
+ *     description: Used to restore encryption keys on a new device using PIN
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Encrypted private key backup retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 encryptedPrivateKey:
+ *                   type: string
+ *                   description: Private key encrypted with user's PIN
+ *                 privateKeyIV:
+ *                   type: string
+ *                   description: IV for decryption
+ *                 publicKey:
+ *                   type: string
+ *                   description: User's public key
+ *                 device:
+ *                   type: string
+ *                   description: Device that created these keys
+ *                 lastUpdated:
+ *                   type: string
+ *                   format: date-time
+ *       404:
+ *         description: No encrypted keys found on server
+ */
+chatRoute.get('/encrypted-keys', getEncryptedKeys);
 
 export default chatRoute;

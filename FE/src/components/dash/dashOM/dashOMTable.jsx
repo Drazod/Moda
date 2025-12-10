@@ -26,7 +26,25 @@ const DashOMTable = () => {
             setLoading(true);
             const res = await axiosInstance.get('/order/admin-list');
             if (Array.isArray(res.data?.orders)) {
-                setOrders(res.data.orders);
+                // Flatten orders into individual transaction details
+                const flattenedOrders = res.data.orders.flatMap(order => 
+                    (order.items || []).map(item => ({
+                        orderId: order.orderId,
+                        transactionDetailId: item.transactionDetailId,
+                        customerName: order.customerName,
+                        customerEmail: order.customerEmail,
+                        item: `${item.clothesName} (${item.size})`,
+                        quantity: item.originalQuantity,
+                        unitPrice: item.unitPrice,
+                        date: order.date,
+                        time: order.time,
+                        status: item.state,
+                        method: order.method,
+                        shippingAddress: item.shippingAddress,
+                        refundStatus: item.refundStatus,
+                    }))
+                );
+                setOrders(flattenedOrders);
             }
         } catch (err) {
             setError('Failed to fetch orders');
@@ -64,15 +82,15 @@ const DashOMTable = () => {
         return price;
     };
 
-    const handleStatusChange = async (orderId, newStatus) => {
+    const handleStatusChange = async (transactionDetailId, newStatus) => {
         try {
-            await axiosInstance.put(`/shipping/${orderId}/state`, {
-                orderId,
+            await axiosInstance.put(`/shipping/${transactionDetailId}/state`, {
+                transactionDetailId,
                 state: newStatus,
             });
             setOrders((prev) =>
                 prev.map((order) =>
-                    order.orderId === orderId ? { ...order, status: newStatus } : order
+                    order.transactionDetailId === transactionDetailId ? { ...order, status: newStatus } : order
                 )
             );
             setEditingStatusId(null);
@@ -91,10 +109,11 @@ const DashOMTable = () => {
         const s = search.trim().toLowerCase();
         filteredOrders = filteredOrders.filter((o) =>
             o.orderId.toString().includes(s) ||
-            (o.customerName && o.customerName.toLowerCase().includes(s))
+            (o.customerName && o.customerName.toLowerCase().includes(s)) ||
+            (o.item && o.item.toLowerCase().includes(s))
         );
     }
-    filteredOrders = [...filteredOrders].sort((a, b) => sortAsc ? a.orderId - b.orderId : b.orderId - a.orderId);
+    filteredOrders = [...filteredOrders].sort((a, b) => sortAsc ? a.transactionDetailId - b.transactionDetailId : b.transactionDetailId - a.transactionDetailId);
 
     return (
         <div className="bg-white p-6 rounded-2xl shadow-sm w-full">
@@ -128,7 +147,8 @@ const DashOMTable = () => {
                 <thead>
                     <tr className="text-gray-500 border-b">
                         <th className="py-3 font-medium">Order Id</th>
-                        <th className="py-3 font-medium">Customer name</th>
+                        <th className="py-3 font-medium">Item</th>
+                        <th className="py-3 font-medium">Customer</th>
                         <th className="py-3 font-medium">Date</th>
                         <th className="py-3 font-medium">Status</th>
                         <th className="py-3 font-medium text-right">Price</th>
@@ -137,42 +157,43 @@ const DashOMTable = () => {
                 <tbody>
                     {loading ? (
                         <tr>
-                            <td colSpan={5} className="py-8 text-center text-gray-400">Loading...</td>
+                            <td colSpan={6} className="py-8 text-center text-gray-400">Loading...</td>
                         </tr>
                     ) : error ? (
                         <tr>
-                            <td colSpan={5} className="py-8 text-center text-red-500">{error}</td>
+                            <td colSpan={6} className="py-8 text-center text-red-500">{error}</td>
                         </tr>
                     ) : filteredOrders.length === 0 ? (
                         <tr>
-                            <td colSpan={5} className="py-8 text-center text-gray-400">No orders found.</td>
+                            <td colSpan={6} className="py-8 text-center text-gray-400">No orders found.</td>
                         </tr>
                     ) : (
                         filteredOrders.map((order) => (
-                            <tr key={order.orderId} className="border-b last:border-b-0">
-                                <td className="py-4 font-semibold">#{order.orderId}</td>
+                            <tr key={order.transactionDetailId} className="border-b last:border-b-0">
+                                <td className="py-4 font-semibold">{order.orderId}</td>
+                                <td className="py-4">{order.item} x{order.quantity}</td>
                                 <td className="py-4">{order.customerName}</td>
                                 <td className="py-4">{formatDate(order.date)}</td>
                                 <td className="py-4">
-                                    {editingStatusId === order.orderId ? (
+                                    {editingStatusId === order.transactionDetailId ? (
                                     <CustomStatusDropdown
                                     value={order.status}
                                     options={STATUS_OPTIONS}
-                                    onChange={(newStatus) => handleStatusChange(order.orderId, newStatus)}
+                                    onChange={(newStatus) => handleStatusChange(order.transactionDetailId, newStatus)}
                                     onBlur={() => setEditingStatusId(null)}
                                     getStatusClass={getStatusClass}
                                     />
                                     ) : (
                                         <span
                                             className={`px-3 py-1 text-sm rounded-full cursor-pointer ${getStatusClass(order.status)}`}
-                                            onClick={() => setEditingStatusId(order.orderId)}
+                                            onClick={() => setEditingStatusId(order.transactionDetailId)}
                                             title="Click to change status"
                                         >
                                             {order.status}
                                         </span>
                                     )}
                                 </td>
-                                <td className="py-4 text-right">{formatPrice(order.price)}</td>
+                                <td className="py-4 text-right">{formatPrice(order.unitPrice)}</td>
                             </tr>
                         ))
                     )}

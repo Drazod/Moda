@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
     "start": "nodemon --exec ts-node src/index.ts",
     "clear": "rmdir /s /q build",
     "build": "tsc"
@@ -47,6 +48,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^7.0.6",
     "openai": "^5.22.0",
+    "redis": "^5.10.0",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",

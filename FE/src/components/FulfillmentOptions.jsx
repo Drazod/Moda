@@ -11,17 +11,25 @@ import { IoStorefront, IoHome, IoInformationCircle } from 'react-icons/io5';
  * @param {Function} onSelect - Callback when fulfillment option is selected
  */
 const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) => {
-  const [fulfillmentMethod, setFulfillmentMethod] = useState('ship'); // 'ship' or 'pickup'
+  // ============================================================================
+  // STATE
+  // ============================================================================
+  const [fulfillmentMethod, setFulfillmentMethod] = useState('ship');
   const [selectedStore, setSelectedStore] = useState(null);
   const [allocation, setAllocation] = useState(null);
   const [pickupOptions, setPickupOptions] = useState(null);
 
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
   useEffect(() => {
     if (!product || !selectedSize || !requestedQty) return;
-    
     calculateAllocation();
   }, [product, selectedSize, requestedQty, fulfillmentMethod, selectedStore]);
 
+  // ============================================================================
+  // ALLOCATION LOGIC
+  // ============================================================================
   const calculateAllocation = () => {
     const sizeData = product.sizes?.find(s => s.label === selectedSize);
     if (!sizeData) return;
@@ -60,11 +68,11 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
       });
     }
 
-    // If need more, allocate from stores
+    // Allocate from stores if needed
     if (remaining > 0) {
       const availableStores = stores
         .filter(s => s.quantity > 0)
-        .sort((a, b) => b.quantity - a.quantity); // Prefer stores with more inventory
+        .sort((a, b) => b.quantity - a.quantity);
 
       for (const store of availableStores) {
         if (remaining <= 0) break;
@@ -107,7 +115,7 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
       choices: []
     };
 
-    // Option 1: Pick up what's available now + ship the rest
+    // Build pickup options based on availability
     if (shortage > 0 && warehouseQty > 0) {
       options.choices.push({
         id: 'split',
@@ -119,10 +127,9 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
       });
     }
 
-    // Option 2: Pick up all later (after transfer from warehouse)
     if (shortage > 0 && warehouseQty >= shortage) {
       const eta = new Date();
-      eta.setDate(eta.getDate() + 3); // 3 days for transfer
+      eta.setDate(eta.getDate() + 3);
       options.choices.push({
         id: 'transfer',
         label: `Pick up all ${requestedQty} later`,
@@ -135,7 +142,6 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
       });
     }
 
-    // Option 3: Reduce quantity to available stock
     if (storeQty > 0) {
       options.choices.push({
         id: 'reduce',
@@ -147,7 +153,6 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
       });
     }
 
-    // Option 4: Ship all if can't pickup enough
     if (warehouseQty >= requestedQty) {
       options.choices.push({
         id: 'ship-all',
@@ -162,6 +167,9 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
     setPickupOptions(options);
   };
 
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // ============================================================================
   const getStoresWithInventory = () => {
     const sizeData = product.sizes?.find(s => s.label === selectedSize);
     if (!sizeData) return [];
@@ -171,6 +179,9 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
       .sort((a, b) => b.quantity - a.quantity);
   };
 
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
   const handleMethodChange = (method) => {
     setFulfillmentMethod(method);
     if (method === 'ship') {
@@ -200,7 +211,14 @@ const FulfillmentOptions = ({ product, selectedSize, requestedQty, onSelect }) =
     });
   };
 
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
   const stores = getStoresWithInventory();
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
     <div className="bg-[#434237] text-[#F5F5F5] border border-gray-200 rounded-lg p-6 mt-6 ">

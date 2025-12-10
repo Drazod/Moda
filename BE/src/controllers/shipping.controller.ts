@@ -3,21 +3,22 @@ import { prisma } from "..";
 import { createOrderNoticeForUser } from "./notice.controller";
 
 export const updateShippingState = async (req: Request, res: Response) => {
-  const { id } = req.params; // order id (transId)
+  const { id } = req.params; // transaction detail id (transactionDetailId)
   const { state } = req.body; // new state: "SHIPPING" or "COMPLETE"
 
   try {
     // Update shipping state
     const shipping = await prisma.shipping.update({
-      where: { transId: parseInt(id) },
+      where: { transactionDetailId: parseInt(id) },
       data: { State: state },
     });
 
     // Find the transaction to get userId
-    const transaction = await prisma.transaction.findUnique({
+    const transactionDetail = await prisma.transactionDetail.findUnique({
       where: { id: parseInt(id) },
-      select: { userId: true }
+      include: { transaction: { select: { userId: true } } }
     });
+    const transaction = transactionDetail?.transaction;
 
     // If userId found, create a notice for the user
     if (transaction && transaction.userId) {

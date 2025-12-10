@@ -6,6 +6,7 @@ import typeRoute from "./type.routes";
 import cartItemRoute from "./cartItem.routes";
 import userRoute from "./user.routes";
 import vnpayRoutes from "./vnpay.routes"; // Add this line
+import momoRoutes from "./momo.routes"; // MoMo payment routes
 import uploadRoute from "./upload.routes"; // Add this line
 
 import logRoute from "./log.routes";
@@ -35,6 +36,7 @@ route.use('/category', typeRoute);
 route.use('/cartItem', cartItemRoute);
 route.use('/user', userRoute);
 route.use('/vnpay', vnpayRoutes); 
+route.use('/momo', momoRoutes); // MoMo payment routes
 route.use('/file', uploadRoute);
 route.use('/admin', adminRoute);
 route.use('/metrics', metricRoute);

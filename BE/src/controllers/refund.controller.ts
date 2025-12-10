@@ -23,11 +23,8 @@ export const requestRefund = async (req: Request, res: Response) => {
         }
       },
       include: {
-        transaction: {
-          include: {
-            shipping: true
-          }
-        },
+        transaction: true,
+        shipping: true,
         clothes: true,
         size: true
       }
@@ -38,7 +35,7 @@ export const requestRefund = async (req: Request, res: Response) => {
     }
 
     // Check if order is completed (can only refund completed orders)
-    const shipping = transactionDetail.transaction.shipping[0];
+    const shipping = transactionDetail.shipping;
     if (!shipping || shipping.State !== 'COMPLETE') {
       return res.status(400).json({ message: 'Can only refund items from completed orders' });
     }
@@ -142,6 +139,24 @@ export const getAllRefundRequests = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Admin access required' });
     }
 
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // If not HOST, check if user is a branch manager
+    let managedBranchId: number | null = null;
+    if (userRole !== 'HOST') {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { managedBranch: true }
+      });
+
+      if (!user?.managedBranch) {
+        return res.status(403).json({ message: "Access denied. You are not a branch manager." });
+      }
+
+      managedBranchId = user.managedBranch.id;
+    }
+
     const { status } = req.query;
     const whereClause: any = {};
     
@@ -159,14 +174,20 @@ export const getAllRefundRequests = async (req: Request, res: Response) => {
           include: {
             clothes: true,
             size: true,
-            transaction: true
+            transaction: true,
+            shipping: true
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    res.status(200).json({ refunds });
+    // Filter refunds for branch manager - only show refunds for items from their branch
+    const filteredRefunds = managedBranchId
+      ? refunds.filter(refund => refund.transactionDetail.shipping?.branchId === managedBranchId)
+      : refunds;
+
+    res.status(200).json({ refunds: filteredRefunds });
   } catch (error) {
     console.error('Get all refund requests error:', error);
     res.status(500).json({ message: 'Internal server error' });

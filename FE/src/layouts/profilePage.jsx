@@ -122,13 +122,17 @@ export default function ProfilePage() {
         />
 
         <OrderStatusCard
-          items={transactions.map(tx => ({
-            id: tx.orderId,
-            item: tx.detail ? tx.detail : '',
-            date: (typeof tx.date === 'string' && tx.date.includes(',')) ? tx.date.split(',')[1].trim() : tx.date,
-            price: tx.price,
-            status: tx.state || 'unknown',
-          }))}
+          items={transactions.flatMap(tx => 
+            (tx.items || []).map(item => ({
+              id: tx.orderId,
+              transactionDetailId: item.transactionDetailId,
+              item: `${item.clothesName} (${item.size})`,
+              date: (typeof tx.date === 'string' && tx.date.includes(',')) ? tx.date.split(',')[1].trim() : tx.date,
+              price: item.unitPrice,
+              status: item.state || 'unknown',
+              quantity: item.originalQuantity,
+            }))
+          )}
         />
       </div>
     </div>

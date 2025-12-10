@@ -1,34 +1,51 @@
-
-
 import SideNav from '../components/SideNav';
 import CartModal from './cart';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { 
-  IoSend, 
-  IoArrowBack,
-  IoImageOutline,
   IoShareSocialOutline,
+  IoImageOutline,
   IoPaperPlaneOutline,
   IoCreateOutline,
   IoSearchOutline,
-  IoInformationCircleOutline
+  IoInformationCircleOutline,
+  IoShieldCheckmarkOutline,
+  IoWarningOutline
 } from 'react-icons/io5';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axiosInstance from '../configs/axiosInstance';
 import { useAuth } from '../context/AuthContext';
+import {
+  generateKeyPair,
+  exportPublicKey,
+  exportPrivateKey,
+  importPublicKey,
+  importPrivateKey,
+  encryptMessageAES,
+  decryptMessageAES,
+  decryptMessageWithAESKey,
+  encryptPrivateKeyForBackup,
+  decryptPrivateKeyFromBackup,
+  storeKeysSecurely,
+  retrieveStoredKeys,
+  retrieveKeysFromServer,
+  hasStoredKeys,
+  verifyPin,
+  getDeviceIdentifier
+} from '../utils/encryption';
 
-const SOCKET_URL = "http://localhost:4000"; // Chat socket URL
+const SOCKET_URL = "http://localhost:4000";
 
 const ChatPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const messagesEndRef = useRef(null);
-  const socketRef = useRef(null); // ✅ Store socket in ref to prevent recreation
+  const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const selectedConversationRef = useRef(null); // ✅ Store selected conversation in ref
+  const selectedConversationRef = useRef(null);
   const { user } = useAuth();
+  
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -37,50 +54,281 @@ const ChatPage = () => {
   const [sending, setSending] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isTyping, setIsTyping] = useState(false); // ✅ Typing indicator state
-  const [typingUser, setTypingUser] = useState(null); // ✅ Who is typing
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUser, setTypingUser] = useState(null);
+  
+  const [hasKeys, setHasKeys] = useState(false);
+  const [publicKey, setPublicKey] = useState(null);
+  const [privateKey, setPrivateKey] = useState(null);
+  const [encryptionStatus, setEncryptionStatus] = useState('initializing');
+  const [friendPublicKeys, setFriendPublicKeys] = useState({});
+  
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [isSettingPin, setIsSettingPin] = useState(false);
+  const [confirmPin, setConfirmPin] = useState('');
 
-  // ✅ Update ref whenever selectedConversation changes
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
-  // ✅ Initialize Socket.IO connection (only once)
+  useEffect(() => {
+    if (user?.id && !hasKeys) {
+      checkEncryptionStatus();
+    }
+  }, [user?.id, hasKeys]);
+
+  const checkEncryptionStatus = async () => {
+    try {
+      // Step 1: Check localStorage
+      const hasLocal = hasStoredKeys();
+      
+      // Step 2: Check IndexedDB
+      let hasIndexedDB = false;
+      try {
+        const db = await indexedDB.open('ModaChatEncryption', 1);
+        const transaction = db.transaction(['keys'], 'readonly');
+        const store = transaction.objectStore('keys');
+        const privateKey = await new Promise((resolve, reject) => {
+          const request = store.get('privateKey');
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        hasIndexedDB = !!privateKey;
+      } catch (dbError) {
+        console.log('IndexedDB check failed:', dbError);
+      }
+      
+      // Step 3: Check server
+      let hasServer = false;
+      try {
+        const response = await axiosInstance.get('/chat/encrypted-keys');
+        hasServer = !!(response.data?.encryptedPrivateKey && response.data?.privateKeyIV);
+      } catch (serverError) {
+        console.log('Server check failed:', serverError);
+      }
+      
+      console.log('🔍 Encryption status:', { hasLocal, hasIndexedDB, hasServer });
+      
+      // Decide what to do
+      if (hasLocal || hasIndexedDB || hasServer) {
+        // Keys exist somewhere, ask for PIN to unlock
+        setShowPinModal(true);
+        setIsSettingPin(false);
+      } else {
+        // No keys anywhere, need to set up new encryption
+        setShowPinModal(true);
+        setIsSettingPin(true);
+      }
+    } catch (error) {
+      console.error('Failed to check encryption status:', error);
+      // Default to setup mode on error
+      setShowPinModal(true);
+      setIsSettingPin(true);
+    }
+  };
+
+  const handlePinSubmit = async () => {
+    setPinError('');
+    
+    // Trim PIN to remove any accidental whitespace
+    const trimmedPin = pinInput.trim();
+    
+    if (isSettingPin) {
+      if (trimmedPin.length < 4) {
+        setPinError('PIN must be at least 4 digits');
+        return;
+      }
+      if (trimmedPin !== confirmPin.trim()) {
+        setPinError('PINs do not match');
+        return;
+      }
+      await setupEncryptionWithPin(trimmedPin);
+    } else {
+      // Check if we have a local token
+      const hasLocalToken = localStorage.getItem('chat_pin_token');
+      
+      if (hasLocalToken) {
+        // Verify PIN against local token
+        const isValid = await verifyPin(trimmedPin);
+        if (!isValid) {
+          setPinError('Incorrect PIN');
+          return;
+        }
+      }
+      // If no local token OR token verified, try to load keys (will fetch from server if needed)
+      await loadEncryptionKeys(trimmedPin);
+    }
+  };
+
+  const setupEncryptionWithPin = async (pin) => {
+    setEncryptionStatus('initializing');
+    
+    try {
+      const { publicKey: newPublicKey, privateKey: newPrivateKey } = await generateKeyPair();
+      const publicKeyPem = await exportPublicKey(newPublicKey);
+      
+      // Export private key for server backup (encrypted with PIN)
+      const privateKeyPem = await exportPrivateKey(newPrivateKey);
+      const { encryptedPrivateKey, iv } = await encryptPrivateKeyForBackup(privateKeyPem, pin);
+      
+      // Store non-extractable private key in IndexedDB locally
+      await storeKeysSecurely(publicKeyPem, newPrivateKey, pin);
+      
+      // Upload public key + encrypted private key to server
+      await axiosInstance.post('/chat/setup-encryption', {
+        publicKey: publicKeyPem,
+        encryptedPrivateKey: encryptedPrivateKey,
+        privateKeyIV: iv,
+        deviceId: getDeviceIdentifier()
+      });
+      
+      setPublicKey(newPublicKey);
+      setPrivateKey(newPrivateKey);
+      setHasKeys(true);
+      setEncryptionStatus('ready');
+      setShowPinModal(false);
+      setPinInput('');
+      setConfirmPin('');
+      toast.success('🔐 Secure messaging enabled');
+    } catch (error) {
+      console.error('Encryption setup failed:', error);
+      setEncryptionStatus('error');
+      setPinError('Failed to setup encryption');
+    }
+  };
+
+  const loadEncryptionKeys = async (pin) => {
+    setEncryptionStatus('initializing');
+    
+    // Check if we have local storage token
+    const hasLocal = hasStoredKeys();
+    
+    if (hasLocal) {
+      // We have localStorage token, use it to verify PIN locally
+      try {
+        const storedKeys = await retrieveStoredKeys(pin);
+        
+        if (storedKeys.publicKeyPem && storedKeys.privateKey) {
+          const importedPublicKey = await importPublicKey(storedKeys.publicKeyPem);
+          
+          setPublicKey(importedPublicKey);
+          setPrivateKey(storedKeys.privateKey);
+          setHasKeys(true);
+          setEncryptionStatus('ready');
+          setShowPinModal(false);
+          setPinInput('');
+          console.log('✅ Keys loaded from local storage');
+          return;
+        }
+      } catch (localError) {
+        console.log('❌ Local PIN verification failed:', localError.message);
+        setPinError('Incorrect PIN');
+        setEncryptionStatus('error');
+        return;
+      }
+    }
+    
+    // No local token yet - retrieve from server
+    // PIN will be verified by attempting to decrypt the server backup
+    // If decryption succeeds = PIN correct, then we create the token
+    try {
+      console.log('📡 No local token, fetching encrypted keys from server...');
+      const response = await axiosInstance.get('/chat/encrypted-keys');
+      const serverKeys = response.data;
+      
+      console.log('📦 Server keys:', { 
+        hasEncryptedKey: !!serverKeys.encryptedPrivateKey, 
+        hasIV: !!serverKeys.privateKeyIV,
+        hasPublicKey: !!serverKeys.publicKey 
+      });
+      
+      if (serverKeys.encryptedPrivateKey && serverKeys.privateKeyIV) {
+        const serverData = {
+          encryptedPrivateKey: serverKeys.encryptedPrivateKey,
+          iv: serverKeys.privateKeyIV,
+          publicKey: serverKeys.publicKey
+        };
+        
+        console.log('🔓 Decrypting server backup with your PIN...');
+        console.log('Server encrypted key preview:', serverKeys.encryptedPrivateKey.substring(0, 50) + '...');
+        console.log('Server IV preview:', serverKeys.privateKeyIV.substring(0, 20) + '...');
+        
+        // retrieveKeysFromServer will:
+        // 1. Decrypt with PIN (if wrong PIN, decryption fails = PIN verification)
+        // 2. Store private key in IndexedDB as non-extractable
+        // 3. CREATE localStorage token (for future fast PIN verification)
+        const restoredKeys = await retrieveKeysFromServer(serverData, pin);
+        const importedPublicKey = await importPublicKey(restoredKeys.publicKeyPem);
+        
+        setPublicKey(importedPublicKey);
+        setPrivateKey(restoredKeys.privateKey);
+        setHasKeys(true);
+        setEncryptionStatus('ready');
+        setShowPinModal(false);
+        setPinInput('');
+        toast.success('🔐 Keys restored from server');
+        console.log('✅ Token created in localStorage for future use');
+      } else {
+        throw new Error('No keys found on server');
+      }
+    } catch (serverError) {
+      console.error('❌ Failed to retrieve from server:', serverError);
+      setPinError('Incorrect PIN or no encryption keys found');
+      setEncryptionStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    if (selectedConversation && hasKeys) {
+      fetchFriendPublicKey(selectedConversation);
+    }
+  }, [selectedConversation?.id, hasKeys]);
+
+  const fetchFriendPublicKey = async (conversation) => {
+    try {
+      const friendId = conversation.otherUser?.id;
+      
+      if (friendPublicKeys[friendId]) return;
+      
+      const response = await axiosInstance.get(`/chat/public-key/${friendId}`);
+      const friendPublicKeyPem = response.data.publicKey;
+      
+      if (!friendPublicKeyPem) return;
+      
+      const friendPublicKey = await importPublicKey(friendPublicKeyPem);
+      setFriendPublicKeys(prev => ({ ...prev, [friendId]: friendPublicKey }));
+    } catch (error) {
+      console.error('Failed to fetch friend public key:', error);
+    }
+  };
+
   useEffect(() => {
     if (!user?.id) return;
 
-    // Create socket connection
     socketRef.current = io(SOCKET_URL, {
       query: { userId: user.id },
       transports: ["websocket"],
     });
 
-    // ✅ Listen for new messages
-    socketRef.current.on('new-message', ({ conversationId, message }) => {
-      console.log('📨 New message received:', message);
-      
-      // Add message to current conversation if it's selected
+    socketRef.current.on('new-message', async ({ conversationId, message }) => {
+      // Wait for decryption to complete before adding to state
+  
+      console.log('🔔 New message received:', decryptedMessage);
       if (selectedConversationRef.current?.id === conversationId) {
         setMessages(prev => {
-          // ✅ Prevent duplicates (in case server sends back our own message)
-          const exists = prev.some(m => m.id === message.id);
+          const exists = prev.some(m => m.id === decryptedMessage.id);
           if (exists) return prev;
-          return [...prev, message];
+          return [...prev, decryptedMessage];
         });
-        
-        // Auto-mark as read if conversation is open
         markAsRead(conversationId);
       }
       
-      // ✅ Update specific conversation instead of fetching all
-      updateConversationInList(conversationId, message);
+      updateConversationInList(conversationId, decryptedMessage);
     });
 
-    // ✅ Listen for messages being read
-    socketRef.current.on('messages-read', ({ conversationId, readByUserId }) => {
-      console.log('✅ Messages marked as read in conversation:', conversationId);
-      
-      // Update messages in current conversation to mark as read
+    socketRef.current.on('messages-read', ({ conversationId }) => {
       if (selectedConversationRef.current?.id === conversationId) {
         setMessages(prev => 
           prev.map(msg => 
@@ -88,8 +336,6 @@ const ChatPage = () => {
           )
         );
       }
-      
-      // Update conversation list unread count
       setConversations(prev =>
         prev.map(conv =>
           conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
@@ -97,26 +343,57 @@ const ChatPage = () => {
       );
     });
 
-    // ✅ Listen for typing indicator
     socketRef.current.on('user-typing', ({ conversationId, userId, isTyping }) => {
       if (selectedConversationRef.current?.id === conversationId && userId !== user.id) {
         setIsTyping(isTyping);
-        if (isTyping) {
-          setTypingUser(userId);
-        } else {
-          setTypingUser(null);
-        }
+        setTypingUser(isTyping ? userId : null);
       }
     });
 
-    // ✅ Cleanup on unmount
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
     };
-  }, [user?.id]); // Only re-run if userId changes
+  }, [user?.id]);
+
+  const decryptIncomingMessage = async (message) => {
+    if (!message.isEncrypted || !privateKey) return message;
+
+    try {
+      const isSender = message.senderId === user.id;
+      let decryptedContent;
+      
+      if (isSender && message.aesKey) {
+        decryptedContent = await decryptMessageWithAESKey(
+          message.encryptedContent,
+          message.iv,
+          message.aesKey
+        );
+      } else if (message.encryptedAESKey) {
+        decryptedContent = await decryptMessageAES(
+          message.encryptedContent,
+          message.iv,
+          message.encryptedAESKey,
+          privateKey
+        );
+      } else {
+        throw new Error('Missing encryption data');
+      }
+      
+      // Ensure content is not empty
+      if (!decryptedContent || decryptedContent.trim() === '') {
+        console.error('Decryption returned empty content for message:', message.id);
+        return { ...message, content: '[Decryption error: empty content]', isEncrypted: true };
+      }
+      
+      return { ...message, content: decryptedContent, isEncrypted: true };
+    } catch (error) {
+      console.error('Message decryption failed:', error);
+      return { ...message, content: '[Unable to decrypt]', isEncrypted: true };
+    }
+  };
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -156,8 +433,7 @@ const ChatPage = () => {
     }
   };
 
-  // ✅ Update a specific conversation in the list (more efficient)
-  const updateConversationInList = async (conversationId, lastMessage) => {
+  const updateConversationInList = (conversationId, lastMessage) => {
     setConversations(prev => {
       const updated = prev.map(conv => {
         if (conv.id === conversationId) {
@@ -172,11 +448,7 @@ const ChatPage = () => {
         }
         return conv;
       });
-      
-      // Sort by most recent
-      return updated.sort((a, b) => 
-        new Date(b.updatedAt) - new Date(a.updatedAt)
-      );
+      return updated.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     });
   };
 
@@ -204,7 +476,59 @@ const ChatPage = () => {
       const params = { limit: 50 };
       if (before) params.before = before;
       const response = await axiosInstance.get(`/chat/messages/${conversationId}`, { params });
-      setMessages(response.data.messages || []);
+      const encryptedMessages = response.data.messages || [];
+      
+      // 🔐 Decrypt messages if they are encrypted (AES hybrid)
+      if (privateKey) {
+        const decryptedMessages = await Promise.all(
+          encryptedMessages.map(async (msg) => {
+            if (msg.isEncrypted) {
+              try {
+                let decryptedContent;
+                
+                // Check if sender or receiver
+                const isSender = msg.senderId === user.id;
+                
+                if (isSender && msg.aesKey) {
+                  // Sender: decrypt with plain AES key
+                  decryptedContent = await decryptMessageWithAESKey(
+                    msg.encryptedContent,
+                    msg.iv,
+                    msg.aesKey
+                  );
+                } else if (msg.encryptedAESKey) {
+                  // Receiver: decrypt AES key with private key, then decrypt message
+                  decryptedContent = await decryptMessageAES(
+                    msg.encryptedContent,
+                    msg.iv,
+                    msg.encryptedAESKey,
+                    privateKey
+                  );
+                } else {
+                  throw new Error('Missing encryption data');
+                }
+                
+                return {
+                  ...msg,
+                  content: decryptedContent,
+                  isEncrypted: true
+                };
+              } catch (error) {
+                console.error('❌ Failed to decrypt message:', msg.id, error);
+                return {
+                  ...msg,
+                  content: '[Encrypted - Unable to decrypt]',
+                  isEncrypted: true
+                };
+              }
+            }
+            return msg;
+          })
+        );
+        setMessages(decryptedMessages);
+      } else {
+        setMessages(encryptedMessages);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -217,16 +541,40 @@ const ChatPage = () => {
 
     setSending(true);
     try {
-      const response = await axiosInstance.post('/chat/message', {
+      const friendId = selectedConversation.otherUser?.id;
+      const friendPublicKey = friendPublicKeys[friendId];
+      
+      let messageData = {
         conversationId: selectedConversation.id,
         content: messageInput,
         messageType: 'TEXT'
-      });
+      };
 
-      // ✅ Extract message from response.data.data (check your API response structure)
-      const newMessage = response.data.data || response.data;
+      if (friendPublicKey && hasKeys && privateKey) {
+        try {
+          const encrypted = await encryptMessageAES(messageInput, privateKey, friendPublicKey);
+          messageData = {
+            ...messageData,
+            content: '',
+            encryptedContent: encrypted.encryptedContent,
+            iv: encrypted.iv,
+            encryptedAESKey: encrypted.encryptedAESKey,
+            aesKey: encrypted.aesKey,
+            isEncrypted: true
+          };
+        } catch (error) {
+          console.error('Encryption failed:', error);
+          toast.error('Failed to encrypt message');
+        }
+      }
+
+      const response = await axiosInstance.post('/chat/message', messageData);
+      let newMessage = response.data.data || response.data;
       
-      // ✅ Optimistically add message (socket will handle it for receiver)
+      if (newMessage.isEncrypted && messageInput) {
+        newMessage = { ...newMessage, content: messageInput, isEncrypted: true };
+      }
+      
       setMessages(prev => {
         const exists = prev.some(m => m.id === newMessage.id);
         if (exists) return prev;
@@ -234,11 +582,7 @@ const ChatPage = () => {
       });
       
       setMessageInput('');
-      
-      // ✅ Stop typing indicator
       emitTyping(false);
-      
-      // ✅ Update conversation list locally instead of refetching
       updateConversationInList(selectedConversation.id, newMessage);
     } catch (error) {
       toast.error('Failed to send message');
@@ -250,8 +594,6 @@ const ChatPage = () => {
   const markAsRead = async (conversationId) => {
     try {
       await axiosInstance.put(`/chat/messages/read/${conversationId}`);
-      
-      // Update local state immediately
       setConversations(prev =>
         prev.map(conv =>
           conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
@@ -262,54 +604,24 @@ const ChatPage = () => {
     }
   };
 
-  const shareProduct = async (productId) => {
-    if (!selectedConversation) return;
 
-    try {
-      const response = await axiosInstance.post('/chat/share-product', {
-        conversationId: selectedConversation.id,
-        productId,
-        message: `Check out this product!`
-      });
-
-      const newMessage = response.data.data || response.data;
-      setMessages(prev => [...prev, newMessage]);
-      updateConversationInList(selectedConversation.id, newMessage);
-      toast.success('Product shared!');
-    } catch (error) {
-      toast.error('Failed to share product');
-    }
-  };
-
-  // ✅ Handle typing indicator
   const handleTyping = (e) => {
     setMessageInput(e.target.value);
-    
     if (!socketRef.current || !selectedConversation) return;
     
-    // Emit typing event
     emitTyping(true);
     
-    // Clear previous timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // Stop typing after 2 seconds of no input
-    typingTimeoutRef.current = setTimeout(() => {
-      emitTyping(false);
-    }, 2000);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => emitTyping(false), 2000);
   };
 
   const emitTyping = (isTyping) => {
     if (!socketRef.current || !selectedConversation) return;
     
-    const receiverId = selectedConversation.user1Id === user.id 
-      ? selectedConversation.user2Id 
-      : selectedConversation.user1Id;
+    const receiverId = selectedConversation.otherUser?.id
     
     socketRef.current.emit('typing', {
-      conversationId: selectedConversation.id,
+      conversationId: selectedConversation.otherUser?.id,
       receiverId,
       isTyping
     });
@@ -334,12 +646,85 @@ const ChatPage = () => {
 
   return (
     <div className="flex h-screen relative-container text-[#353535]">
-      {/* Side Navigation */}
       <SideNav onCartOpen={() => setCartOpen(true)} />
 
-      {/* Chat Container - adjust margin for collapsed sidebar */}
+      {showPinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-[#434237] rounded-full flex items-center justify-center mx-auto mb-4">
+                <IoShieldCheckmarkOutline className="text-3xl text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">
+                {isSettingPin ? 'Set Up PIN' : 'Enter PIN'}
+              </h2>
+              <p className="text-gray-600">
+                {isSettingPin 
+                  ? 'Create a PIN to protect your encryption keys' 
+                  : 'Enter your PIN to access encrypted messages'}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {isSettingPin ? 'Create PIN' : 'PIN'}
+                </label>
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handlePinSubmit()}
+                  placeholder="Enter PIN"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#434237]"
+                  maxLength={6}
+                  autoFocus
+                />
+              </div>
+
+              {isSettingPin && (
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Confirm PIN
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handlePinSubmit()}
+                    placeholder="Confirm PIN"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#434237]"
+                    maxLength={6}
+                  />
+                </div>
+              )}
+
+              {pinError && (
+                <div className="flex items-center gap-2 text-red-500 text-sm">
+                  <IoWarningOutline />
+                  <span>{pinError}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handlePinSubmit}
+                disabled={!pinInput || (isSettingPin && !confirmPin)}
+                className="w-full bg-[#434237] text-white py-3 rounded-lg font-medium hover:bg-[#5a594f] disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {isSettingPin ? 'Set PIN' : 'Unlock'}
+              </button>
+
+              {isSettingPin && (
+                <p className="text-xs text-gray-500 text-center">
+                  ⚠️ Remember this PIN. You'll need it to access your messages.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 ml-20 flex ">
-        {/* Left Sidebar - Conversations List */}
         <div className="w-96 border-r-[0.1px] border-[#BFAF92] flex flex-col ">
           {/* Header */}
           <div className="p-4 ">
@@ -398,7 +783,8 @@ const ChatPage = () => {
             {conversations.length > 0 ? (
               conversations.map((conv) => {
                 const friend = conv.otherUser;
-                const isSelected = selectedConversation?.id === conv.id;
+                console.log(friend)
+                const isSelected = selectedConversation?.otherUser?.id === friend?.id;
                 return (
                   <div
                     key={conv.id}
@@ -472,6 +858,19 @@ const ChatPage = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-sm">{selectedConversation.otherUser?.name}</h3>
+                    {/* 🔐 Encryption Status */}
+                    {encryptionStatus === 'ready' && (
+                      <div className="flex items-center gap-1 text-xs text-green-500">
+                        <IoShieldCheckmarkOutline className="text-sm" />
+                        <span>End-to-end encrypted</span>
+                      </div>
+                    )}
+                    {encryptionStatus === 'error' && (
+                      <div className="flex items-center gap-1 text-xs text-red-500">
+                        <IoWarningOutline className="text-sm" />
+                        <span>Encryption unavailable</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -494,7 +893,7 @@ const ChatPage = () => {
                         <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                           {!isOwn && (
                             <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold mr-2 flex-shrink-0">
-                              <img src={selectedConversation.user1?.avatar.url || ""} alt={selectedConversation.user1?.name || "User"} />
+                              <img src={selectedConversation.otherUser?.avatar?.url || ""} alt={selectedConversation.otherUser?.name || "User"} />
                             </div>
                           )}
                           
@@ -504,6 +903,13 @@ const ChatPage = () => {
                                 isOwn ? 'bg-[#434237] text-white' : 'bg-[#BFAF92]/50 text-black'
                               }`}>
                                 <p className="text-sm">{msg.content}</p>
+                                {/* 🔐 Encryption indicator */}
+                                {msg.isEncrypted && (
+                                  <div className="flex items-center gap-1 mt-1 text-xs opacity-70">
+                                    <IoShieldCheckmarkOutline className="text-xs" />
+                                    <span>Encrypted</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                             

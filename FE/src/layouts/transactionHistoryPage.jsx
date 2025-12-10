@@ -30,7 +30,6 @@ export default function TransactionHistoryPage() {
             orderId: transaction.orderId,
             date: transaction.date,
             time: transaction.time,
-            transactionState: transaction.state,
             totalPrice: transaction.price,
             canRefundAny: transaction.canRefundAny,
             items: transaction.items.map(item => ({
@@ -39,7 +38,6 @@ export default function TransactionHistoryPage() {
               orderId: transaction.orderId,
               date: transaction.date,
               time: transaction.time,
-              transactionState: transaction.state,
               id: item.transactionDetailId
             }))
           }));
@@ -131,7 +129,6 @@ export default function TransactionHistoryPage() {
           orderId: transaction.orderId,
           date: transaction.date,
           time: transaction.time,
-          transactionState: transaction.state,
           totalPrice: transaction.price,
           canRefundAny: transaction.canRefundAny,
           items: transaction.items.map(item => ({
@@ -140,7 +137,6 @@ export default function TransactionHistoryPage() {
             orderId: transaction.orderId,
             date: transaction.date,
             time: transaction.time,
-            transactionState: transaction.state,
             id: item.transactionDetailId
           }))
         }));
@@ -231,12 +227,14 @@ export default function TransactionHistoryPage() {
                     </div>
                     <div className="w-[100px] text-base">
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        order.transactionState === 'COMPLETE' ? 'bg-green-100 text-green-800' :
-                        order.transactionState === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                        order.transactionState === 'CANCELLED' ? 'bg-red-100 text-red-800' :
+                        order.items.every(item => item.state === 'COMPLETE') ? 'bg-green-100 text-green-800' :
+                        order.items.some(item => item.state === 'SHIPPING') ? 'bg-blue-100 text-blue-800' :
+                        order.items.some(item => item.state === 'ORDERED') ? 'bg-yellow-100 text-yellow-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                        {order.transactionState || 'PENDING'}
+                        {order.items.every(item => item.state === 'COMPLETE') ? 'COMPLETE' :
+                         order.items.some(item => item.state === 'SHIPPING') ? 'SHIPPING' :
+                         order.items.some(item => item.state === 'ORDERED') ? 'ORDERED' : 'PENDING'}
                       </span>
                     </div>
                     <div className="w-[100px] text-base text-[#434237]">
@@ -260,7 +258,7 @@ export default function TransactionHistoryPage() {
                       {order.items.map((item, itemIdx) => {
                         const quantity = item.originalQuantity || item.quantity || 0;
                         const availableForRefund = item.availableForRefund || (quantity - (item.refundedQuantity || 0));
-                        const canRefund = item.canRefund || (availableForRefund > 0 && item.transactionState === 'COMPLETE');
+                        const canRefund = item.canRefund || (availableForRefund > 0 && item.state === 'COMPLETE');
                         
                         return (
                           <div key={item.id || itemIdx} className="flex items-center py-2 text-sm">
@@ -289,7 +287,7 @@ export default function TransactionHistoryPage() {
                               >
                                 <FiRefreshCw size={16} />
                               </button>
-                              {order.transactionState === 'COMPLETE' && (
+                              {item.state === 'COMPLETE' && (
                                 <button 
                                   onClick={() => handleCommentRequest(item)}
                                   className="hover:text-[#434237] text-green-600"

@@ -6,7 +6,7 @@ function Step({ active, label, children, color }) {
     <div className="flex flex-col items-center gap-2 min-w-[80px]">
       <div
         className={`grid h-10 w-12 place-items-center rounded-md border transition-all duration-200
-          ${active ? `bg-white border-${color}` : "bg-white/30 border-black/10"}`}
+          ${active ? `bg-white ` : "bg-white/30 border-black/10"}`}
       >
         {children}
       </div>
@@ -27,17 +27,17 @@ function OrderStatusCard({ items = [] }) {
   const statusMap = {
     prepare: { label: "ORDERED", color: "green-600" },
     ongoing: { label: "SHIPPING", color: "gray-700" },
-    completed: { label: "COMPLETED", color: "black" },
+    completed: { label: "COMPLETE", color: "black" },
   };
   const [minimized, setMinimized] = useState({});
 
-  const toggleMinimize = (id) => {
-    setMinimized((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleMinimize = (transactionDetailId) => {
+    setMinimized((prev) => ({ ...prev, [transactionDetailId]: !prev[transactionDetailId] }));
   };
 
   // Check if an item is minimized - default to true (closed)
-  const isMinimized = (id) => {
-    return minimized[id] !== false; // Default to true (closed) if not set
+  const isMinimized = (transactionDetailId) => {
+    return minimized[transactionDetailId] !== false; // Default to true (closed) if not set
   };
 
   return (
@@ -52,23 +52,24 @@ function OrderStatusCard({ items = [] }) {
         <div className="space-y-3 px-5 pb-3 pt-3">
           {paginatedItems.map((o) => {
             const status = o.status || "prepare";
+            console.log("Rendering order item with status:", o);
             const pretty = statusMap[status] || statusMap.prepare;
-            const isMin = isMinimized(o.id);
+            const isMin = isMinimized(o.transactionDetailId);
             return (
               <div
-                key={o.id}
+                key={o.transactionDetailId}
                 className="rounded-xl border border-black/10 bg-white/40 px-4 py-3"
               >
                 {/* header row */}
                 <div className="grid text-[#060606] font-medium font-Jsans grid-cols-[1fr_1fr_1fr_1fr_auto] items-center text-sm gap-2">
                   <span >{o.id}</span>
-                  <span>{o.item}</span>
+                  <span>{o.item} x{o.quantity}</span>
                   <span>{o.date}</span>
                   <span>{o.price}</span>
                   <div className="flex justify-end">
                     <button
                       className="grid h-6 w-6 place-items-center rounded-full border border-black/20 transition-transform duration-200"
-                      onClick={() => toggleMinimize(o.id)}
+                      onClick={() => toggleMinimize(o.transactionDetailId)}
                       aria-label={isMin ? "Expand" : "Minimize"}
                     >
                       <svg
@@ -101,7 +102,7 @@ function OrderStatusCard({ items = [] }) {
                         <circle cx="18" cy="18" r="2" stroke="#2f2f2f" />
                       </svg>
                     </Step>
-                    <Step active={status === "COMPLETED"} label={<span className="text-black">Completed</span>} color="black">
+                    <Step active={status === "COMPLETE"} label={<span className="text-black">Completed</span>} color="black">
                       {/* flag icon */}
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                         <path d="M6 21V4m0 0h9l-2 3 2 3H6" stroke="#2f2f2f" />

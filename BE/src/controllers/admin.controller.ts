@@ -242,7 +242,11 @@ export const getAllUsersForAdmin = async (req: Request, res: Response) => {
 export const userUpdate = async (req: Request, res: Response) => {
     if (!req.user) return res.status(401).json({ message: "User not authenticated" });
 
-    const userId = req.user.id;
+    const userId = parseInt(req.params.id); // Get user ID from route params
+    
+    if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+    }
     
     try {
         const { managedBranchId, points, ...otherData } = req.body;
@@ -255,6 +259,25 @@ export const userUpdate = async (req: Request, res: Response) => {
 
         if (!currentUser) {
             return res.status(404).json({ message: "User not found" });
+        }
+
+        // Check if email is being updated and if it's already taken
+        if (otherData.email) {
+            if (otherData.email === currentUser.email) {
+                // Email hasn't changed, remove it from update data
+                delete otherData.email;
+            } else {
+                // Email is changing, check if new email is available
+                const existingUser = await prisma.user.findUnique({
+                    where: { email: otherData.email }
+                });
+                
+                if (existingUser) {
+                    return res.status(400).json({ 
+                        message: "Email is already taken by another user" 
+                    });
+                }
+            }
         }
 
         let updateData: any = { ...otherData };

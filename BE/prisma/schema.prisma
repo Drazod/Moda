@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
   // output = "../node_modules/.prisma/client"
 }
@@ -8,238 +8,240 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
 model Branch {
-  id         Int       @id @default(autoincrement())
-  code       String    @unique              // short code like "HCM-D1"
-  name       String
-  address    String    @db.VarChar(1024)
-  phone      String?   @db.VarChar(50)
-  latitude   Decimal?  @db.Decimal(10, 7)   // e.g. 10.7768890
-  longitude  Decimal?  @db.Decimal(10, 7)   // e.g. 106.7008060
-  hours      Json?                         // {"mon_fri":"09:00-21:00","sat_sun":"10:00-20:00"}
-  isActive   Boolean   @default(true)
-  managerId  Int?      @unique              // Branch manager (User with ADMIN role)
-  manager    User?     @relation("BranchManager", fields: [managerId], references: [id])
+  id              Int           @id @default(autoincrement())
+  code            String        @unique // short code like "HCM-D1"
+  name            String
+  address         String        @db.VarChar(1024)
+  phone           String?       @db.VarChar(50)
+  latitude        Decimal?      @db.Decimal(10, 7) // e.g. 10.7768890
+  longitude       Decimal?      @db.Decimal(10, 7) // e.g. 106.7008060
+  hours           Json? // {"mon_fri":"09:00-21:00","sat_sun":"10:00-20:00"}
+  isActive        Boolean       @default(true)
+  managerId       Int?          @unique // Branch manager (User with ADMIN role)
+  manager         User?         @relation("BranchManager", fields: [managerId], references: [id])
   // Relations
-  stocks     Stock[]
-  shippings  Shipping[]
-  transactions Transaction[]
-  notices    Notice[]
-  carts      Cart[]     @relation("PickupBranch")
-  cartItemsSource CartItem[] @relation("CartItemSource")  // Items shipping from this branch
-  cartItemsPickup CartItem[] @relation("CartItemPickup")  // Items being picked up at this branch
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  stocks          Stock[]
+  shippings       Shipping[]
+  transactions    Transaction[]
+  notices         Notice[]
+  cartItemsSource CartItem[]    @relation("CartItemSource") // Items shipping from this branch
+  cartItemsPickup CartItem[]    @relation("CartItemPickup") // Items being picked up at this branch
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model Stock {
-  id        Int     @id @default(autoincrement())
-  branchId  Int
-  sizeId    Int
-  quantity  Int
+  id       Int @id @default(autoincrement())
+  branchId Int
+  sizeId   Int
+  quantity Int
 
-  branch    Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  size      Size    @relation(fields: [sizeId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  size   Size   @relation(fields: [sizeId], references: [id], onDelete: Cascade)
 
-  @@unique([branchId, sizeId])          // one row per size per branch
+  @@unique([branchId, sizeId]) // one row per size per branch
   @@index([sizeId])
   @@index([branchId])
 }
 
 model Cart {
-  id              Int       @id @default(autoincrement())
-  userId          Int
-  state           State     @default(PENDING)
-  user            User      @relation(fields: [userId], references: [id])
-  items           CartItem[]
-  couponCode      String?
-  address         String? // <-- Add this line
-  pickupBranchId  Int?                               // NEW
-  pickupBranch    Branch?   @relation("PickupBranch", fields: [pickupBranchId], references: [id])
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id         Int        @id @default(autoincrement())
+  userId     Int
+  state      State      @default(PENDING)
+  user       User       @relation(fields: [userId], references: [id])
+  items      CartItem[]
+  couponCode String?
+  address    String? // <-- Add this line
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
 
 model CartItem {
-  id              Int       @id @default(autoincrement())
-  cartId          Int
-  ClothesId       Int
-  sizeId          Int
-  totalprice      Float     @default(0)
-  quantity        Int
-  fulfillmentMethod String  @default("ship") // 'ship' or 'pickup'
-  sourceBranchId  Int?                       // Which branch this item ships from or is picked up at
-  sourceBranch    Branch?   @relation("CartItemSource", fields: [sourceBranchId], references: [id])
-  pickupBranchId  Int?                       // For pickup: which branch to pick up at
-  pickupBranch    Branch?   @relation("CartItemPickup", fields: [pickupBranchId], references: [id])
-  needsTransfer   Boolean   @default(false)  // If item needs transfer from warehouse to pickup location
-  estimatedDate   DateTime?                  // ETA for transfer or delivery
-  allocationNote  String?   @db.VarChar(512) // Notes about allocation (e.g., "Ships from warehouse")
-  Clothes         Clothes   @relation(fields: [ClothesId], references: [id])
-  Size            Size      @relation(fields: [sizeId], references: [id])
-  cart            Cart      @relation(fields: [cartId], references: [id])
+  id                Int       @id @default(autoincrement())
+  cartId            Int
+  ClothesId         Int
+  sizeId            Int
+  totalprice        Float     @default(0)
+  quantity          Int
+  fulfillmentMethod String    @default("ship") // 'ship' or 'pickup'
+  sourceBranchId    Int? // Which branch this item ships from or is picked up at
+  sourceBranch      Branch?   @relation("CartItemSource", fields: [sourceBranchId], references: [id])
+  pickupBranchId    Int? // For pickup: which branch to pick up at
+  pickupBranch      Branch?   @relation("CartItemPickup", fields: [pickupBranchId], references: [id])
+  needsTransfer     Boolean   @default(false) // If item needs transfer from warehouse to pickup location
+  estimatedDate     DateTime? // ETA for transfer or delivery
+  allocationNote    String?   @db.VarChar(512) // Notes about allocation (e.g., "Ships from warehouse")
+  Clothes           Clothes   @relation(fields: [ClothesId], references: [id])
+  Size              Size      @relation(fields: [sizeId], references: [id])
+  cart              Cart      @relation(fields: [cartId], references: [id])
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Comment{
+model Comment {
   id                  Int               @id @default(autoincrement())
   userId              Int
   transactionDetailId Int
   content             String            @db.VarChar(1024)
-  rating              Int               // 1-5 star rating
+  rating              Int // 1-5 star rating
   isVerifiedPurchase  Boolean           @default(true) // Always true since linked to transaction
   user                User              @relation(fields: [userId], references: [id])
   transactionDetail   TransactionDetail @relation(fields: [transactionDetailId], references: [id])
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
-  
+
   // Ensure one comment per user per transaction detail
   @@unique([userId, transactionDetailId])
 }
 
-model Coupon{
-  id              Int       @id @default(autoincrement())
-  couponCode            String    @unique
-  description     String    @db.VarChar(1024) 
-  discount        Float
-  expiryDate      DateTime
-  isActive        Boolean   @default(true)
-  stock           Int       @default(0) // Number of times this coupon can be used
-  transactions    Transaction[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+model Coupon {
+  id           Int           @id @default(autoincrement())
+  couponCode   String        @unique
+  description  String        @db.VarChar(1024)
+  discount     Float
+  expiryDate   DateTime
+  isActive     Boolean       @default(true)
+  stock        Int           @default(0) // Number of times this coupon can be used
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Clothes {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  description String    @db.VarChar(1024) 
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String     @db.VarChar(1024)
   price       Float
-  material    String?   @db.VarChar(255)
-  information String?   @db.VarChar(1024)
-  mainImgId   Int?      @unique
+  material    String?    @db.VarChar(255)
+  information String?    @db.VarChar(1024)
+  mainImgId   Int?       @unique
   cartItems   CartItem[]
-  categoryId  Int       
-  category    Category  @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+  category    Category   @relation(fields: [categoryId], references: [id])
 
-  mainImg     Image?    @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
-  extraImgs   Image[]   @relation(name: "ExtraImages")
+  mainImg            Image?              @relation(fields: [mainImgId], references: [id], name: "MainImage", onDelete: Cascade, onUpdate: Cascade)
+  extraImgs          Image[]             @relation(name: "ExtraImages")
   transactionDetails TransactionDetail[]
-  sizes       Size[]
-  features    Feature[]
-  sharedInMessages Message[] // Products shared in messages
+  sizes              Size[]
+  features           Feature[]
+  sharedInMessages   Message[] // Products shared in messages
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Size {
-  id         Int      @id @default(autoincrement())
-  label      String   // ví dụ "M", "L", "XL"
-  quantity   Int
-  clothesId  Int
-  clothes    Clothes  @relation(fields: [clothesId], references: [id], onDelete: Cascade)
+  id                 Int                 @id @default(autoincrement())
+  label              String // ví dụ "M", "L", "XL"
+  quantity           Int
+  clothesId          Int
+  clothes            Clothes             @relation(fields: [clothesId], references: [id], onDelete: Cascade)
   transactionDetails TransactionDetail[]
-  cartItems  CartItem[]
-  stocks     Stock[]
+  cartItems          CartItem[]
+  stocks             Stock[]
 }
 
 model Feature {
-  id         Int      @id @default(autoincrement())
-  value      String   // ví dụ "Cotton 100%"
-  clothesId  Int
-  clothes    Clothes  @relation(fields: [clothesId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  value     String // ví dụ "Cotton 100%"
+  clothesId Int
+  clothes   Clothes @relation(fields: [clothesId], references: [id], onDelete: Cascade)
 }
-
 
 model Image {
-  id         Int      @id @default(autoincrement()) // Primary key
-  name       String
-  url        String   @db.VarChar(500) @unique
-  ClothesMain   Clothes?    @relation(name: "MainImage")
-  ClothesExtras Clothes[]   @relation(name: "ExtraImages")
-  Notice Notice[]
-  UserAvatar User?    @relation(name: "UserAvatar")
+  id            Int       @id @default(autoincrement()) // Primary key
+  name          String
+  url           String    @unique @db.VarChar(500)
+  ClothesMain   Clothes?  @relation(name: "MainImage")
+  ClothesExtras Clothes[] @relation(name: "ExtraImages")
+  Notice        Notice[]
+  UserAvatar    User?     @relation(name: "UserAvatar")
 }
 
-
-model Category{
-  id              Int       @id @default(autoincrement())
-  name            String    @unique
-  Clothes         Clothes[]
+model Category {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  Clothes Clothes[]
 }
 
 model User {
-  id              Int       @id @default(autoincrement())
-  name            String    
-  email           String    @unique
-  password        String    @db.VarChar(1024)
-  phone           String    
-  address         String    @db.VarChar(1024)
-  role            Role      @default(USER)
-  points          Int       @default(0)
-  avatarId        Int?      @unique
-  avatar          Image?    @relation(fields: [avatarId], references: [id], name: "UserAvatar")
-  managedBranch   Branch?   @relation("BranchManager")
-  carts           Cart[]
-  comments        Comment[]
-  shippings       Shipping[]
-  transactions    Transaction[]
-  notices         Notice[]
-  passwordHistory PasswordHistory[]
-  pointHistory    PointHistory[]
-  refunds         Refund[]
+  id                     Int               @id @default(autoincrement())
+  name                   String
+  email                  String            @unique
+  password               String            @db.VarChar(1024)
+  phone                  String
+  address                String            @db.VarChar(1024)
+  role                   Role              @default(USER)
+  points                 Int               @default(0)
+  avatarId               Int?              @unique
+  avatar                 Image?            @relation(fields: [avatarId], references: [id], name: "UserAvatar")
+  managedBranch          Branch?           @relation("BranchManager")
+  carts                  Cart[]
+  comments               Comment[]
+  shippings              Shipping[]
+  transactions           Transaction[]
+  notices                Notice[]
+  passwordHistory        PasswordHistory[]
+  pointHistory           PointHistory[]
+  refunds                Refund[]
   // Friendship relations
-  friendRequestsSent     Friendship[] @relation("FriendshipRequester")
-  friendRequestsReceived Friendship[] @relation("FriendshipAddressee")
+  friendRequestsSent     Friendship[]      @relation("FriendshipRequester")
+  friendRequestsReceived Friendship[]      @relation("FriendshipAddressee")
   // Conversation relations
-  conversationsAsUser1   Conversation[] @relation("ConversationUser1")
-  conversationsAsUser2   Conversation[] @relation("ConversationUser2")
+  conversationsAsUser1   Conversation[]    @relation("ConversationUser1")
+  conversationsAsUser2   Conversation[]    @relation("ConversationUser2")
   // Message relations
-  messagesSent           Message[] @relation("MessageSender")
+  messagesSent           Message[]         @relation("MessageSender")
   // Post relations
   posts                  Post[]
   postLikes              PostLike[]
   postComments           PostComment[]
-  updatedAt       DateTime  @updatedAt
-  createdAt       DateTime  @default(now())
-  otpCode         String?
-  otpExpiry       DateTime?
-  resetToken      String?
-  resetTokenExpiry DateTime?
-  isVerified      Boolean   @default(false)
+  updatedAt              DateTime          @updatedAt
+  createdAt              DateTime          @default(now())
+  otpCode                String?
+  otpExpiry              DateTime?
+  resetToken             String?
+  resetTokenExpiry       DateTime?
+  isVerified             Boolean           @default(false)
+  // E2E Encryption keys
+  publicKey              String?           @db.Text
+  publicKeyDevice        String?           @db.VarChar(255) // Device that generated the key (e.g., "Chrome on Windows")
+  publicKeyUpdatedAt     DateTime? // When the public key was last updated
+  encryptedPrivateKey    String?           @db.Text // Encrypted private key backup (encrypted with user's PIN)
+  privateKeyIV           String?           @db.VarChar(255) // IV for private key encryption
 }
 
-model Shipping{
-  id              Int       @id @default(autoincrement())
-  address         String    @db.VarChar(1024)
-  userId          Int
-  transId         Int       @unique
-  State           State     @default(PENDING)
-  branchId    Int?                                // NEW: ship-from or pickup branch
-  branch      Branch?  @relation(fields: [branchId], references: [id])
-  user            User      @relation(fields: [userId], references: [id])
-  transaction     Transaction @relation(fields: [transId], references: [id])
-
-
+model Shipping {
+  id                  Int               @id @default(autoincrement())
+  address             String            @db.VarChar(1024)
+  userId              Int
+  transactionDetailId Int               @unique
+  State               State             @default(PENDING)
+  branchId            Int? // NEW: ship-from or pickup branch
+  branch              Branch?           @relation(fields: [branchId], references: [id])
+  user                User              @relation(fields: [userId], references: [id])
+  type                Type              @default(SHIP)
+  transactionDetail   TransactionDetail @relation(fields: [transactionDetailId], references: [id])
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
-model Transaction{
-  id              Int       @id @default(autoincrement())
-  amount          Float
-  method          String
-  userId          Int
-  couponCode      String?
-  branchId           Int?                           // NEW: fulfilled by branch
-  branch             Branch?  @relation(fields: [branchId], references: [id])
-  user            User      @relation(fields: [userId], references: [id])
-  coupon          Coupon?   @relation(fields: [couponCode], references: [couponCode])
+model Transaction {
+  id                 Int                 @id @default(autoincrement())
+  amount             Float
+  method             String
+  userId             Int
+  couponCode         String?
+  branchId           Int?                 // NEW: fulfilled by branch
+  branch             Branch?             @relation(fields: [branchId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  coupon             Coupon?             @relation(fields: [couponCode], references: [couponCode])
   transactionDetails TransactionDetail[]
-  shipping        Shipping[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 enum Role {
@@ -255,41 +257,47 @@ enum State {
   COMPLETE
 }
 
+enum Type {
+  SHIP
+  PICKUP
+}
+
 model TransactionDetail {
-  id             Int          @id @default(autoincrement())
-  transactionId  Int
-  clothesId      Int
-  sizeId         Int
-  quantity       Int
-  price          Float
-  refundedQuantity Int       @default(0)
-  transaction    Transaction  @relation(fields: [transactionId], references: [id])
-  clothes        Clothes      @relation(fields: [clothesId], references: [id])
-  size           Size         @relation(fields: [sizeId], references: [id])
-  refunds        Refund[]
-  comments       Comment[]
-  createdAt      DateTime     @default(now())
+  id               Int         @id @default(autoincrement())
+  transactionId    Int
+  clothesId        Int
+  sizeId           Int
+  quantity         Int
+  price            Float
+  refundedQuantity Int         @default(0)
+  transaction      Transaction @relation(fields: [transactionId], references: [id])
+  clothes          Clothes     @relation(fields: [clothesId], references: [id])
+  size             Size        @relation(fields: [sizeId], references: [id])
+  shipping         Shipping?
+  refunds          Refund[]
+  comments         Comment[]
+  createdAt        DateTime    @default(now())
 }
 
 model Notice {
-  id        Int   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   title     String
-  subtitle  String?  
+  subtitle  String?
   content   String
   imageId   Int?
   image     Image?   @relation(fields: [imageId], references: [id])
   pages     Json
-  userId    Int?      // <-- Add this line
-  user      User?  @relation(fields: [userId], references: [id])
-  branchId  Int?                                   // NEW: branch-specific banner/news
+  userId    Int? // <-- Add this line
+  user      User?    @relation(fields: [userId], references: [id])
+  branchId  Int? // NEW: branch-specific banner/news
   branch    Branch?  @relation(fields: [branchId], references: [id])
-  state     Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  state     Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Log {
-  id        Int   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   userId    Int
   userName  String
   action    String
@@ -297,35 +305,35 @@ model Log {
 }
 
 model PasswordHistory {
-  id              Int       @id @default(autoincrement())
-  userId          Int
+  id               Int      @id @default(autoincrement())
+  userId           Int
   previousPassword String   @db.VarChar(1024)
-  rollbackToken   String    @unique
-  tokenExpiry     DateTime
-  isUsed          Boolean   @default(false)
-  user            User      @relation(fields: [userId], references: [id])
-  createdAt       DateTime  @default(now())
+  rollbackToken    String   @unique
+  tokenExpiry      DateTime
+  isUsed           Boolean  @default(false)
+  user             User     @relation(fields: [userId], references: [id])
+  createdAt        DateTime @default(now())
 }
 
 model PointHistory {
-  id              Int       @id @default(autoincrement())
-  userId          Int
-  points          Int       // Positive for earning, negative for spending/refund
-  type            PointType
-  description     String
-  transactionId   Int?      // Optional reference to transaction
-  refundId        Int?      // Optional reference to refund
-  user            User      @relation(fields: [userId], references: [id])
-  createdAt       DateTime  @default(now())
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  points        Int // Positive for earning, negative for spending/refund
+  type          PointType
+  description   String
+  transactionId Int? // Optional reference to transaction
+  refundId      Int? // Optional reference to refund
+  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
 }
 
 model Refund {
   id                  Int               @id @default(autoincrement())
   userId              Int
   transactionDetailId Int
-  quantity            Int               // How many items being refunded
-  refundAmount        Float             // Amount to refund in currency
-  pointsReturned      Int               // Points returned for this refund
+  quantity            Int // How many items being refunded
+  refundAmount        Float // Amount to refund in currency
+  pointsReturned      Int // Points returned for this refund
   reason              String?           @db.VarChar(1024)
   status              RefundStatus      @default(PENDING)
   adminNote           String?           @db.VarChar(1024)
@@ -337,14 +345,14 @@ model Refund {
 
 // Friendship system
 model Friendship {
-  id              Int              @id @default(autoincrement())
-  requesterId     Int              // User who sent the friend request
-  addresseeId     Int              // User who received the friend request
-  status          FriendshipStatus @default(PENDING)
-  requester       User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  addressee       User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          Int              @id @default(autoincrement())
+  requesterId Int // User who sent the friend request
+  addresseeId Int // User who received the friend request
+  status      FriendshipStatus @default(PENDING)
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@unique([requesterId, addresseeId]) // Prevent duplicate friend requests
   @@index([requesterId])
@@ -354,14 +362,14 @@ model Friendship {
 
 // Chat conversations between users
 model Conversation {
-  id              Int       @id @default(autoincrement())
-  user1Id         Int       // First user in conversation
-  user2Id         Int       // Second user in conversation
-  user1           User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
-  user2           User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
-  messages        Message[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id        Int       @id @default(autoincrement())
+  user1Id   Int // First user in conversation
+  user2Id   Int // Second user in conversation
+  user1     User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2     User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@unique([user1Id, user2Id]) // One conversation per user pair
   @@index([user1Id])
@@ -370,19 +378,24 @@ model Conversation {
 
 // Chat messages
 model Message {
-  id              Int          @id @default(autoincrement())
-  conversationId  Int
-  senderId        Int
-  content         String?      @db.Text       // Text message content
-  messageType     MessageType  @default(TEXT) // TEXT, PRODUCT, IMAGE
-  productId       Int?                        // If sharing a product
-  imageUrl        String?      @db.VarChar(512) // If sending an image
-  isRead          Boolean      @default(false)
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender          User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  product         Clothes?     @relation(fields: [productId], references: [id], onDelete: SetNull)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id               Int          @id @default(autoincrement())
+  conversationId   Int
+  senderId         Int
+  content          String?      @db.Text // Plain text or binary-encoded (when not encrypted)
+  encryptedContent String?      @db.Text // AES encrypted content (when isEncrypted = true)
+  iv               String?      @db.VarChar(512) // Initialization Vector for AES
+  encryptedAESKey  String?      @db.Text // AES key encrypted with recipient's public RSA key
+  aesKey           String?      @db.VarChar(512) // Plain AES key (stored for sender to decrypt own messages)
+  messageType      MessageType  @default(TEXT) // TEXT, PRODUCT, IMAGE
+  productId        Int? // If sharing a product
+  imageUrl         String?      @db.VarChar(512) // If sending an image
+  isRead           Boolean      @default(false)
+  isEncrypted      Boolean      @default(false) // True if content is E2E encrypted
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender           User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  product          Clothes?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([conversationId])
   @@index([senderId])
@@ -390,22 +403,22 @@ model Message {
 }
 
 enum FriendshipStatus {
-  PENDING   // Friend request sent, awaiting response
-  ACCEPTED  // Friends
-  BLOCKED   // User blocked
+  PENDING // Friend request sent, awaiting response
+  ACCEPTED // Friends
+  BLOCKED // User blocked
 }
 
 enum MessageType {
-  TEXT      // Regular text message
-  PRODUCT   // Shared product
-  IMAGE     // Image message
+  TEXT // Regular text message
+  PRODUCT // Shared product
+  IMAGE // Image message
 }
 
 enum PointType {
-  EARNED_PAYMENT    // Points earned from payment
-  RETURNED_REFUND   // Points returned from refund
-  SPENT_PURCHASE    // Points spent on purchase (for future use)
-  ADMIN_ADJUSTMENT  // Manual adjustment by admin
+  EARNED_PAYMENT // Points earned from payment
+  RETURNED_REFUND // Points returned from refund
+  SPENT_PURCHASE // Points spent on purchase (for future use)
+  ADMIN_ADJUSTMENT // Manual adjustment by admin
 }
 
 enum RefundStatus {
@@ -417,39 +430,39 @@ enum RefundStatus {
 
 // Instagram-like posts
 model Post {
-  id              Int           @id @default(autoincrement())
-  userId          Int
-  caption         String?       @db.Text
-  location        String?       @db.VarChar(255)
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  images          PostImage[]
-  likes           PostLike[]
-  comments        PostComment[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  caption   String?       @db.Text
+  location  String?       @db.VarChar(255)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images    PostImage[]
+  likes     PostLike[]
+  comments  PostComment[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@index([userId])
   @@index([createdAt])
 }
 
 model PostImage {
-  id              Int       @id @default(autoincrement())
-  postId          Int
-  imageUrl        String    @db.VarChar(512)
-  order           Int       @default(0) // Display order
-  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  createdAt       DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  imageUrl  String   @db.VarChar(512)
+  order     Int      @default(0) // Display order
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@index([postId])
 }
 
 model PostLike {
-  id              Int       @id @default(autoincrement())
-  postId          Int
-  userId          Int
-  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt       DateTime  @default(now())
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([postId, userId]) // One like per user per post
   @@index([postId])
@@ -457,17 +470,15 @@ model PostLike {
 }
 
 model PostComment {
-  id              Int       @id @default(autoincrement())
-  postId          Int
-  userId          Int
-  content         String    @db.Text
-  post            Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  userId    Int
+  content   String   @db.Text
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([postId])
   @@index([userId])
 }
-
-

@@ -3,6 +3,12 @@ import { useCart } from "../context/CartContext";
 import VoucherPanel from "../components/cart/voucherPanel";
 import { useAuth } from "../context/AuthContext";
 import axiosInstance from "../configs/axiosInstance";
+import { NavLink } from "react-router-dom";
+import momo from "../assets/cart/momo.png";
+import vnpay from "../assets/cart/vnpay.svg";
+import FulfillmentOptions from "../components/FulfillmentOptions";
+import { IoStorefront, IoHome } from 'react-icons/io5';
+import toast from 'react-hot-toast';
 
 const bg = "#E6DAC4";
 const fieldBg = "#CDC2AF";
@@ -13,11 +19,11 @@ const formatVND = (v) =>
   (Number(v) || 0).toLocaleString("vi-VN", { maximumFractionDigits: 0 }) + " VND";
 
 export default function CartModal({ open, onClose }) {
+  // ============================================================================
+  // HOOKS & STATE
+  // ============================================================================
   const { items, removeFromCart, updateQty } = useCart();
   const { user } = useAuth();
-  // Points logic
-  const [pointsToUse, setPointsToUse] = useState(0);
-  const availablePoints = user?.points || 0;
 
   const [form, setForm] = useState({
     name: "",
@@ -26,7 +32,40 @@ export default function CartModal({ open, onClose }) {
     message: "",
     payment: "",
   });
+  const [pointsToUse, setPointsToUse] = useState(0);
+  const [showVouchers, setShowVouchers] = useState(false);
+  const [selectedVoucher, setSelectedVoucher] = useState("");
+  const [voucherDiscount, setVoucherDiscount] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  const [editingFulfillment, setEditingFulfillment] = useState(null); // cartItemId being edited
 
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
+  const availablePoints = user?.points || 0;
+  const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
+  const totalQty = items.reduce((sum, it) => sum + (it.qty ?? 0), 0);
+
+  const subtotal = useMemo(
+    () => items.reduce((s, it) => s + (it.price ?? 0) * (it.qty ?? 0), 0),
+    [items]
+  );
+
+  const totalAfterVoucher = useMemo(() => {
+    if (!voucherDiscount) return subtotal;
+    if (voucherDiscount < 1) return Math.max(subtotal * (1 - voucherDiscount), 0);
+    return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0);
+  }, [subtotal, voucherDiscount]);
+
+  const maxPointsAllowed = Math.floor(totalAfterVoucher * 0.5);
+  const maxUsablePoints = Math.min(availablePoints, maxPointsAllowed, Math.floor(totalAfterVoucher));
+  const pointsUsed = Math.min(pointsToUse, maxUsablePoints);
+  const total = Math.max(totalAfterVoucher - pointsUsed, 0);
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
   useEffect(() => {
     if ((open || open === undefined) && user) {
       setForm((f) => ({
@@ -38,91 +77,57 @@ export default function CartModal({ open, onClose }) {
     }
   }, [open, user]);
 
-  const [showVouchers, setShowVouchers] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState("");
-  const [voucherDiscount, setVoucherDiscount] = useState(null);
-
-  const subtotal = useMemo(
-    () => items.reduce((s, it) => s + (it.price ?? 0) * (it.qty ?? 0), 0),
-    [items]
-  );
-
-  // Find cartId from items if present (assumes all items have same cartId)
-  const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
-
-  // Calculate total after voucher
-  const totalAfterVoucher = useMemo(() => {
-    if (!voucherDiscount) return subtotal;
-    if (voucherDiscount < 1) return Math.max(subtotal * (1 - voucherDiscount), 0); // fraction
-    return Math.max((subtotal * (100 - voucherDiscount)) / 100, 0); // percent
-  }, [subtotal, voucherDiscount]);
-
-  // Max points = 50% AFTER voucher
-  const maxPointsAllowed = Math.floor(totalAfterVoucher * 0.5);
-  const maxUsablePoints = Math.min(availablePoints, maxPointsAllowed, Math.floor(totalAfterVoucher));
-
-  // Clamp when voucher/subtotal changes
   useEffect(() => {
     setPointsToUse((p) => Math.min(Math.max(0, p), maxUsablePoints));
   }, [maxUsablePoints]);
 
-  const pointsUsed = Math.min(pointsToUse, maxUsablePoints);
-  const total = Math.max(totalAfterVoucher - pointsUsed, 0);
+  // ============================================================================
+  // QUANTITY HELPERS
+  // ============================================================================
+  const getMinQty = (item) => item?.minQty ?? 1;
 
-  const handleCheckout = async () => {
-    if (!cartId) {
-      alert("No cart ID found. Please add items to cart.");
-      return;
-    }
-    try {
-      const res = await axiosInstance.post("/vnpay/create-payment", {
-        orderId: cartId,
-        amount: total,               // tiền mặt còn lại sau voucher + points
-        orderType: "other",
-        language: "vn",
-        address: form.address,
-        couponCode: selectedVoucher,
-        pointsUsed: pointsUsed,      // gửi để server lưu & xác thực ở return
-      });
-      const paymentUrl = res.data.paymentUrl;
-      window.location.href = paymentUrl;
-    } catch (err) {
-      alert("Failed to initiate payment. Please try again.");
-    }
-  };
-
-  const getMinQty = (item) => (item?.minQty ? item.minQty : 1);
   const getMaxQty = (item) => {
     if (item?.sizeId && item?.sizeStock) return item.sizeStock;
-    if (item?.maxQty) return item.maxQty;
-    return undefined;
+    return item?.maxQty;
   };
 
+  const getAllowedQtyForSize = (item) => {
+    try {
+      const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
+      return cartSizeQuantities[item.id]?.[item.sizeId];
+    } catch {
+      return undefined;
+    }
+  };
+
+  const getTotalQtyForSize = (item) => {
+    return items
+      .filter((it) => it.id === item.id && it.sizeId === item.sizeId)
+      .reduce((sum, it) => sum + it.qty, 0);
+  };
+
+  const canIncrement = (item) => {
+    const maxQty = getMaxQty(item);
+    const allowedQty = getAllowedQtyForSize(item);
+    const totalQtyForSize = getTotalQtyForSize(item);
+
+    if (typeof allowedQty === "number" && totalQtyForSize >= allowedQty) return false;
+    if (typeof maxQty === "number" && item.qty >= maxQty) return false;
+    return true;
+  };
+
+  // ============================================================================
+  // CART ACTIONS
+  // ============================================================================
   const inc = (cartItemId) => {
     const item = items.find((it) => it.cartItemId === cartItemId);
     if (!item) return;
-    const minQty = getMinQty(item);
+
+    const allowedQty = getAllowedQtyForSize(item);
+    const totalQtyForSize = getTotalQtyForSize(item);
     const maxQty = getMaxQty(item);
 
-    // localStorage limit theo size
-    let allowedQty;
-    let totalQtyForThisSize = 0;
-    try {
-      const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
-      if (
-        item.id &&
-        item.sizeId &&
-        cartSizeQuantities[item.id] &&
-        typeof cartSizeQuantities[item.id][item.sizeId] === "number"
-      ) {
-        allowedQty = cartSizeQuantities[item.id][item.sizeId];
-      }
-      totalQtyForThisSize = items
-        .filter((it) => it.id === item.id && it.sizeId === item.sizeId)
-        .reduce((sum, it) => sum + it.qty, 0);
-    } catch {}
-
-    if (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) {
+    if (typeof allowedQty === "number" && totalQtyForSize >= allowedQty) {
       alert(`You cannot add more than ${allowedQty} for this size.`);
       return;
     }
@@ -130,29 +135,69 @@ export default function CartModal({ open, onClose }) {
       alert(`Only ${maxQty} left in stock for this size.`);
       return;
     }
-    if (item.qty < minQty) {
-      alert(`Minimum quantity required is ${minQty}`);
-      return;
-    }
+
     updateQty(cartItemId, item.qty + 1);
   };
 
   const dec = (cartItemId) => {
     const item = items.find((it) => it.cartItemId === cartItemId);
     if (!item) return;
-    const minQty = getMinQty(item);
-    if (item.qty > minQty) updateQty(cartItemId, item.qty - 1);
+    if (item.qty > getMinQty(item)) {
+      updateQty(cartItemId, item.qty - 1);
+    }
   };
 
   const removeItem = (id, color, size, cartItemId) => {
     removeFromCart(id, color, size, cartItemId);
   };
 
-  const handleForm = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  // ============================================================================
+  // FORM & PAYMENT HANDLERS
+  // ============================================================================
+  const handleForm = (e) => {
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  };
 
+  const handleCheckout = () => {
+    if (!cartId) {
+      alert("No cart ID found. Please add items to cart.");
+      return;
+    }
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSubmit = async () => {
+    if (!selectedPaymentMethod) {
+      alert("Please select a payment method.");
+      return;
+    }
+
+    try {
+      const endpoint = selectedPaymentMethod === "MOMO" 
+        ? "/momo/create-payment" 
+        : "/vnpay/create-payment";
+
+      const res = await axiosInstance.post(endpoint, {
+        orderId: cartId,
+        amount: total,
+        orderType: "other",
+        language: "vn",
+        address: form.address,
+        couponCode: selectedVoucher,
+        pointsUsed: pointsUsed,
+      });
+      
+      const paymentUrl = res.data.paymentUrl || res.data.payUrl;
+      window.location.href = paymentUrl;
+    } catch (err) {
+      alert("Failed to initiate payment. Please try again.");
+    }
+  };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
   if (!open && open !== undefined) return null;
-
-  const totalQty = items.reduce((sum, it) => sum + (it.qty ?? 0), 0);
 
   return (
     <div className="fixed inset-0 z-[100] font-Jsans">
@@ -233,54 +278,8 @@ export default function CartModal({ open, onClose }) {
                           onClick={() => inc(it.cartItemId)}
                           className="grid h-9 w-9 place-items-center rounded-full hover:bg-black/10"
                           aria-label="Increase"
-                          disabled={(() => {
-                            const maxQty = getMaxQty(it);
-                            let allowedQty;
-                            let totalQtyForThisSize = 0;
-                            try {
-                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
-                              if (
-                                it.id &&
-                                it.sizeId &&
-                                cartSizeQuantities[it.id] &&
-                                typeof cartSizeQuantities[it.id][it.sizeId] === "number"
-                              ) {
-                                allowedQty = cartSizeQuantities[it.id][it.sizeId];
-                              }
-                              totalQtyForThisSize = items
-                                .filter((itm) => itm.id === it.id && it.sizeId === it.sizeId)
-                                .reduce((sum, itm) => sum + itm.qty, 0);
-                            } catch {}
-                            if (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) return true;
-                            if (typeof maxQty === "number" && it.qty >= maxQty) return true;
-                            return false;
-                          })()}
-                          style={(() => {
-                            const maxQty = getMaxQty(it);
-                            let allowedQty;
-                            let totalQtyForThisSize = 0;
-                            try {
-                              const cartSizeQuantities = JSON.parse(localStorage.getItem("cartSizeQuantities") || "{}");
-                              if (
-                                it.id &&
-                                it.sizeId &&
-                                cartSizeQuantities[it.id] &&
-                                typeof cartSizeQuantities[it.id][it.sizeId] === "number"
-                              ) {
-                                allowedQty = cartSizeQuantities[it.id][it.sizeId];
-                              }
-                              totalQtyForThisSize = items
-                                .filter((itm) => itm.id === it.id && itm.sizeId === it.sizeId)
-                                .reduce((sum, itm) => sum + itm.qty, 0);
-                            } catch {}
-                            if (
-                              (typeof allowedQty === "number" && totalQtyForThisSize >= allowedQty) ||
-                              (typeof maxQty === "number" && it.qty >= maxQty)
-                            ) {
-                              return { opacity: 0.5, cursor: "not-allowed" };
-                            }
-                            return {};
-                          })()}
+                          disabled={!canIncrement(it)}
+                          style={!canIncrement(it) ? { opacity: 0.5, cursor: "not-allowed" } : {}}
                         >
                           +
                         </button>
@@ -288,18 +287,36 @@ export default function CartModal({ open, onClose }) {
                     </div>
                   </div>
 
-                  {/* divider */}
+                  {/* Divider */}
                   {i !== items.length - 1 && <div className="mt-4 h-px w-full bg-black/15" />}
+
+                  {/* Fulfillment & Offers */}
                   <div className="mt-2 flex flex-wrap items-center gap-4 text-xs font-medium">
-                    <div className="flex items-center gap-3 ">
-                      <span className="text-base font-medium">Fullfillment:</span>
-                      <div className="relative">
-                        <div className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70">{it.pickupBranchName ? it.pickupBranchName : it.sourceBranchName} </div>
-                      </div>
+                    {/* Fulfillment Info */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-base font-medium">Fulfillment:</span>
+                      <button
+                        onClick={() => setEditingFulfillment(it.cartItemId)}
+                        className="inline-flex items-center gap-2 rounded-md border border-black/20 bg-[#CDC2AF] px-3 py-1 hover:bg-white/70"
+                      >
+                        {it.fulfillmentMethod === 'pickup' ? (
+                          <>
+                            <IoStorefront className="text-sm" />
+                            Pickup: {it.pickupBranchName || 'Select store'}
+                          </>
+                        ) : (
+                          <>
+                            <IoHome className="text-sm" />
+                            Ship: {it.sourceBranchName || 'Warehouse'}
+                          </>
+                        )}
+                        <span className="ml-1 text-xs opacity-50">✎</span>
+                      </button>
                     </div>
 
-                    <div className="h-7 w-px text-sm bg-black/20" />
+                    <div className="h-7 w-px bg-black/20" />
 
+                    {/* Voucher Selection */}
                     <div className="flex items-center gap-3">
                       <span className="text-base font-medium">Offers:</span>
                       <button
@@ -378,85 +395,144 @@ export default function CartModal({ open, onClose }) {
           </div>
         </div>
 
-        {/* footer rail */}
-        <div className="mx-5 mb-5 pt-4" style={{ background: railBg }}>
-          <div className="mx-1 p-4">
-            <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
-              <span className="font-medium">Sub Total</span>
-              <span className="font-semibold">{formatVND(subtotal)}</span>
-            </div>
+            {/* Footer Rail - Price Summary & Payment */}
+            <div className="relative mx-5 mb-5 pt-4 overflow-hidden" style={{ background: railBg }}>
+              {/* Default View - Price Summary */}
+              <div className={`transition-transform duration-500 ease-in-out ${showPaymentModal ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
+                <div className="mx-1 p-4">
+                    <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                        <span className="font-medium">Sub Total</span>
+                        <span className="font-semibold">{formatVND(subtotal)}</span>
+                    </div>
 
-            {voucherDiscount ? (
-              <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
-                <span className="font-medium">After Voucher</span>
-                <span className="font-semibold">{formatVND(totalAfterVoucher)}</span>
+                    {voucherDiscount ? (
+                    <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                        <span className="font-medium">After Voucher</span>
+                        <span className="font-semibold">{formatVND(totalAfterVoucher)}</span>
+                    </div>
+                    ) : null}
+
+                    <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                        <span className="font-medium">Available Points</span>
+                        <span className="font-semibold">{availablePoints}</span>
+                    </div>
+
+                    <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                        <span className="font-medium">Use Points</span>
+                        <input
+                            type="number"
+                            min={0}
+                            max={maxUsablePoints}
+                            value={pointsToUse}
+                            onChange={(e) => {
+                            let val = parseInt(e.target.value, 10);
+                            if (isNaN(val) || val < 0) val = 0;
+                            if (val > maxUsablePoints) val = maxUsablePoints;
+                            setPointsToUse(val);
+                            }}
+                            className="w-24 px-2 py-1 rounded border border-gray-300 text-right"
+                            style={{ background: fieldBg }}
+                        />
+                    </div>
+
+                    <div className="mb-1 flex items-center justify-between text-[12px] text-gray-600">
+                        <span className="font-light">
+                            Max: {formatVND(Math.floor(totalAfterVoucher * 0.5))} (50% of price)
+                        </span>
+                        <span />
+                    </div>
+
+                    {pointsUsed > 0 && (
+                    <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                        <span className="font-medium">Points Used</span>
+                        <span className="font-semibold">- {formatVND(pointsUsed)}</span>
+                    </div>
+                    )}
+                    <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
+                        <span className="font-medium">Total to Pay</span>
+                        <span className="font-semibold">{formatVND(total)}</span>
+                    </div>
+                    <div className="flex gap-4">
+                        <NavLink to="/store" className="text-center flex-1 rounded-full border border-black/30 bg-[#CDC2AF] py-3 text-[15px] font-medium text-[#2f2f2f] hover:bg-black/10">
+                            Continue Shopping
+                        </NavLink>
+                        <button
+                            className="flex-1 rounded-full py-3 text-[15px] font-semibold text-white hover:opacity-95"
+                            style={{ background: darkBtn }}
+                            onClick={handleCheckout}
+                        >
+                            Check Out
+                        </button>
+                    </div>
+                    <p className="mt-3 text-center text-[11px] text-black/60">
+                    By selecting "Check Out" you are agreeing to our{" "}
+                        <a href="#" className="underline">
+                            Terms & Conditions
+                        </a>
+                    </p>
+                </div>
               </div>
-            ) : null}
+              {/* Payment Methods View - Slides in from right */}
+              <div className={`absolute top-0 left-0 w-full transition-transform duration-500 ease-in-out ${showPaymentModal ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
+                <div className="mx-1 p-4 space-y-2">
+                  <p className="text-base font-semibold text-[#2f2f2f] mb-2">Select Payment Method</p>
+                    
+                  {/* MoMo Payment Option */}
+                  <button
+                    onClick={() => setSelectedPaymentMethod("MOMO")}
+                    className={`w-full p-3 rounded-lg border-2 transition flex items-center gap-3 ${
+                      selectedPaymentMethod === "MOMO"
+                        ? "border-pink-500 bg-pink-50"
+                        : "border-gray-300 hover:border-pink-300"
+                    }`}
+                  >
+                    <img src={momo} alt="MoMo" className="w-12 h-12 object-contain" />
+                    <div className="text-left">
+                      <div className="font-semibold text-[#2f2f2f] text-sm">MoMo E-Wallet</div>
+                      <div className="text-xs text-gray-600">Pay with MoMo app</div>
+                    </div>
+                  </button>
 
-            <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
-              <span className="font-medium">Available Points</span>
-              <span className="font-semibold">{availablePoints}</span>
-            </div>
+                  {/* VNPay Payment Option */}
+                  <button
+                    onClick={() => setSelectedPaymentMethod("VNPAY")}
+                    className={`w-full p-3 rounded-lg border-2 transition flex items-center gap-3 ${
+                      selectedPaymentMethod === "VNPAY"
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:border-blue-300"
+                    }`}
+                  >
+                    <img src={vnpay} alt="VNPay" className="w-12 h-12 object-contain" />
+                    <div className="text-left">
+                      <div className="font-semibold text-[#2f2f2f] text-sm">VNPay</div>
+                      <div className="text-xs text-gray-600">Pay with VNPay gateway</div>
+                    </div>
+                  </button>
 
-            <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
-              <span className="font-medium">Use Points</span>
-              <input
-                type="number"
-                min={0}
-                max={maxUsablePoints}
-                value={pointsToUse}
-                onChange={(e) => {
-                  let val = parseInt(e.target.value, 10);
-                  if (isNaN(val) || val < 0) val = 0;
-                  if (val > maxUsablePoints) val = maxUsablePoints;
-                  setPointsToUse(val);
-                }}
-                className="w-24 px-2 py-1 rounded border border-gray-300 text-right"
-                style={{ background: fieldBg }}
-              />
-            </div>
-
-            <div className="mb-1 flex items-center justify-between text-[12px] text-gray-600">
-              <span className="font-light">
-                Max: {formatVND(Math.floor(totalAfterVoucher * 0.5))} (50% of price)
-              </span>
-              <span />
-            </div>
-
-            {pointsUsed > 0 && (
-              <div className="mb-1 flex items-center justify-between text-[15px] text-[#2f2f2f]">
-                <span className="font-medium">Points Used</span>
-                <span className="font-semibold">- {formatVND(pointsUsed)}</span>
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pb-4">
+                    <button
+                      onClick={() => {
+                        setShowPaymentModal(false);
+                        setSelectedPaymentMethod("");
+                      }}
+                      className="flex-1 rounded-full border border-black/30 bg-[#CDC2AF] py-3 text-[14px] font-medium text-[#2f2f2f] hover:bg-black/10"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handlePaymentSubmit}
+                      disabled={!selectedPaymentMethod}
+                      className="flex-1 rounded-full py-3 text-[14px] font-semibold text-white hover:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: darkBtn }}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
               </div>
-            )}
-
-            <div className="mb-3 flex items-center justify-between text-[15px] text-[#2f2f2f]">
-              <span className="font-medium">Total to Pay</span>
-              <span className="font-semibold">{formatVND(total)}</span>
             </div>
-
-            <div className="flex gap-4">
-              <button className="flex-1 rounded-full border border-black/30 bg-[#CDC2AF] py-3 text-[15px] font-medium text-[#2f2f2f] hover:bg-black/10">
-                Continue Shopping
-              </button>
-              <button
-                className="flex-1 rounded-full py-3 text-[15px] font-semibold text-white hover:opacity-95"
-                style={{ background: darkBtn }}
-                onClick={handleCheckout}
-              >
-                Check Out
-              </button>
-            </div>
-
-            <p className="mt-3 text-center text-[11px] text-black/60">
-              By selecting “Check Out” you are agreeing to our{" "}
-              <a href="#" className="underline">
-                Terms & Conditions
-              </a>
-            </p>
           </div>
-        </div>
-      </div>
 
       {showVouchers && (
         <VoucherPanel
@@ -468,6 +544,97 @@ export default function CartModal({ open, onClose }) {
           }}
         />
       )}
+
+      {editingFulfillment && <FulfillmentEditor 
+        cartItemId={editingFulfillment}
+        items={items}
+        onClose={() => setEditingFulfillment(null)}
+      />}
+    </div>
+  );
+}
+
+// ============================================================================
+// FULFILLMENT EDITOR COMPONENT
+// ============================================================================
+function FulfillmentEditor({ cartItemId, items, onClose }) {
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const item = items.find(it => it.cartItemId === cartItemId);
+
+  useEffect(() => {
+    if (!item?.id) return;
+
+    axiosInstance.get(`/clothes/${item.id}`)
+      .then(res => {
+        setProduct(res.data);
+        setLoading(false);
+      })
+      .catch(() => {
+        toast.error('Failed to load product data');
+        onClose();
+      });
+  }, [item?.id]);
+
+  if (!item) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110]">
+      <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-2xl text-gray-500 hover:text-gray-800"
+        >
+          ✕
+        </button>
+        
+        <h3 className="text-xl font-bold mb-4">
+          Update Fulfillment: {item.name}
+        </h3>
+
+        {loading ? (
+          <div className="text-center py-8">Loading...</div>
+        ) : product ? (
+          <FulfillmentOptions
+            product={product}
+            selectedSize={item.selectedSize || item.label}
+            requestedQty={item.qty}
+            onSelect={(fulfillmentChoice) => {
+              const fulfillmentPayload = { method: fulfillmentChoice.method };
+              
+              if (fulfillmentChoice.method === 'ship') {
+                const primarySource = fulfillmentChoice.allocation?.items?.[0];
+                if (primarySource) {
+                  fulfillmentPayload.sourceBranchId = primarySource.branchId || null;
+                  fulfillmentPayload.allocationNote = fulfillmentChoice.allocation.items
+                    .map(i => `${i.quantity} from ${i.location}`)
+                    .join(', ');
+                }
+              } else if (fulfillmentChoice.method === 'pickup') {
+                fulfillmentPayload.pickupBranchId = fulfillmentChoice.store?.branchId || null;
+                fulfillmentPayload.allocationNote = fulfillmentChoice.option?.label || 'Pickup at store';
+              }
+
+              axiosInstance.post('/cart/add', {
+                cartItemId: item.cartItemId,
+                cakeId: item.id,
+                sizeId: item.sizeId,
+                quantity: item.qty,
+                ...fulfillmentPayload
+              }).then(() => {
+                toast.success('Fulfillment method updated!');
+                onClose();
+                window.location.reload();
+              }).catch(() => {
+                toast.error('Failed to update fulfillment method');
+              });
+            }}
+          />
+        ) : (
+          <div className="text-center text-red-500 py-8">Failed to load product</div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "../components/header"; // Assuming you have a header component
-import Footer from "../components/footer"; // Assuming you have a footer component
+import Header from "../components/header";
+import Footer from "../components/footer";
 import middle from "../assets/store/middle.png";
 import smalleft from "../assets/store/smalleft.png";
 import bigleft from "../assets/store/bigleft.png";
@@ -16,22 +16,35 @@ import { HiOutlineSparkles,HiSparkles } from "react-icons/hi2";
 import VirtualTryOn from '../components/VirtualTryOn';
 
 const FashionTemplate = () => {
+  // ============================================================================
+  // HOOKS & STATE
+  // ============================================================================
   const navigate = useNavigate();
+
+  // UI State
   const [openSections, setOpenSections] = useState({});
-  const [priceRange, setPriceRange] = useState([0, 1000000]); 
-  const [selectedCategory, setSelectedCategory] = useState("NEW"); 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isAiSearchMode, setIsAiSearchMode] = useState(false);
   const [showVirtualTryOn, setShowVirtualTryOn] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // Filter State
+  const [priceRange, setPriceRange] = useState([0, 1000000]);
+  const [selectedCategory, setSelectedCategory] = useState("NEW");
   const [selectedSizes, setSelectedSizes] = useState([]);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
+
+  // Search State
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isAiSearchMode, setIsAiSearchMode] = useState(false);
+
+  // Data State
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(["NEW"]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [categories, setCategories] = useState([
-    "NEW",
-  ]);
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -44,10 +57,6 @@ const FashionTemplate = () => {
     };
     fetchCategories();
   }, []);
-  const formatVND = (v) =>
-  (Number(v) || 0).toLocaleString("vi-VN", {
-    maximumFractionDigits: 0,
-  }) + " VND";
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -65,6 +74,61 @@ const FashionTemplate = () => {
     fetchProducts();
   }, []);
 
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
+  const filteredProducts = products.filter((product) => {
+    // Text search (skip if AI mode)
+    if (!isAiSearchMode && searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+
+    // Category filter
+    if (selectedCategory !== "NEW") {
+      const categoryName = product.category?.name?.toLowerCase() || "";
+      if (!categoryName.includes(selectedCategory.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Price range filter
+    if (product.price < priceRange[0] || product.price > priceRange[1]) {
+      return false;
+    }
+
+    // Size filter
+    if (selectedSizes.length > 0) {
+      const productSizes = product.sizes || [];
+      const hasSelectedSize = productSizes.some(size =>
+        selectedSizes.includes(size.label) && size.quantity > 0
+      );
+      if (!hasSelectedSize) {
+        return false;
+      }
+    }
+
+    // Availability filter
+    if (showOnlyAvailable) {
+      const totalStock = (product.sizes || []).reduce((sum, size) => sum + size.quantity, 0);
+      if (totalStock === 0) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+  const formatVND = (v) =>
+    (Number(v) || 0).toLocaleString("vi-VN", {
+      maximumFractionDigits: 0,
+    }) + " VND";
+
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
   };
@@ -76,10 +140,9 @@ const FashionTemplate = () => {
     }));
   };
 
-  // AI Search function
   const performAiSearch = async (query) => {
     if (!query.trim()) return;
-    
+
     setLoading(true);
     setError("");
     try {
@@ -92,11 +155,10 @@ const FashionTemplate = () => {
     }
   };
 
-  // Handle search input change
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-    
+
     if (isAiSearchMode && value) {
       // Debounce AI search
       clearTimeout(window.aiSearchTimeout);
@@ -106,47 +168,9 @@ const FashionTemplate = () => {
     }
   };
 
-  // Filter products based on selected filters
-  const filteredProducts = products.filter((product) => {
-    // Skip text search filtering if in AI mode (AI already filtered)
-    if (!isAiSearchMode && searchTerm && !product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
-    }
-
-    // Handle category logic
-    if (selectedCategory !== "NEW") {
-      const categoryName = product.category?.name?.toLowerCase() || "";
-      if (!categoryName.includes(selectedCategory.toLowerCase())) {
-        return false; 
-      }
-    }
-
-    // Check price range
-    if (product.price < priceRange[0] || product.price > priceRange[1]) {
-      return false;
-    }
-
-    // Check size availability
-    if (selectedSizes.length > 0) {
-      const productSizes = product.sizes || [];
-      const hasSelectedSize = productSizes.some(size => 
-        selectedSizes.includes(size.label) && size.quantity > 0
-      );
-      if (!hasSelectedSize) {
-        return false;
-      }
-    }
-
-    // Check availability (only show in-stock items)
-    if (showOnlyAvailable) {
-      const totalStock = (product.sizes || []).reduce((sum, size) => sum + size.quantity, 0);
-      if (totalStock === 0) {
-        return false;
-      }
-    }
-
-    return true; // Product passes all filters
-  });
+  // ============================================================================
+  // RENDER
+  // ============================================================================
   
   
   return (

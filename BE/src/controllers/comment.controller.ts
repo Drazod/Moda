@@ -27,11 +27,8 @@ export const submitComment = async (req: Request, res: Response) => {
         }
       },
       include: {
-        transaction: {
-          include: {
-            shipping: true
-          }
-        },
+        transaction: true,
+        shipping: true,
         clothes: true,
         size: true,
         comments: {
@@ -47,7 +44,7 @@ export const submitComment = async (req: Request, res: Response) => {
     }
 
     // Check if order is completed (can only comment on completed orders)
-    const shipping = transactionDetail.transaction.shipping[0];
+    const shipping = transactionDetail.shipping;
     if (!shipping || shipping.State !== 'COMPLETE') {
       return res.status(400).json({ message: 'Can only review items from completed orders' });
     }
@@ -374,12 +371,10 @@ export const getCommentableItems = async (req: Request, res: Response) => {
     const commentableItems = await prisma.transactionDetail.findMany({
       where: {
         transaction: {
-          userId: req.user.id,
-          shipping: {
-            some: {
-              State: 'COMPLETE'
-            }
-          }
+          userId: req.user.id
+        },
+        shipping: {
+          State: 'COMPLETE'
         },
         comments: {
           none: {
