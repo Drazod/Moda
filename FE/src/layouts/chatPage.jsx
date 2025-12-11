@@ -1,7 +1,10 @@
-import SideNav from '../components/SideNav';
-import CartModal from './cart';
-import toast from 'react-hot-toast';
+// ============================================================================
+// IMPORTS
+// ============================================================================
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 import { 
   IoShareSocialOutline,
   IoImageOutline,
@@ -10,10 +13,16 @@ import {
   IoSearchOutline,
   IoInformationCircleOutline,
   IoShieldCheckmarkOutline,
-  IoWarningOutline
+  IoWarningOutline,
+  IoDownloadOutline,
+  IoCopyOutline,
+  IoPrintOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseOutline
 } from 'react-icons/io5';
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+
+import SideNav from '../components/SideNav';
+import CartModal from './cart';
 import axiosInstance from '../configs/axiosInstance';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -25,50 +34,87 @@ import {
   encryptMessageAES,
   decryptMessageAES,
   decryptMessageWithAESKey,
-  encryptPrivateKeyForBackup,
-  decryptPrivateKeyFromBackup,
   storeKeysSecurely,
   retrieveStoredKeys,
-  retrieveKeysFromServer,
   hasStoredKeys,
   verifyPin,
-  getDeviceIdentifier
+  getDeviceIdentifier,
+  generateRecoveryCodes,
+  createEnvelopeEncryption,
+  decryptPrivateKeyWithPin,
+  recoverWithCode
 } from '../utils/encryption';
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 const SOCKET_URL = "http://localhost:4000";
 
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 const ChatPage = () => {
+  // ============================================================================
+  // HOOKS & REFS
+  // ============================================================================
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  
   const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const selectedConversationRef = useRef(null);
-  const { user } = useAuth();
-  
+
+  // ============================================================================
+  // STATE - CHAT
+  // ============================================================================
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
   
+  // ============================================================================
+  // STATE - UI
+  // ============================================================================
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  
+  // ============================================================================
+  // STATE - ENCRYPTION
+  // ============================================================================
   const [hasKeys, setHasKeys] = useState(false);
   const [publicKey, setPublicKey] = useState(null);
   const [privateKey, setPrivateKey] = useState(null);
   const [encryptionStatus, setEncryptionStatus] = useState('initializing');
   const [friendPublicKeys, setFriendPublicKeys] = useState({});
   
+  // ============================================================================
+  // STATE - PIN MODAL
+  // ============================================================================
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [isSettingPin, setIsSettingPin] = useState(false);
   const [confirmPin, setConfirmPin] = useState('');
+  
+  // ============================================================================
+  // STATE - RECOVERY CODES
+  // ============================================================================
+  const [showRecoveryCodesModal, setShowRecoveryCodesModal] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState([]);
+  const [hasConfirmedBackup, setHasConfirmedBackup] = useState(false);
+  const [showForgotPinModal, setShowForgotPinModal] = useState(false);
+  const [recoveryCodeInput, setRecoveryCodeInput] = useState('');
+  const [recoveryError, setRecoveryError] = useState('');
 
+  // ============================================================================
+  // EFFECTS - INITIALIZATION
+  // ============================================================================
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
@@ -76,10 +122,47 @@ const ChatPage = () => {
   useEffect(() => {
     if (user?.id && !hasKeys) {
       checkEncryptionStatus();
+    } else {
+      console.log('Skipped checkEncryptionStatus:', { 
+        reason: !user?.id ? 'No user' : 'Already has keys' 
+      });
     }
   }, [user?.id, hasKeys]);
 
+  useEffect(() => {
+    if (selectedConversation && hasKeys) {
+      fetchFriendPublicKey(selectedConversation);
+    }
+  }, [selectedConversation?.id, hasKeys]);
+
+  // Fetch conversations on mount
+  useEffect(() => {
+    fetchConversations();
+    const params = new URLSearchParams(location.search);
+    const friendId = params.get('friendId');
+    if (friendId) {
+      createOrOpenConversation(parseInt(friendId));
+    }
+  }, [location.search]);
+
+  // Fetch messages when conversation changes
+  useEffect(() => {
+    if (selectedConversation) {
+      fetchMessages(selectedConversation.id);
+      markAsRead(selectedConversation.id);
+    }
+  }, [selectedConversation?.id]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // ============================================================================
+  // ENCRYPTION - STATUS CHECK
+  // ============================================================================
   const checkEncryptionStatus = async () => {
+    console.log('🔍 checkEncryptionStatus called');
     try {
       // Step 1: Check localStorage
       const hasLocal = hasStoredKeys();
@@ -87,32 +170,121 @@ const ChatPage = () => {
       // Step 2: Check IndexedDB
       let hasIndexedDB = false;
       try {
-        const db = await indexedDB.open('ModaChatEncryption', 1);
-        const transaction = db.transaction(['keys'], 'readonly');
-        const store = transaction.objectStore('keys');
-        const privateKey = await new Promise((resolve, reject) => {
-          const request = store.get('privateKey');
+        const db = await new Promise((resolve, reject) => {
+          // Don't specify version
+          const request = indexedDB.open('ModaChatEncryption');
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
+          request.onupgradeneeded = (event) => {
+            // Database doesn't exist yet, so no keys stored
+            reject(new Error('Database not initialized'));
+          };
         });
-        hasIndexedDB = !!privateKey;
+        
+        // Check if the object store exists
+        if (!db.objectStoreNames.contains('keys')) {
+          console.log('IndexedDB: keys object store does not exist');
+          db.close();
+        } else {
+          const transaction = db.transaction(['keys'], 'readonly');
+          const store = transaction.objectStore('keys');
+          const privateKey = await new Promise((resolve, reject) => {
+            const request = store.get('privateKey');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          
+          hasIndexedDB = !!privateKey;
+          console.log('IndexedDB: privateKey found =', hasIndexedDB);
+          db.close();
+        }
       } catch (dbError) {
-        console.log('IndexedDB check failed:', dbError);
+        console.log('IndexedDB check failed:', dbError.message || dbError);
       }
       
-      // Step 3: Check server
-      let hasServer = false;
+      // Step 3: Check if server has encryption keys
+      let serverHasKeys = false;
       try {
-        const response = await axiosInstance.get('/chat/encrypted-keys');
-        hasServer = !!(response.data?.encryptedPrivateKey && response.data?.privateKeyIV);
+        console.log('🔍 Checking server for encryption keys...');
+        const keysResponse = await axiosInstance.get('/chat/encrypted-keys');
+        serverHasKeys = !!(keysResponse.data.encryptedPrivateKey && keysResponse.data.privateKeyIV);
       } catch (serverError) {
-        console.log('Server check failed:', serverError);
+        console.log('Server keys check failed:', serverError);
       }
       
-      console.log('🔍 Encryption status:', { hasLocal, hasIndexedDB, hasServer });
+      // Step 4: Check if current device is trusted
+      let isDeviceTrusted = false;
+      try {
+        const currentDeviceId = getDeviceIdentifier();
+        const currentFingerprint = currentDeviceId.match(/\[(.*?)\]/)?.[1];
+        
+        const devicesResponse = await axiosInstance.get('/devices');
+        const devices = devicesResponse.data.devices || [];
+        
+        // Check if current device fingerprint matches any registered device
+        const matchedDevice = devices.find((device) => {
+          // Extract fingerprint from device name if it contains one
+          const deviceFingerprint = device.name.match(/\[(.*?)\]/)?.[1];
+          return deviceFingerprint === currentFingerprint;
+        });
+        
+        isDeviceTrusted = !!matchedDevice;
+        
+        if (matchedDevice) {
+          // Update device activity
+          await axiosInstance.put(`/devices/${encodeURIComponent(matchedDevice.name)}/activity`);
+          console.log('Device activity updated');
+        } else {
+          console.log('Device not registered');
+        }
+      } catch (deviceError) {
+        console.log('Device registration check failed:', deviceError);
+      }
       
-      // Decide what to do
-      if (hasLocal || hasIndexedDB || hasServer) {
+      console.log('🔍 Encryption status:', { 
+        hasLocal, 
+        hasIndexedDB, 
+        isDeviceTrusted,
+        serverHasKeys 
+      });
+      
+      // If device is trusted and has local keys, auto-load without PIN
+      if (isDeviceTrusted && (hasLocal || hasIndexedDB)) {
+        try {
+          // Try to load keys from localStorage or IndexedDB
+          const storedPublicKey = localStorage.getItem('chat_public_key');
+          if (storedPublicKey && hasIndexedDB) {
+            const db = await new Promise((resolve, reject) => {
+              const request = indexedDB.open('ModaChatEncryption');
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            
+            const transaction = db.transaction(['keys'], 'readonly');
+            const store = transaction.objectStore('keys');
+            const privateKey = await new Promise((resolve, reject) => {
+              const request = store.get('privateKey');
+              request.onsuccess = () => resolve(request.result);
+              request.onerror = () => reject(request.error);
+            });
+            
+            if (privateKey) {
+              const importedPublicKey = await importPublicKey(storedPublicKey);
+              setPublicKey(importedPublicKey);
+              setPrivateKey(privateKey);
+              setHasKeys(true);
+              setEncryptionStatus('ready')
+              db.close();
+              return;
+            }
+            db.close();
+          }
+        } catch (autoLoadError) {
+          console.error('Auto-load failed:', autoLoadError);
+        }
+      }
+      
+      if (hasLocal || hasIndexedDB || serverHasKeys) {
         // Keys exist somewhere, ask for PIN to unlock
         setShowPinModal(true);
         setIsSettingPin(false);
@@ -129,6 +301,9 @@ const ChatPage = () => {
     }
   };
 
+  // ============================================================================
+  // ENCRYPTION - PIN HANDLING
+  // ============================================================================
   const handlePinSubmit = async () => {
     setPinError('');
     
@@ -162,36 +337,87 @@ const ChatPage = () => {
     }
   };
 
+  // ============================================================================
+  // ENCRYPTION - SETUP & LOADING
+  // ============================================================================
   const setupEncryptionWithPin = async (pin) => {
     setEncryptionStatus('initializing');
     
     try {
-      const { publicKey: newPublicKey, privateKey: newPrivateKey } = await generateKeyPair();
-      const publicKeyPem = await exportPublicKey(newPublicKey);
+      // Check if we're recovering (keys already exist)
+      const isRecovery = hasKeys && publicKey && privateKey;
       
-      // Export private key for server backup (encrypted with PIN)
-      const privateKeyPem = await exportPrivateKey(newPrivateKey);
-      const { encryptedPrivateKey, iv } = await encryptPrivateKeyForBackup(privateKeyPem, pin);
+      let newPublicKey, newPrivateKey, publicKeyPem, privateKeyPem;
+      
+      if (isRecovery) {
+        // Re-encrypting existing keys with new PIN
+        console.log('🔄 Re-encrypting existing keys with new PIN');
+        newPublicKey = publicKey;
+        newPrivateKey = privateKey;
+        publicKeyPem = await exportPublicKey(publicKey);
+        privateKeyPem = await exportPrivateKey(privateKey);
+      } else {
+        // Creating new keys
+        console.log('🆕 Creating new encryption keys');
+        const keyPair = await generateKeyPair();
+        newPublicKey = keyPair.publicKey;
+        newPrivateKey = keyPair.privateKey;
+        publicKeyPem = await exportPublicKey(newPublicKey);
+        privateKeyPem = await exportPrivateKey(newPrivateKey);
+      }
+      
+      // Generate recovery codes first
+      const codes = generateRecoveryCodes();
+      setRecoveryCodes(codes);
+      
+      // Create envelope encryption: encrypt private key with master key,
+      // wrap master key with PIN and all recovery codes
+      const envelopeData = await createEnvelopeEncryption(privateKeyPem, pin, codes);
+      console.log('✅ Envelope encryption created');
       
       // Store non-extractable private key in IndexedDB locally
       await storeKeysSecurely(publicKeyPem, newPrivateKey, pin);
       
-      // Upload public key + encrypted private key to server
+      const currentDeviceId = getDeviceIdentifier();
+      
+      // Upload envelope encryption data to server
       await axiosInstance.post('/chat/setup-encryption', {
         publicKey: publicKeyPem,
-        encryptedPrivateKey: encryptedPrivateKey,
-        privateKeyIV: iv,
-        deviceId: getDeviceIdentifier()
+        encryptedPrivateKey: envelopeData.encryptedPrivateKey,
+        privateKeyIV: envelopeData.privateKeyIV,
+        masterKeyWrappedByPin: envelopeData.masterKeyWrappedByPin,
+        pinWrapIV: envelopeData.pinWrapIV,
+        recoveryCodeWraps: envelopeData.recoveryCodeWraps
       });
+      console.log('✅ Envelope encryption uploaded to server');
       
+      // Register current device
+      try {
+        await axiosInstance.post('/devices', {
+          deviceName: currentDeviceId,
+          userAgent: navigator.userAgent
+        });
+        console.log('✅ Device registered:', currentDeviceId);
+      } catch (deviceError) {
+        console.warn('Failed to register device:', deviceError);
+        // Continue even if device registration fails
+      }
+      
+      // Show recovery codes modal
+      setShowPinModal(false);
+      setShowRecoveryCodesModal(true);
+      setPinInput('');
+      setConfirmPin('');
+      
+      // Store keys
       setPublicKey(newPublicKey);
       setPrivateKey(newPrivateKey);
       setHasKeys(true);
       setEncryptionStatus('ready');
-      setShowPinModal(false);
-      setPinInput('');
-      setConfirmPin('');
-      toast.success('🔐 Secure messaging enabled');
+      
+      if (isRecovery) {
+        toast.success('🔐 New PIN set successfully');
+      }
     } catch (error) {
       console.error('Encryption setup failed:', error);
       setEncryptionStatus('error');
@@ -201,11 +427,14 @@ const ChatPage = () => {
 
   const loadEncryptionKeys = async (pin) => {
     setEncryptionStatus('initializing');
+    const hasLocal = hasStoredKeys(); 
     
-    // Check if we have local storage token
-    const hasLocal = hasStoredKeys();
+    console.log('📋 Local storage check:', { hasLocal });
     
+    // Only use local verification if we have the PIN token
+    // If only public key exists without token, fall through to server
     if (hasLocal) {
+      console.log('🔐 Attempting local PIN verification...');
       // We have localStorage token, use it to verify PIN locally
       try {
         const storedKeys = await retrieveStoredKeys(pin);
@@ -220,6 +449,22 @@ const ChatPage = () => {
           setShowPinModal(false);
           setPinInput('');
           console.log('✅ Keys loaded from local storage');
+          
+          // Register device if not already registered
+          try {
+            const currentDeviceId = getDeviceIdentifier();
+            await axiosInstance.post('/devices', {
+              deviceName: currentDeviceId,
+              userAgent: navigator.userAgent
+            });
+            console.log('✅ Device registered:', currentDeviceId);
+          } catch (deviceError) {
+            // Device might already exist, ignore error
+            if (deviceError.response?.status !== 400) {
+              console.warn('Failed to register device:', deviceError);
+            }
+          }
+          
           return;
         }
       } catch (localError) {
@@ -244,34 +489,93 @@ const ChatPage = () => {
         hasPublicKey: !!serverKeys.publicKey 
       });
       
-      if (serverKeys.encryptedPrivateKey && serverKeys.privateKeyIV) {
-        const serverData = {
-          encryptedPrivateKey: serverKeys.encryptedPrivateKey,
-          iv: serverKeys.privateKeyIV,
-          publicKey: serverKeys.publicKey
-        };
+      if (serverKeys.encryptedPrivateKey && serverKeys.privateKeyIV && serverKeys.masterKeyWrappedByPin && serverKeys.pinWrapIV) {
+        console.log('🔓 Decrypting with envelope encryption...');
         
-        console.log('🔓 Decrypting server backup with your PIN...');
-        console.log('Server encrypted key preview:', serverKeys.encryptedPrivateKey.substring(0, 50) + '...');
-        console.log('Server IV preview:', serverKeys.privateKeyIV.substring(0, 20) + '...');
+        // Use envelope decryption: unwrap master key with PIN, then decrypt private key
+        const privateKeyPem = await decryptPrivateKeyWithPin(
+          serverKeys.encryptedPrivateKey,
+          serverKeys.privateKeyIV,
+          serverKeys.masterKeyWrappedByPin,
+          serverKeys.pinWrapIV,
+          pin
+        );
         
-        // retrieveKeysFromServer will:
-        // 1. Decrypt with PIN (if wrong PIN, decryption fails = PIN verification)
-        // 2. Store private key in IndexedDB as non-extractable
-        // 3. CREATE localStorage token (for future fast PIN verification)
-        const restoredKeys = await retrieveKeysFromServer(serverData, pin);
-        const importedPublicKey = await importPublicKey(restoredKeys.publicKeyPem);
+        // Import the decrypted private key
+        const { importPrivateKey } = await import('../utils/encryption');
+        const restoredPrivateKey = await importPrivateKey(privateKeyPem);
+        const importedPublicKey = await importPublicKey(serverKeys.publicKey);
+        
+        // Store keys locally (creates PIN token for future use)
+        await storeKeysSecurely(serverKeys.publicKey, restoredPrivateKey, pin);
         
         setPublicKey(importedPublicKey);
-        setPrivateKey(restoredKeys.privateKey);
+        setPrivateKey(restoredPrivateKey);
         setHasKeys(true);
         setEncryptionStatus('ready');
         setShowPinModal(false);
         setPinInput('');
         toast.success('🔐 Keys restored from server');
         console.log('✅ Token created in localStorage for future use');
+        
+        // Register device if not already registered
+        try {
+          const currentDeviceId = getDeviceIdentifier();
+          await axiosInstance.post('/devices', {
+            deviceName: currentDeviceId,
+            userAgent: navigator.userAgent
+          });
+          console.log('✅ Device registered after server restore:', currentDeviceId);
+        } catch (deviceError) {
+          // Device might already exist, ignore error
+          if (deviceError.response?.status !== 400) {
+            console.warn('Failed to register device:', deviceError);
+          }
+        }
       } else {
-        throw new Error('No keys found on server');
+
+        
+        // Try to load local keys anyway (they'll work on this device)
+        const localStoragePublicKey = localStorage.getItem('chat_public_key');
+        if (localStoragePublicKey) {
+          try {
+            // Verify PIN with local token
+            const localKeys = await retrieveStoredKeys(pin);
+            if (localKeys.privateKey) {
+              console.log('✅ Local keys verified and loaded (device-only mode)');
+              
+              // Import keys and use them locally
+              const importedPublicKey = await importPublicKey(localStoragePublicKey);
+              setPublicKey(importedPublicKey);
+              setPrivateKey(localKeys.privateKey);
+              setHasKeys(true);
+              setEncryptionStatus('ready');
+              setShowPinModal(false);
+              setPinInput('');
+              
+              // Register device
+              try {
+                const currentDeviceId = getDeviceIdentifier();
+                await axiosInstance.post('/devices', {
+                  deviceName: currentDeviceId,
+                  userAgent: navigator.userAgent
+                });
+                console.log('✅ Device registered:', currentDeviceId);
+              } catch (deviceError) {
+                if (deviceError.response?.status !== 400) {
+                  console.warn('Failed to register device:', deviceError);
+                }
+              }
+              
+              toast.warning('Keys loaded locally only. Server has no backup. Use recovery code if needed on other devices.');
+              return;
+            }
+          } catch (localError) {
+            console.error('❌ Failed to verify local keys:', localError);
+          }
+        }
+        
+        throw new Error('No keys found on server or locally');
       }
     } catch (serverError) {
       console.error('❌ Failed to retrieve from server:', serverError);
@@ -280,12 +584,129 @@ const ChatPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (selectedConversation && hasKeys) {
-      fetchFriendPublicKey(selectedConversation);
+  // ============================================================================
+  // RECOVERY CODES - MANAGEMENT
+  // ============================================================================
+  const downloadRecoveryCodes = () => {
+    const content = `MODA CHAT RECOVERY CODES\n\n` +
+      `IMPORTANT: Keep these codes safe!\n` +
+      `If you forget your PIN, you can use ONE of these codes to recover access.\n` +
+      `Each code can only be used once.\n\n` +
+      recoveryCodes.map((code, i) => `${i + 1}. ${code}`).join('\n') +
+      `\n\nGenerated: ${new Date().toLocaleString()}`;
+    
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `moda-recovery-codes-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Recovery codes downloaded');
+  };
+  
+  const copyRecoveryCodes = () => {
+    const text = recoveryCodes.join('\n');
+    navigator.clipboard.writeText(text);
+    toast.success('Recovery codes copied to clipboard');
+  };
+  
+  const printRecoveryCodes = () => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>MODA Recovery Codes</title>
+          <style>
+            body { font-family: monospace; padding: 40px; }
+            h1 { font-size: 24px; margin-bottom: 20px; }
+            .warning { color: red; margin-bottom: 20px; }
+            .code { font-size: 18px; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <h1>MODA CHAT RECOVERY CODES</h1>
+          <p class="warning">⚠️ IMPORTANT: Keep these codes safe!</p>
+          <p>If you forget your PIN, you can use ONE of these codes to recover access.</p>
+          <p>Each code can only be used once.</p>
+          <br/>
+          ${recoveryCodes.map((code, i) => `<div class="code">${i + 1}. ${code}</div>`).join('')}
+          <br/>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+  
+  const handleRecoveryCodesConfirmed = () => {
+    if (!hasConfirmedBackup) {
+      toast.error('Please confirm you have saved your recovery codes');
+      return;
     }
-  }, [selectedConversation?.id, hasKeys]);
-
+    setShowRecoveryCodesModal(false);
+    setHasConfirmedBackup(false);
+    toast.success('🔐 Secure messaging enabled');
+  };
+  
+  const handleForgotPin = () => {
+    setShowPinModal(false);
+    setShowForgotPinModal(true);
+    setPinInput('');
+    setPinError('');
+  };
+  
+  const handleRecoveryCodeSubmit = async () => {
+    setRecoveryError('');
+    
+    if (!recoveryCodeInput.trim()) {
+      setRecoveryError('Please enter a recovery code');
+      return;
+    }
+    
+    try {
+      // Recover with code using envelope decryption
+      const privateKeyPem = await recoverWithCode(recoveryCodeInput.trim(), axiosInstance);
+      
+      // Import the recovered private key
+      const recoveredPrivateKey = await importPrivateKey(privateKeyPem);
+      
+      // Get public key from localStorage or server
+      let publicKeyPem = localStorage.getItem('chat_public_key');
+      if (!publicKeyPem) {
+        const response = await axiosInstance.get('/chat/encrypted-keys');
+        publicKeyPem = response.data.publicKey;
+      }
+      
+      const importedPublicKey = await importPublicKey(publicKeyPem);
+      
+      // Restore keys immediately
+      setPublicKey(importedPublicKey);
+      setPrivateKey(recoveredPrivateKey);
+      setHasKeys(true);
+      setEncryptionStatus('ready');
+      
+      // Close recovery modal and ask for new PIN
+      setShowForgotPinModal(false);
+      setRecoveryCodeInput('');
+      setShowPinModal(true);
+      setIsSettingPin(true);
+      setPinInput('');
+      setConfirmPin('');
+      
+      toast.success('Recovery successful! Please set a new PIN');
+    } catch (error) {
+      console.error('Recovery failed:', error);
+      setRecoveryError('Invalid recovery code or decryption failed');
+    }
+  };
+  
+  // ============================================================================
+  // ENCRYPTION - PUBLIC KEY MANAGEMENT
+  // ============================================================================
   const fetchFriendPublicKey = async (conversation) => {
     try {
       const friendId = conversation.otherUser?.id;
@@ -304,6 +725,9 @@ const ChatPage = () => {
     }
   };
 
+  // ============================================================================
+  // EFFECTS - SOCKET CONNECTION
+  // ============================================================================
   useEffect(() => {
     if (!user?.id) return;
 
@@ -313,9 +737,11 @@ const ChatPage = () => {
     });
 
     socketRef.current.on('new-message', async ({ conversationId, message }) => {
-      // Wait for decryption to complete before adding to state
-  
+      // Decrypt incoming message if needed
+      const decryptedMessage = await decryptIncomingMessage(message);
+      
       console.log('🔔 New message received:', decryptedMessage);
+      
       if (selectedConversationRef.current?.id === conversationId) {
         setMessages(prev => {
           const exists = prev.some(m => m.id === decryptedMessage.id);
@@ -358,20 +784,33 @@ const ChatPage = () => {
     };
   }, [user?.id]);
 
+  // ============================================================================
+  // ENCRYPTION - MESSAGE DECRYPTION
+  // ============================================================================
   const decryptIncomingMessage = async (message) => {
-    if (!message.isEncrypted || !privateKey) return message;
+    // If not encrypted or no encryption key, return as-is
+    if (!message.isEncrypted || !privateKey) {
+      return message;
+    }
+
+    // If message already has decrypted content, don't decrypt again
+    if (message.content && message.content.trim() !== '') {
+      return message;
+    }
 
     try {
       const isSender = message.senderId === user.id;
       let decryptedContent;
       
       if (isSender && message.aesKey) {
+        // Sender: decrypt with plain AES key
         decryptedContent = await decryptMessageWithAESKey(
           message.encryptedContent,
           message.iv,
           message.aesKey
         );
       } else if (message.encryptedAESKey) {
+        // Receiver: decrypt AES key with private key, then decrypt message
         decryptedContent = await decryptMessageAES(
           message.encryptedContent,
           message.iv,
@@ -379,13 +818,14 @@ const ChatPage = () => {
           privateKey
         );
       } else {
-        throw new Error('Missing encryption data');
+        console.warn('Missing encryption data for message:', message.id);
+        return { ...message, content: '[Encrypted]', isEncrypted: true };
       }
       
       // Ensure content is not empty
       if (!decryptedContent || decryptedContent.trim() === '') {
         console.error('Decryption returned empty content for message:', message.id);
-        return { ...message, content: '[Decryption error: empty content]', isEncrypted: true };
+        return { ...message, content: '[Decryption error]', isEncrypted: true };
       }
       
       return { ...message, content: decryptedContent, isEncrypted: true };
@@ -395,35 +835,9 @@ const ChatPage = () => {
     }
   };
 
-  // Fetch conversations on mount
-  useEffect(() => {
-    fetchConversations();
-    
-    // Check if friendId is in query params to start a conversation
-    const params = new URLSearchParams(location.search);
-    const friendId = params.get('friendId');
-    if (friendId) {
-      createOrOpenConversation(parseInt(friendId));
-    }
-  }, [location.search]);
-
-  // Fetch messages when conversation changes
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
-      markAsRead(selectedConversation.id);
-    }
-  }, [selectedConversation?.id]); // Only re-run when conversation ID changes
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // ============================================================================
+  // CHAT - CONVERSATION MANAGEMENT
+  // ============================================================================
   const fetchConversations = async () => {
     try {
       const response = await axiosInstance.get('/chat/conversations');
@@ -455,82 +869,91 @@ const ChatPage = () => {
   const createOrOpenConversation = async (friendId) => {
     try {
       const response = await axiosInstance.post('/chat/conversation', { friendId });
-      setSelectedConversation(response.data.conversation);
+      const conversation = response.data.conversation;
+      
+      // Determine which user is the "other" user
+      const otherUser = conversation.user1Id === user.id ? conversation.user2 : conversation.user1;
+      
+      // Transform conversation to include otherUser field for UI consistency
+      const transformedConversation = {
+        ...conversation,
+        otherUser,
+        lastMessage: conversation.messages?.[0] || null
+      };
+      
+      setSelectedConversation(transformedConversation);
+      
+      // Set initial messages from the conversation response
+      if (conversation.messages && conversation.messages.length > 0) {
+        // Decrypt messages if needed
+        if (privateKey) {
+          const decryptedMessages = await Promise.all(
+            conversation.messages.map(msg => decryptIncomingMessage(msg))
+          );
+          setMessages(decryptedMessages);
+        } else {
+          setMessages(conversation.messages);
+        }
+      } else {
+        setMessages([]);
+      }
       
       // Add to conversation list if not exists
       setConversations(prev => {
-        const exists = prev.some(c => c.id === response.data.conversation.id);
+        const exists = prev.some(c => c.id === conversation.id);
         if (!exists) {
-          return [response.data.conversation, ...prev];
+          return [transformedConversation, ...prev];
         }
-        return prev;
+        return prev.map(c => c.id === conversation.id ? transformedConversation : c);
       });
     } catch (error) {
+      console.error('Failed to open conversation:', error);
       toast.error('Failed to open conversation');
     }
   };
 
+  // ============================================================================
+  // CHAT - MESSAGE MANAGEMENT
+  // ============================================================================
   const fetchMessages = async (conversationId, before = null) => {
+    // Skip if messages already loaded from conversation response
+    if (!before && messages.length > 0) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     try {
       const params = { limit: 50 };
       if (before) params.before = before;
       const response = await axiosInstance.get(`/chat/messages/${conversationId}`, { params });
-      const encryptedMessages = response.data.messages || [];
       
-      // 🔐 Decrypt messages if they are encrypted (AES hybrid)
-      if (privateKey) {
+      // Response format: { messages: [...] }
+      const fetchedMessages = response.data.messages || [];
+      
+      // 🔐 Decrypt messages if they are encrypted
+      if (privateKey && fetchedMessages.length > 0) {
         const decryptedMessages = await Promise.all(
-          encryptedMessages.map(async (msg) => {
-            if (msg.isEncrypted) {
-              try {
-                let decryptedContent;
-                
-                // Check if sender or receiver
-                const isSender = msg.senderId === user.id;
-                
-                if (isSender && msg.aesKey) {
-                  // Sender: decrypt with plain AES key
-                  decryptedContent = await decryptMessageWithAESKey(
-                    msg.encryptedContent,
-                    msg.iv,
-                    msg.aesKey
-                  );
-                } else if (msg.encryptedAESKey) {
-                  // Receiver: decrypt AES key with private key, then decrypt message
-                  decryptedContent = await decryptMessageAES(
-                    msg.encryptedContent,
-                    msg.iv,
-                    msg.encryptedAESKey,
-                    privateKey
-                  );
-                } else {
-                  throw new Error('Missing encryption data');
-                }
-                
-                return {
-                  ...msg,
-                  content: decryptedContent,
-                  isEncrypted: true
-                };
-              } catch (error) {
-                console.error('❌ Failed to decrypt message:', msg.id, error);
-                return {
-                  ...msg,
-                  content: '[Encrypted - Unable to decrypt]',
-                  isEncrypted: true
-                };
-              }
-            }
-            return msg;
-          })
+          fetchedMessages.map(msg => decryptIncomingMessage(msg))
         );
-        setMessages(decryptedMessages);
+        
+        if (before) {
+          // Prepend older messages for pagination
+          setMessages(prev => [...decryptedMessages, ...prev]);
+        } else {
+          // Initial load
+          setMessages(decryptedMessages);
+        }
       } else {
-        setMessages(encryptedMessages);
+        if (before) {
+          setMessages(prev => [...fetchedMessages, ...prev]);
+        } else {
+          setMessages(fetchedMessages);
+        }
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
+      toast.error('Failed to load messages');
     } finally {
       setLoading(false);
     }
@@ -540,22 +963,25 @@ const ChatPage = () => {
     if (!messageInput.trim() || !selectedConversation) return;
 
     setSending(true);
+    const originalContent = messageInput; // Store original message
+    
     try {
       const friendId = selectedConversation.otherUser?.id;
       const friendPublicKey = friendPublicKeys[friendId];
       
       let messageData = {
         conversationId: selectedConversation.id,
-        content: messageInput,
+        content: originalContent,
         messageType: 'TEXT'
       };
 
+      // Encrypt if possible
       if (friendPublicKey && hasKeys && privateKey) {
         try {
-          const encrypted = await encryptMessageAES(messageInput, privateKey, friendPublicKey);
+          const encrypted = await encryptMessageAES(originalContent, privateKey, friendPublicKey);
           messageData = {
             ...messageData,
-            content: '',
+            content: '', // Server expects empty content for encrypted messages
             encryptedContent: encrypted.encryptedContent,
             iv: encrypted.iv,
             encryptedAESKey: encrypted.encryptedAESKey,
@@ -565,16 +991,23 @@ const ChatPage = () => {
         } catch (error) {
           console.error('Encryption failed:', error);
           toast.error('Failed to encrypt message');
+          return; // Don't send if encryption fails
         }
       }
 
       const response = await axiosInstance.post('/chat/message', messageData);
       let newMessage = response.data.data || response.data;
       
-      if (newMessage.isEncrypted && messageInput) {
-        newMessage = { ...newMessage, content: messageInput, isEncrypted: true };
+      // Always use original content for display (it's already decrypted for sender)
+      if (newMessage.isEncrypted) {
+        newMessage = { 
+          ...newMessage, 
+          content: originalContent, // Use the original plain text
+          isEncrypted: true 
+        };
       }
       
+      // Add message to UI immediately with proper content
       setMessages(prev => {
         const exists = prev.some(m => m.id === newMessage.id);
         if (exists) return prev;
@@ -583,14 +1016,20 @@ const ChatPage = () => {
       
       setMessageInput('');
       emitTyping(false);
-      updateConversationInList(selectedConversation.id, newMessage);
+      
+      // Update conversation list with message that has content
+      updateConversationInList(selectedConversation.id, { ...newMessage, content: originalContent });
     } catch (error) {
+      console.error('Failed to send message:', error);
       toast.error('Failed to send message');
     } finally {
       setSending(false);
     }
   };
 
+  // ============================================================================
+  // CHAT - MESSAGE STATUS
+  // ============================================================================
   const markAsRead = async (conversationId) => {
     try {
       await axiosInstance.put(`/chat/messages/read/${conversationId}`);
@@ -604,7 +1043,9 @@ const ChatPage = () => {
     }
   };
 
-
+  // ============================================================================
+  // CHAT - TYPING INDICATORS
+  // ============================================================================
   const handleTyping = (e) => {
     setMessageInput(e.target.value);
     if (!socketRef.current || !selectedConversation) return;
@@ -627,6 +1068,13 @@ const ChatPage = () => {
     });
   };
 
+  // ============================================================================
+  // UTILITY FUNCTIONS
+  // ============================================================================
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -644,10 +1092,16 @@ const ChatPage = () => {
     }
   };
 
+  // ============================================================================
+  // RENDER
+  // ============================================================================
   return (
     <div className="flex h-screen relative-container text-[#353535]">
       <SideNav onCartOpen={() => setCartOpen(true)} />
 
+      {/* ====================================================================== */}
+      {/* PIN MODAL */}
+      {/* ====================================================================== */}
       {showPinModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
@@ -719,14 +1173,185 @@ const ChatPage = () => {
                   ⚠️ Remember this PIN. You'll need it to access your messages.
                 </p>
               )}
+              
+              {!isSettingPin && (
+                <button
+                  onClick={handleForgotPin}
+                  className="text-sm text-[#434237] hover:underline text-center w-full"
+                >
+                  Forgot PIN?
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
+      {/* ====================================================================== */}
+      {/* RECOVERY CODES MODAL */}
+      {/* ====================================================================== */}
+      {showRecoveryCodesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <IoCheckmarkCircleOutline className="text-3xl text-white" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Save Your Recovery Codes</h2>
+              <p className="text-gray-600">
+                These codes can restore access if you forget your PIN. Each code works only once.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <div className="grid grid-cols-2 gap-3">
+                {recoveryCodes.map((code, index) => (
+                  <div key={index} className="bg-white p-3 rounded border border-gray-200">
+                    <span className="text-xs text-gray-500 mr-2">{index + 1}.</span>
+                    <span className="font-mono text-sm font-semibold">{code}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={downloadRecoveryCodes}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#434237] text-white rounded-lg hover:bg-[#5a594f] transition"
+              >
+                <IoDownloadOutline className="text-xl" />
+                Download
+              </button>
+              <button
+                onClick={copyRecoveryCodes}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-[#434237] text-[#434237] rounded-lg hover:bg-gray-50 transition"
+              >
+                <IoCopyOutline className="text-xl" />
+                Copy
+              </button>
+              <button
+                onClick={printRecoveryCodes}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-[#434237] text-[#434237] rounded-lg hover:bg-gray-50 transition"
+              >
+                <IoPrintOutline className="text-xl" />
+                Print
+              </button>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <IoWarningOutline className="text-yellow-600 text-xl flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-semibold mb-1">Important Security Information</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Store these codes in a safe place (password manager, safe, etc.)</li>
+                    <li>Never share these codes with anyone</li>
+                    <li>Each code can only be used once</li>
+                    <li>Without these codes, you cannot recover a forgotten PIN</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mb-4">
+              <input
+                type="checkbox"
+                id="backup-confirm"
+                checked={hasConfirmedBackup}
+                onChange={(e) => setHasConfirmedBackup(e.target.checked)}
+                className="w-5 h-5 text-[#434237] rounded focus:ring-[#434237]"
+              />
+              <label htmlFor="backup-confirm" className="text-sm text-gray-700">
+                I have saved my recovery codes in a secure location
+              </label>
+            </div>
+
+            <button
+              onClick={handleRecoveryCodesConfirmed}
+              disabled={!hasConfirmedBackup}
+              className="w-full bg-[#434237] text-white py-3 rounded-lg font-medium hover:bg-[#5a594f] disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              Continue to Chat
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* FORGOT PIN MODAL */}
+      {/* ====================================================================== */}
+      {showForgotPinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mb-4">
+                  <IoWarningOutline className="text-3xl text-white" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">Forgot PIN?</h2>
+                <p className="text-gray-600">
+                  Enter one of your recovery codes to regain access
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowForgotPinModal(false);
+                  setShowPinModal(true);
+                  setRecoveryCodeInput('');
+                  setRecoveryError('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <IoCloseOutline className="text-2xl" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Recovery Code
+                </label>
+                <input
+                  type="text"
+                  value={recoveryCodeInput}
+                  onChange={(e) => setRecoveryCodeInput(e.target.value.toUpperCase())}
+                  onKeyPress={(e) => e.key === 'Enter' && handleRecoveryCodeSubmit()}
+                  placeholder="XXXX-XXXX-XXXX"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#434237] font-mono"
+                  autoFocus
+                />
+              </div>
+
+              {recoveryError && (
+                <div className="flex items-center gap-2 text-red-500 text-sm">
+                  <IoWarningOutline />
+                  <span>{recoveryError}</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleRecoveryCodeSubmit}
+                disabled={!recoveryCodeInput}
+                className="w-full bg-[#434237] text-white py-3 rounded-lg font-medium hover:bg-[#5a594f] disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                Verify Recovery Code
+              </button>
+
+              <div className="text-xs text-gray-500 text-center space-y-2">
+                <p>⚠️ Each recovery code can only be used once</p>
+                <p>After verification, you'll be able to set a new PIN</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================== */}
+      {/* CONVERSATIONS SIDEBAR */}
+      {/* ====================================================================== */}
       <div className="flex-1 ml-20 flex ">
         <div className="w-96 border-r-[0.1px] border-[#BFAF92] flex flex-col ">
-          {/* Header */}
+          {/* Sidebar Header */}
           <div className="p-4 ">
             <div className="flex items-center justify-between my-4">
               <div className="flex items-center gap-2">
@@ -748,7 +1373,7 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Your Note */}
+          {/* User Note Section */}
           <div className="px-4 py-2 ">
             <div className="flex items-center gap-3 rounded-lg transition">
               <div className="relative">
@@ -768,7 +1393,7 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Messages/Requests Tabs */}
+          {/* Tab Navigation */}
           <div className="flex px-4 py-2 items-center ">
             <div className="flex-1 text-lg font-semibold ">
               Messages
@@ -778,13 +1403,13 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Conversations */}
+          {/* Conversation List */}
           <div className="flex-1 overflow-y-auto">
             {conversations.length > 0 ? (
               conversations.map((conv) => {
-                const friend = conv.otherUser;
-                console.log(friend)
-                const isSelected = selectedConversation?.otherUser?.id === friend?.id;
+                // Determine the other user (not current user)
+                const friend = conv.otherUser || (conv.user1Id === user.id ? conv.user2 : conv.user1);
+                const isSelected = selectedConversation?.id === conv.id;
                 return (
                   <div
                     key={conv.id}
@@ -820,9 +1445,11 @@ const ChatPage = () => {
                           <p className={`text-sm truncate mt-0.5 ${
                             conv.unreadCount > 0 ? 'font-medium text-white' : 'text-gray-400'
                           }`}>
-                            {conv.lastMessage.messageType === 'PRODUCT' 
+                            {conv.lastMessage.productId 
                               ? '📦 Shared a product' 
-                              : `You: ${conv.lastMessage.content}`}
+                              : conv.lastMessage.senderId === user.id
+                                ? `You: ${conv.lastMessage.content}`
+                                : conv.lastMessage.content}
                           </p>
                         )}
                       </div>
@@ -844,7 +1471,9 @@ const ChatPage = () => {
           </div>
         </div>
 
-        {/* Right Side - Chat Area */}
+        {/* ================================================================== */}
+        {/* CHAT AREA */}
+        {/* ================================================================== */}
         <div className="flex-1 flex flex-col">
           {selectedConversation ? (
             <>
@@ -892,13 +1521,17 @@ const ChatPage = () => {
                       return (
                         <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                           {!isOwn && (
-                            <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold mr-2 flex-shrink-0">
-                              <img src={selectedConversation.otherUser?.avatar?.url || ""} alt={selectedConversation.otherUser?.name || "User"} />
+                            <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold mr-2 flex-shrink-0 overflow-hidden">
+                              <img 
+                                src={msg.sender?.avatar?.url || selectedConversation.otherUser?.avatar?.url || ""} 
+                                alt={msg.sender?.name || selectedConversation.otherUser?.name || "User"}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                           )}
                           
                           <div className={`max-w-xs`}>
-                            {msg.messageType === 'TEXT' && (
+                            {!msg.productId && (
                               <div className={`rounded-3xl px-4 py-2 ${
                                 isOwn ? 'bg-[#434237] text-white' : 'bg-[#BFAF92]/50 text-black'
                               }`}>
@@ -913,7 +1546,7 @@ const ChatPage = () => {
                               </div>
                             )}
                             
-                            {msg.messageType === 'PRODUCT' && msg.product && (
+                            {msg.productId && msg.product && (
                               <div className="border border-gray-700 rounded-2xl p-3 bg-[#1a1a1a] cursor-pointer hover:bg-[#262626] transition"
                                    onClick={() => navigate(`/product?id=${msg.product.id}`)}>
                                 <div className="flex gap-3">
@@ -944,8 +1577,12 @@ const ChatPage = () => {
                           </div>
                           
                           {isOwn && (
-                            <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold ml-2 flex-shrink-0">
-                              {user?.name?.charAt(0).toUpperCase()}
+                            <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold ml-2 flex-shrink-0 overflow-hidden">
+                              <img 
+                                src={user?.avatar?.url || ""} 
+                                alt={user?.name || "You"}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                           )}
                         </div>
@@ -955,8 +1592,12 @@ const ChatPage = () => {
                     {/* Typing Indicator */}
                     {isTyping && (
                       <div className="flex justify-start">
-                        <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold mr-2 flex-shrink-0">
-                          {selectedConversation.friend?.name?.charAt(0).toUpperCase()}
+                        <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs font-semibold mr-2 flex-shrink-0 overflow-hidden">
+                          <img 
+                            src={selectedConversation.otherUser?.avatar?.url || ""} 
+                            alt={selectedConversation.otherUser?.name || "User"}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         <div className="bg-[#262626] rounded-3xl px-4 py-2">
                           <div className="flex gap-1">
@@ -1039,7 +1680,9 @@ const ChatPage = () => {
         </div>
       </div>
 
-      {/* Cart Modal */}
+      {/* ====================================================================== */}
+      {/* CART MODAL */}
+      {/* ====================================================================== */}
       <CartModal open={cartOpen} onClose={() => setCartOpen(false)} />
     </div>
   );

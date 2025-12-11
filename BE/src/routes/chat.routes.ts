@@ -8,7 +8,8 @@ import {
   shareProduct,
   getUserPublicKey,
   setupEncryption,
-  getEncryptedKeys
+  getEncryptedKeys,
+  useRecoveryCode
 } from '../controllers/chat.controller';
 import authMiddleware from '../middlewares/authentication';
 import { rateLimitMiddleware } from '../middlewares/rateLimit';
@@ -347,5 +348,35 @@ chatRoute.post('/setup-encryption', setupEncryption);
  *         description: No encrypted keys found on server
  */
 chatRoute.get('/encrypted-keys', getEncryptedKeys);
+
+/**
+ * @swagger
+ * /chat/use-recovery-code:
+ *   post:
+ *     summary: Mark a recovery code as used
+ *     description: After successfully using a recovery code to restore access, mark it as used
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - recoveryCode
+ *             properties:
+ *               recoveryCode:
+ *                 type: string
+ *                 description: The recovery code that was used
+ *                 example: "XXXX-XXXX-XXXX"
+ *     responses:
+ *       200:
+ *         description: Recovery code marked as used
+ *       404:
+ *         description: Recovery code not found or already used
+ */
+chatRoute.post('/use-recovery-code', useRecoveryCode);
 
 export default chatRoute;

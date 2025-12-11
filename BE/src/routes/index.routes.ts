@@ -26,6 +26,7 @@ import friendshipRoute from "./friendship.routes";
 import chatRoute from "./chat.routes";
 import virtualTryOnRoute from "./virtualTryOn.routes";
 import postRoute from "./post.routes";
+import deviceRoute from "./device.routes";
 
 const route = Router();
 
@@ -55,5 +56,6 @@ route.use('/friendship', friendshipRoute);
 route.use('/chat', chatRoute);
 route.use('/virtual-tryon', virtualTryOnRoute);
 route.use('/posts', postRoute);
+route.use('/devices', deviceRoute);
 
 export default route;

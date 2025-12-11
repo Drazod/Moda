@@ -629,7 +629,6 @@ export const getUserPublicKey = async (req: Request, res: Response) => {
         id: true, 
         name: true,
         publicKey: true,
-        publicKeyDevice: true,
         publicKeyUpdatedAt: true
       }
     });
@@ -649,7 +648,6 @@ export const getUserPublicKey = async (req: Request, res: Response) => {
       userId: user.id,
       name: user.name,
       publicKey: user.publicKey,
-      device: user.publicKeyDevice || 'Unknown device',
       lastUpdated: user.publicKeyUpdatedAt
     };
     
@@ -669,7 +667,15 @@ export const getUserPublicKey = async (req: Request, res: Response) => {
  * Body: { publicKey: string, encryptedPrivateKey: string, privateKeyIV: string, deviceId: string }
  */
 export const setupEncryption = async (req: Request, res: Response) => {
-  const { publicKey, encryptedPrivateKey, privateKeyIV, deviceId } = req.body;
+  const {
+    publicKey,
+    encryptedPrivateKey,
+    privateKeyIV,
+    masterKeyWrappedByPin,
+    pinWrapIV,
+    recoveryCodeWraps,
+    deviceId
+  } = req.body;
   
   if (!req.user) return res.status(401).json({ message: "User not authenticated" });
   
@@ -678,19 +684,80 @@ export const setupEncryption = async (req: Request, res: Response) => {
       message: "publicKey is required" 
     });
   }
+
+  // Validate envelope encryption fields
+  if (masterKeyWrappedByPin && (!pinWrapIV || !recoveryCodeWraps || recoveryCodeWraps.length !== 10)) {
+    return res.status(400).json({
+      message: "Envelope encryption requires pinWrapIV and exactly 10 recoveryCodeWraps"
+    });
+  }
   
   try {
-    // Update user's encryption keys (including encrypted private key backup)
+    const { hashRecoveryCode } = await import('../utils/crypto');
+
+    // Get current devices
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { publicKeyDevices: true }
+    });
+
+    const devices = currentUser?.publicKeyDevices ? (currentUser.publicKeyDevices as any[]) : [];
+    const newDevice = {
+      name: deviceId || 'Unknown device',
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      addedAt: new Date().toISOString(),
+      lastUsedAt: new Date().toISOString()
+    };
+
+    // Update user's encryption keys with envelope encryption
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
         publicKey,
         encryptedPrivateKey: encryptedPrivateKey || null,
         privateKeyIV: privateKeyIV || null,
-        publicKeyDevice: deviceId || 'Unknown device',
+        masterKeyWrappedByPin: masterKeyWrappedByPin || null,
+        pinWrapIV: pinWrapIV || null,
+        publicKeyDevices: [...devices, newDevice],
         publicKeyUpdatedAt: new Date()
       }
     });
+
+    // Store recovery code wraps (if provided)
+    if (recoveryCodeWraps && recoveryCodeWraps.length > 0) {
+      // Validate each wrap has required fields
+      for (let i = 0; i < recoveryCodeWraps.length; i++) {
+        const wrap = recoveryCodeWraps[i];
+        if (!wrap.code || !wrap.wrappedMasterKey || !wrap.wrapIV) {
+          return res.status(400).json({
+            message: `Recovery code wrap at index ${i} is missing required fields (code, wrappedMasterKey, wrapIV)`,
+            received: {
+              code: wrap.code ? 'present' : 'missing',
+              wrappedMasterKey: wrap.wrappedMasterKey ? 'present' : 'missing',
+              wrapIV: wrap.wrapIV ? 'present' : 'missing'
+            }
+          });
+        }
+      }
+
+      // Delete old recovery codes
+      await prisma.recoveryCodeWrap.deleteMany({
+        where: { userId: req.user.id }
+      });
+
+      // Hash recovery codes before storing (NEVER store plain codes!)
+      const hashedWraps = recoveryCodeWraps.map((wrap: any) => ({
+        userId: req.user.id,
+        codeHash: hashRecoveryCode(wrap.code),
+        wrappedMasterKey: wrap.wrappedMasterKey,
+        wrapIV: wrap.wrapIV
+      }));
+
+      // Store new recovery code wraps
+      await prisma.recoveryCodeWrap.createMany({
+        data: hashedWraps
+      });
+    }
     
     // Clear cache
     await delCache(`user:${req.user.id}:publicKey`);
@@ -698,6 +765,7 @@ export const setupEncryption = async (req: Request, res: Response) => {
     res.status(200).json({ 
       message: "Encryption keys updated successfully",
       device: deviceId || 'Unknown device',
+      recoveryCodesStored: recoveryCodeWraps?.length || 0,
       updatedAt: new Date()
     });
   } catch (error) {
@@ -720,7 +788,9 @@ export const getEncryptedKeys = async (req: Request, res: Response) => {
         encryptedPrivateKey: true,
         privateKeyIV: true,
         publicKey: true,
-        publicKeyDevice: true,
+        masterKeyWrappedByPin: true,
+        pinWrapIV: true,
+        publicKeyDevices: true,
         publicKeyUpdatedAt: true
       }
     });
@@ -735,16 +805,79 @@ export const getEncryptedKeys = async (req: Request, res: Response) => {
         requiresSetup: true
       });
     }
+
+    // Get unused recovery code wraps
+    const recoveryWraps = await prisma.recoveryCodeWrap.findMany({
+      where: {
+        userId: req.user.id,
+        isUsed: false
+      },
+      select: {
+        codeHash: true,
+        wrappedMasterKey: true,
+        wrapIV: true
+      }
+    });
     
     res.status(200).json({
       encryptedPrivateKey: user.encryptedPrivateKey,
       privateKeyIV: user.privateKeyIV,
       publicKey: user.publicKey,
-      device: user.publicKeyDevice,
+      masterKeyWrappedByPin: user.masterKeyWrappedByPin,
+      pinWrapIV: user.pinWrapIV,
+      recoveryCodeWraps: recoveryWraps, // Frontend will match by trying each code
+      devices: user.publicKeyDevices || [],
       lastUpdated: user.publicKeyUpdatedAt
     });
   } catch (error) {
     console.error("Error getting encrypted keys:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * Use a recovery code to mark it as used
+ * POST /chat/use-recovery-code
+ * Body: { recoveryCode: string }
+ */
+export const useRecoveryCode = async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).json({ message: "User not authenticated" });
+  
+  const { recoveryCode } = req.body;
+  
+  if (!recoveryCode) {
+    return res.status(400).json({ message: "Recovery code is required" });
+  }
+  
+  try {
+    const { hashRecoveryCode } = await import('../utils/crypto');
+    const codeHash = hashRecoveryCode(recoveryCode);
+    
+    // Find and mark recovery code as used
+    const result = await prisma.recoveryCodeWrap.updateMany({
+      where: {
+        userId: req.user.id,
+        codeHash: codeHash,
+        isUsed: false
+      },
+      data: {
+        isUsed: true,
+        usedAt: new Date()
+      }
+    });
+    
+    if (result.count === 0) {
+      return res.status(404).json({ 
+        message: "Recovery code not found or already used" 
+      });
+    }
+    
+    res.status(200).json({
+      message: "Recovery code marked as used successfully",
+      usedAt: new Date()
+    });
+  } catch (error) {
+    console.error("Error using recovery code:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

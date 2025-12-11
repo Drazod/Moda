@@ -206,12 +206,31 @@ model User {
   resetToken             String?
   resetTokenExpiry       DateTime?
   isVerified             Boolean           @default(false)
-  // E2E Encryption keys
+  // E2E Encryption keys with envelope encryption
   publicKey              String?           @db.Text
-  publicKeyDevice        String?           @db.VarChar(255) // Device that generated the key (e.g., "Chrome on Windows")
+  publicKeyDevices       Json? // Array of devices: [{ name: "Chrome on Windows", addedAt: "2025-12-11T...", userAgent: "..." }]
   publicKeyUpdatedAt     DateTime? // When the public key was last updated
-  encryptedPrivateKey    String?           @db.Text // Encrypted private key backup (encrypted with user's PIN)
+  encryptedPrivateKey    String?           @db.Text // Private key encrypted with master key (one-time encryption)
   privateKeyIV           String?           @db.VarChar(255) // IV for private key encryption
+  masterKeyWrappedByPin  String?           @db.Text // Master key wrapped (encrypted) with PIN
+  pinWrapIV              String?           @db.VarChar(255) // IV for PIN wrap
+  recoveryCodeWraps      RecoveryCodeWrap[] // Recovery codes that can unwrap master key
+}
+
+model RecoveryCodeWrap {
+  id                Int      @id @default(autoincrement())
+  userId            Int
+  codeHash          String   @db.VarChar(64) // SHA-256 hash of recovery code (NEVER store plain!)
+  wrappedMasterKey  String   @db.Text // Master key wrapped with this recovery code
+  wrapIV            String   @db.VarChar(255) // IV for this wrap
+  isUsed            Boolean  @default(false)
+  usedAt            DateTime?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, codeHash]) // One wrap per code per user
+  @@index([userId])
+  @@index([codeHash])
 }
 
 model Shipping {

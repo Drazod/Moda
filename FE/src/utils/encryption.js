@@ -1,28 +1,50 @@
 /**
- * End-to-End Encryption Utility for Chat
+ * ============================================================================
+ * END-TO-END ENCRYPTION UTILITY FOR CHAT
+ * ============================================================================
  * 
- * SECURITY FLOW:
- * 1. Each user generates an RSA-2048 key pair (public/private keys)
- * 2. Public keys are shared via backend, private keys NEVER leave the device
- * 3. Private keys stored in IndexedDB as non-extractable CryptoKey objects
- * 4. PIN protection: SHA-256 hash stored, required to retrieve private key
- * 5. For each message:
- *    a. Generate random AES-256 key
- *    b. Encrypt message with AES (fast, symmetric)
- *    c. Encrypt AES key with receiver's RSA public key → receiver can decrypt
- *    d. Store plain AES key → sender can decrypt own messages
- * 6. Both sender and receiver can read messages using their respective keys
+ * ARCHITECTURE:
+ * 1. RSA-2048 key pair (public/private) per user
+ * 2. Envelope encryption for key backup (GitHub-style recovery)
+ * 3. Non-extractable private keys in IndexedDB
+ * 4. PIN + recovery codes for access control
+ * 5. AES-256-GCM for message encryption (hybrid encryption)
  * 
- * KEY BENEFITS:
- * - Non-extractable private keys (cannot be exported, even by malicious scripts)
- * - IndexedDB storage (more secure than localStorage)
- * - PIN-protected access (SHA-256 hash verification)
- * - Fast encryption (AES vs pure RSA)
- * - Both parties can decrypt
- * - Perfect Forward Secrecy (unique key per message)
- * - Backend cannot read messages (no private keys on server)
- * - Protected against XSS key extraction
+ * ENVELOPE ENCRYPTION FLOW:
+ * Setup:
+ *  - Generate master key (random AES-256)
+ *  - Encrypt private key with master key → 1 encrypted blob
+ *  - Wrap master key with PIN → store on server
+ *  - Wrap master key with 10 recovery codes → store on server
+ * 
+ * Unlock:
+ *  - Enter PIN → unwrap master key → decrypt private key
+ *  - OR enter recovery code → unwrap master key → decrypt private key
+ * 
+ * MESSAGE ENCRYPTION:
+ * Sender:
+ *  - Generate random AES key per message
+ *  - Encrypt message with AES (fast)
+ *  - Encrypt AES key with receiver's RSA public key
+ *  - Store plain AES key (sender can decrypt own messages)
+ * 
+ * Receiver:
+ *  - Decrypt AES key with own RSA private key
+ *  - Decrypt message with AES key
+ * 
+ * SECURITY FEATURES:
+ * ✓ Non-extractable private keys (XSS protection)
+ * ✓ IndexedDB storage (more secure than localStorage)
+ * ✓ PIN verification via encrypted token
+ * ✓ Single-use recovery codes
+ * ✓ Perfect Forward Secrecy (unique key per message)
+ * ✓ Server cannot read messages (no master keys in plaintext)
+ * ============================================================================
  */
+
+// ============================================================================
+// CONFIGURATION CONSTANTS
+// ============================================================================
 
 const RSA_CONFIG = {
   algorithm: {
@@ -31,26 +53,55 @@ const RSA_CONFIG = {
     publicExponent: new Uint8Array([1, 0, 1]),
     hash: 'SHA-256'
   },
-  extractable: true, // Public key extractable
-  privateKeyExtractable: false, // Private key NON-extractable for security
+  extractable: true,
+  privateKeyExtractable: false, // Non-extractable for XSS protection
   keyUsages: ['encrypt', 'decrypt']
 };
 
-const DB_NAME = 'ModaChatEncryption';
-const DB_VERSION = 2; // Increment version to force recreation
-const STORE_NAME = 'keys';
-
 const AES_CONFIG = {
-  algorithm: {
-    name: 'AES-GCM',
-    length: 256
-  },
+  algorithm: { name: 'AES-GCM', length: 256 },
   extractable: true,
   keyUsages: ['encrypt', 'decrypt']
 };
 
+const DB_NAME = 'ModaChatEncryption';
+const DB_VERSION = 2;
+const STORE_NAME = 'keys';
+
+// ============================================================================
+// UTILITY HELPERS
+// ============================================================================
+
 /**
- * Initialize IndexedDB for key storage
+ * Convert ArrayBuffer to Base64 string
+ */
+const arrayBufferToBase64 = (buffer) => {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+};
+
+/**
+ * Convert Base64 string to ArrayBuffer
+ */
+const base64ToArrayBuffer = (base64) => {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
+// ============================================================================
+// INDEXEDDB UTILITIES
+// ============================================================================
+
+/**
+ * Initialize IndexedDB for secure key storage
  */
 const initDB = () => {
   return new Promise((resolve, reject) => {
@@ -89,10 +140,12 @@ const initDB = () => {
   });
 };
 
+// ============================================================================
+// RSA KEY PAIR GENERATION & EXPORT/IMPORT
+// ============================================================================
+
 /**
- * Generate RSA key pair with extractable private key
- * Note: Private key is extractable initially to allow server backup
- * It will be stored as non-extractable in IndexedDB
+ * Generate RSA-2048 key pair (extractable for backup, will be stored as non-extractable)
  */
 export const generateKeyPair = async () => {
   try {
@@ -242,7 +295,133 @@ const derivePinKey = async (pin) => {
 };
 
 /**
- * Generate recovery codes for PIN reset
+ * Generate a random master key for envelope encryption
+ */
+const generateMasterKey = async () => {
+  return await window.crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true, // extractable
+    ['encrypt', 'decrypt']
+  );
+};
+
+/**
+ * Encrypt data with master key
+ */
+const encryptWithMasterKey = async (data, masterKey) => {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    masterKey,
+    dataBuffer
+  );
+  
+  return {
+    encrypted: arrayBufferToBase64(encrypted),
+    iv: arrayBufferToBase64(iv)
+  };
+};
+
+/**
+ * Decrypt data with master key
+ */
+const decryptWithMasterKey = async (encryptedData, iv, masterKey) => {
+  const encryptedBuffer = base64ToArrayBuffer(encryptedData);
+  const ivBuffer = base64ToArrayBuffer(iv);
+  
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivBuffer },
+    masterKey,
+    encryptedBuffer
+  );
+  
+  const decoder = new TextDecoder();
+  return decoder.decode(decrypted);
+};
+
+/**
+ * Export master key as raw bytes
+ */
+const exportMasterKey = async (masterKey) => {
+  const rawKey = await window.crypto.subtle.exportKey('raw', masterKey);
+  return arrayBufferToBase64(rawKey);
+};
+
+/**
+ * Import master key from raw bytes
+ */
+const importMasterKey = async (base64Key) => {
+  const rawKey = base64ToArrayBuffer(base64Key);
+  return await window.crypto.subtle.importKey(
+    'raw',
+    rawKey,
+    { name: 'AES-GCM' },
+    true,
+    ['encrypt', 'decrypt']
+  );
+};
+
+/**
+ * Wrap (encrypt) master key with a password/PIN/recovery code
+ */
+const wrapMasterKey = async (masterKey, password) => {
+  const passwordKey = await derivePinKey(password);
+  const rawMasterKey = await exportMasterKey(masterKey);
+  const encoder = new TextEncoder();
+  const masterKeyData = encoder.encode(rawMasterKey);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  
+  const wrapped = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    passwordKey,
+    masterKeyData
+  );
+  
+  return {
+    wrappedKey: arrayBufferToBase64(wrapped),
+    iv: arrayBufferToBase64(iv)
+  };
+};
+
+/**
+ * Unwrap (decrypt) master key with a password/PIN/recovery code
+ */
+const unwrapMasterKey = async (wrappedKey, iv, password) => {
+  const passwordKey = await derivePinKey(password);
+  const wrappedBuffer = base64ToArrayBuffer(wrappedKey);
+  const ivBuffer = base64ToArrayBuffer(iv);
+  
+  const unwrapped = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivBuffer },
+    passwordKey,
+    wrappedBuffer
+  );
+  
+  const decoder = new TextDecoder();
+  const masterKeyBase64 = decoder.decode(unwrapped);
+  return await importMasterKey(masterKeyBase64);
+};
+
+// ============================================================================
+// ENVELOPE ENCRYPTION (Recovery Codes System)
+// ============================================================================
+
+/**
+ * Hash recovery code with SHA-256
+ */
+const hashRecoveryCode = async (code) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(code);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
+/**
+ * Generate 10 random recovery codes in XXXX-XXXX-XXXX format
  */
 export const generateRecoveryCodes = () => {
   const codes = [];
@@ -256,48 +435,119 @@ export const generateRecoveryCodes = () => {
 };
 
 /**
- * Store recovery codes encrypted with one of the codes
+ * Envelope encryption: Encrypt private key with master key,
+ * then wrap master key with PIN and recovery codes
  */
-export const storeRecoveryCodes = async (codes) => {
-  const masterCode = codes[0]; // First code encrypts the list
-  const encoder = new TextEncoder();
-  const codesData = encoder.encode(JSON.stringify(codes));
+export const createEnvelopeEncryption = async (privateKeyPem, pin, recoveryCodes) => {
+  // Generate random master key
+  const masterKey = await generateMasterKey();
+  console.log('✅ Master key generated');
   
-  const key = await derivePinKey(masterCode);
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  // Encrypt private key with master key (only once!)
+  const { encrypted: encryptedPrivateKey, iv: privateKeyIV } = await encryptWithMasterKey(privateKeyPem, masterKey);
+  console.log('✅ Private key encrypted with master key');
   
-  const encryptedCodes = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    key,
-    codesData
-  );
+  // Wrap master key with PIN
+  const { wrappedKey: masterKeyWrappedByPin, iv: pinWrapIV } = await wrapMasterKey(masterKey, pin);
+  console.log('✅ Master key wrapped with PIN');
   
-  localStorage.setItem('chat_recovery_codes', arrayBufferToBase64(encryptedCodes));
-  localStorage.setItem('chat_recovery_codes_iv', arrayBufferToBase64(iv));
+  // Wrap master key with each recovery code
+  const recoveryCodeWraps = [];
+  for (const code of recoveryCodes) {
+    const { wrappedKey, iv } = await wrapMasterKey(masterKey, code);
+    recoveryCodeWraps.push({
+      code: code, // Send plain code - backend will hash it
+      wrappedMasterKey: wrappedKey,
+      wrapIV: iv
+    });
+  }
+  console.log(`✅ Master key wrapped with ${recoveryCodes.length} recovery codes`);
+  
+  return {
+    // The private key encrypted with master key (stored on server)
+    encryptedPrivateKey,
+    privateKeyIV,
+    // Master key wrapped by PIN (stored on server)
+    masterKeyWrappedByPin,
+    pinWrapIV,
+    // Master key wrapped by each recovery code (stored on server)
+    recoveryCodeWraps
+  };
 };
 
+
+
 /**
- * Verify recovery code and return decrypted private key
+ * Recover private key using recovery code (envelope decryption)
+ * Fetches encrypted data from server
  */
-export const recoverWithCode = async (recoveryCode) => {
+export const recoverWithCode = async (recoveryCode, axiosInstance) => {
   try {
-    const encryptedPrivateKey = localStorage.getItem('chat_private_key_encrypted');
-    const iv = localStorage.getItem('chat_private_key_iv');
+    // Fetch encrypted keys and recovery wraps from server
+    console.log('🔍 Fetching encrypted keys from server...');
+    const response = await axiosInstance.get('/chat/encrypted-keys');
+    const data = response.data;
     
-    if (!encryptedPrivateKey || !iv) {
-      throw new Error('No encrypted keys found');
+    console.log('📦 Server data received:', {
+      hasEncryptedPrivateKey: !!data.encryptedPrivateKey,
+      hasPrivateKeyIV: !!data.privateKeyIV,
+      hasRecoveryCodeWraps: !!data.recoveryCodeWraps,
+      recoveryCodeWrapsLength: data.recoveryCodeWraps?.length || 0
+    });
+    
+    if (!data.encryptedPrivateKey || !data.privateKeyIV) {
+      throw new Error('No encrypted private key found on server');
     }
     
-    // Try to decrypt with recovery code as PIN
-    const privateKeyPem = await decryptWithPin(
-      encryptedPrivateKey,
-      iv,
+    if (!data.recoveryCodeWraps || data.recoveryCodeWraps.length === 0) {
+      throw new Error('No recovery code wraps found on server. Backend needs to store recoveryCodeWraps array.');
+    }
+    
+    // Hash the recovery code to match against stored hashes
+    console.log('🔍 Hashing recovery code...');
+    const inputCodeHash = await hashRecoveryCode(recoveryCode);
+    console.log('🔑 Input code hash:', inputCodeHash);
+    
+    // Find the wrap matching this recovery code hash
+    console.log('🔍 Looking for recovery code in wraps...');
+    const matchingWrap = data.recoveryCodeWraps.find(w => w.codeHash === inputCodeHash);
+    
+    if (!matchingWrap) {
+      console.error('❌ Recovery code not found. Server has', data.recoveryCodeWraps.length, 'wraps');
+      console.error('Available code hashes:', data.recoveryCodeWraps.map(w => w.codeHash.substring(0, 16) + '...'));
+      throw new Error('Invalid recovery code - not found in server database');
+    }
+    
+    console.log('✅ Found matching recovery code wrap');
+    console.log('📦 Wrap data:', { hasWrappedKey: !!matchingWrap.wrappedMasterKey, hasIV: !!matchingWrap.wrapIV });
+    
+    console.log('🔓 Unwrapping master key with recovery code...');
+    // Unwrap master key using recovery code
+    const masterKey = await unwrapMasterKey(
+      matchingWrap.wrappedMasterKey,
+      matchingWrap.wrapIV,
       recoveryCode
     );
     
+    console.log('🔓 Decrypting private key with master key...');
+    // Decrypt private key using master key
+    const privateKeyPem = await decryptWithMasterKey(
+      data.encryptedPrivateKey,
+      data.privateKeyIV,
+      masterKey
+    );
+    
+    // Mark recovery code as used on server
+    await axiosInstance.post('/chat/use-recovery-code', {
+      recoveryCode: recoveryCode
+    });
+    
+    console.log('✅ Recovery successful');
+    
     return privateKeyPem;
   } catch (error) {
-    throw new Error('Invalid recovery code');
+    console.error('Recovery failed:', error);
+    throw new Error('Invalid recovery code or decryption failed');
   }
 };
 
@@ -325,39 +575,30 @@ const encryptWithPin = async (data, pin) => {
   
   return { encrypted: encryptedBase64, iv: ivBase64 };
 };
-
-/**
- * Decrypt data with PIN
- */
-const decryptWithPin = async (encryptedData, iv, pin) => {
-  const pinKey = await derivePinKey(pin);
-  
-  const ivString = window.atob(iv);
-  const ivArray = new Uint8Array(ivString.length);
-  for (let i = 0; i < ivString.length; i++) {
-    ivArray[i] = ivString.charCodeAt(i);
-  }
-  
-  const encryptedString = window.atob(encryptedData);
-  const encryptedArray = new Uint8Array(encryptedString.length);
-  for (let i = 0; i < encryptedString.length; i++) {
-    encryptedArray[i] = encryptedString.charCodeAt(i);
-  }
-  
-  const decrypted = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: ivArray },
-    pinKey,
-    encryptedArray.buffer
-  );
-  
-  const decoder = new TextDecoder();
-  return decoder.decode(decrypted);
-};
-
 /**
  * Encrypt private key for server backup
  * Returns encrypted private key + IV that can be safely stored on server
  */
+/**
+ * Decrypt private key using PIN (envelope decryption)
+ */
+export const decryptPrivateKeyWithPin = async (encryptedPrivateKey, privateKeyIV, masterKeyWrappedByPin, pinWrapIV, pin) => {
+  try {
+    console.log('🔓 Unwrapping master key with PIN...');
+    // Unwrap master key using PIN
+    const masterKey = await unwrapMasterKey(masterKeyWrappedByPin, pinWrapIV, pin);
+    
+    console.log('🔓 Decrypting private key with master key...');
+    // Decrypt private key using master key
+    const privateKeyPem = await decryptWithMasterKey(encryptedPrivateKey, privateKeyIV, masterKey);
+    
+    return privateKeyPem;
+  } catch (error) {
+    console.error('Failed to decrypt with PIN:', error);
+    throw new Error('Incorrect PIN or decryption failed');
+  }
+};
+
 export const encryptPrivateKeyForBackup = async (privateKeyPem, pin) => {
   try {
     console.log('🔐 encryptPrivateKeyForBackup called with PIN length:', pin?.length);
@@ -466,9 +707,12 @@ export const decryptPrivateKeyFromBackup = async (encryptedPrivateKey, iv, pin) 
   }
 };
 
+// ============================================================================
+// LOCAL KEY STORAGE & RETRIEVAL
+// ============================================================================
+
 /**
- * Store keys in IndexedDB with PIN protection
- * Converts extractable private key to non-extractable before storing
+ * Store keys locally with PIN protection (IndexedDB + localStorage)
  */
 export const storeKeysSecurely = async (publicKeyPem, privateKey, pin) => {
   try {
@@ -670,10 +914,17 @@ export const retrieveKeysFromServer = async (encryptedPrivateKeyData, pin) => {
 };
 
 /**
- * Check if keys exist
+ * Check if all required keys and tokens exist in localStorage
+ * Returns true only if ALL required items are present
  */
 export const hasStoredKeys = () => {
-  return localStorage.getItem('chat_public_key') !== null;
+  const publicKey = localStorage.getItem('chat_public_key');
+  const pinToken = localStorage.getItem('chat_pin_token');
+  const pinTokenIV = localStorage.getItem('chat_pin_token_iv');
+  const pinProtected = localStorage.getItem('chat_pin_protected');
+  
+  // All items must exist for local verification to work
+  return !!(publicKey && pinToken && pinTokenIV && pinProtected === 'true');
 };
 
 /**
@@ -780,41 +1031,236 @@ const decryptMessage = async (encryptedMessage, privateKey) => {
 };
 
 /**
- * Get device identifier
+ * Generate a unique device fingerprint
+ * Note: MAC address is not accessible via browser for security reasons
+ * This creates a consistent fingerprint based on device characteristics
+ */
+const generateDeviceFingerprint = () => {
+  // Collect device-specific data
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  
+  let fingerprint = '';
+  
+  // GPU info (very device-specific)
+  if (gl) {
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+      fingerprint += vendor + renderer;
+    }
+  }
+  
+  // Screen fingerprint
+  const screen = window.screen;
+  fingerprint += screen.width + screen.height + screen.colorDepth + screen.pixelDepth;
+  fingerprint += window.devicePixelRatio;
+  
+  // Hardware
+  fingerprint += navigator.hardwareConcurrency || '';
+  fingerprint += navigator.deviceMemory || '';
+  
+  // Platform
+  fingerprint += navigator.platform;
+  fingerprint += navigator.userAgent;
+  
+  // Timezone
+  fingerprint += Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  // Language
+  fingerprint += navigator.language;
+  fingerprint += navigator.languages.join(',');
+  
+  // Generate hash from fingerprint
+  let hash = 0;
+  for (let i = 0; i < fingerprint.length; i++) {
+    const char = fingerprint.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Convert to hex and format like MAC address
+  const hashStr = Math.abs(hash).toString(16).toUpperCase().padStart(12, '0');
+  const macLike = hashStr.match(/.{1,2}/g).join(':').substring(0, 17);
+  
+  return macLike;
+};
+
+// ============================================================================
+// DEVICE FINGERPRINTING
+// ============================================================================
+
+/**
+ * Generate unique device fingerprint for trusted device detection
  */
 export const getDeviceIdentifier = () => {
   const ua = navigator.userAgent;
-  let device = 'Unknown Device';
+  let browser = 'Unknown Browser';
+  let browserVersion = '';
+  let os = 'Unknown OS';
+  let osVersion = '';
+  let deviceModel = '';
   
-  // Browser detection
-  if (ua.indexOf('Chrome') > -1) {
-    device = 'Chrome';
-  } else if (ua.indexOf('Safari') > -1) {
-    device = 'Safari';
-  } else if (ua.indexOf('Firefox') > -1) {
-    device = 'Firefox';
-  } else if (ua.indexOf('Edge') > -1) {
-    device = 'Edge';
+  // Browser detection with version
+  if (ua.indexOf('Edg/') > -1) {
+    browser = 'Edge';
+    const match = ua.match(/Edg\/(\d+\.\d+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.indexOf('Chrome/') > -1 && ua.indexOf('Edg/') === -1) {
+    browser = 'Chrome';
+    const match = ua.match(/Chrome\/(\d+\.\d+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.indexOf('Safari/') > -1 && ua.indexOf('Chrome') === -1) {
+    browser = 'Safari';
+    const match = ua.match(/Version\/(\d+\.\d+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.indexOf('Firefox/') > -1) {
+    browser = 'Firefox';
+    const match = ua.match(/Firefox\/(\d+\.\d+)/);
+    if (match) browserVersion = match[1];
   }
   
-  // OS detection
-  if (ua.indexOf('Windows') > -1) {
-    device += ' on Windows';
-  } else if (ua.indexOf('Mac') > -1) {
-    device += ' on macOS';
-  } else if (ua.indexOf('Linux') > -1) {
-    device += ' on Linux';
+  // Device model and OS detection
+  if (ua.indexOf('Windows NT') > -1) {
+    os = 'Windows';
+    const match = ua.match(/Windows NT (\d+\.\d+)/);
+    if (match) {
+      const version = match[1];
+      const versionMap = {
+        '10.0': '10/11',
+        '6.3': '8.1',
+        '6.2': '8',
+        '6.1': '7'
+      };
+      osVersion = versionMap[version] || version;
+    }
+    // Try to detect if it's a Surface device
+    if (ua.indexOf('Surface') > -1) {
+      deviceModel = 'Surface';
+    }
+  } else if (ua.indexOf('Mac OS X') > -1 || ua.indexOf('Macintosh') > -1) {
+    // Mac detection
+    if (ua.indexOf('Macintosh') > -1) {
+      // Detect Mac model type based on user agent hints
+      if (ua.indexOf('Intel') > -1) {
+        deviceModel = 'Mac (Intel)';
+      } else {
+        deviceModel = 'Mac (Apple Silicon)';
+      }
+    }
+    os = 'macOS';
+    const match = ua.match(/Mac OS X (\d+[._]\d+)/);
+    if (match) osVersion = match[1].replace(/_/g, '.');
+  } else if (ua.indexOf('Linux') > -1 && ua.indexOf('Android') === -1) {
+    os = 'Linux';
   } else if (ua.indexOf('Android') > -1) {
-    device += ' on Android';
-  } else if (ua.indexOf('iOS') > -1 || ua.indexOf('iPhone') > -1) {
-    device += ' on iOS';
+    os = 'Android';
+    const match = ua.match(/Android (\d+\.\d+)/);
+    if (match) osVersion = match[1];
+    
+    // Try to detect Android device model
+    const modelMatch = ua.match(/;\s*([^;]+)\s+Build\//);
+    if (modelMatch) {
+      deviceModel = modelMatch[1].trim();
+    }
+  } else if (ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1 || ua.indexOf('iPod') > -1) {
+    // iOS device detection
+    if (ua.indexOf('iPad') > -1) {
+      os = 'iPadOS';
+      deviceModel = 'iPad';
+    } else if (ua.indexOf('iPhone') > -1) {
+      os = 'iOS';
+      deviceModel = 'iPhone';
+    } else if (ua.indexOf('iPod') > -1) {
+      os = 'iOS';
+      deviceModel = 'iPod';
+    }
+    const match = ua.match(/OS (\d+[._]\d+)/);
+    if (match) osVersion = match[1].replace(/_/g, '.');
   }
+  
+  // Get hardware capabilities
+  const cores = navigator.hardwareConcurrency || 'Unknown';
+  const memory = navigator.deviceMemory || 'Unknown';
+  
+  // Get screen info
+  const screen = window.screen;
+  const screenInfo = `${screen.width}x${screen.height}`;
+  const pixelRatio = window.devicePixelRatio || 1;
+  
+  // Get platform info (more specific than UA)
+  const platform = navigator.platform || '';
+  
+  // Detect if running on Mac with specific hints
+  if (platform.indexOf('Mac') > -1 && !deviceModel) {
+    if (platform.indexOf('MacIntel') > -1) {
+      // Try to determine if it's iMac, MacBook, etc based on screen size
+      if (screen.width >= 2560 && screen.height >= 1440) {
+        deviceModel = 'iMac/Mac Studio (27"+)';
+      } else if (screen.width >= 1920 && screen.height >= 1080) {
+        deviceModel = 'iMac (24") / MacBook Pro';
+      } else if (screen.width >= 1440 && screen.height >= 900) {
+        deviceModel = 'MacBook Air/Pro';
+      } else {
+        deviceModel = 'Mac';
+      }
+    } else if (platform.indexOf('MacPPC') > -1) {
+      deviceModel = 'Mac (PowerPC)';
+    }
+  }
+  
+  // Build detailed device string
+  let device = '';
+  
+  // Add device model if detected
+  if (deviceModel) {
+    device = deviceModel;
+  } else {
+    device = os;
+    if (osVersion) device += ` ${osVersion}`;
+  }
+  
+  // Add browser info
+  device += ` • ${browser}`;
+  if (browserVersion) device += ` ${browserVersion}`;
+  
+  // Add hardware specs
+  device += ` • ${cores} cores`;
+  if (memory !== 'Unknown') device += ` • ${memory}GB RAM`;
+  
+  // Add screen info with pixel ratio
+  device += ` • ${screenInfo}`;
+  if (pixelRatio > 1) device += ` @${pixelRatio}x`;
+  
+  // Add language
+  const lang = navigator.language || 'en';
+  device += ` • ${lang}`;
+  
+  // Add unique device fingerprint (MAC-like format)
+  const fingerprint = generateDeviceFingerprint();
+  device = `[${fingerprint}] ${device}`;
+  
+  // Add timestamp for uniqueness
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+  device += ` • ${dateStr}`;
   
   return device;
 };
 
+// ============================================================================
+// MESSAGE ENCRYPTION (Hybrid RSA + AES)
+// ============================================================================
+
 /**
- * Generate a random AES key for message encryption
+ * Generate random AES-256 key for message encryption
  */
 export const generateAESKey = async () => {
   try {
@@ -999,28 +1445,44 @@ export const decryptMessageWithAESKey = async (encryptedContent, iv, aesKeyBase6
   }
 };
 
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
 export default {
+  // RSA Key Management
   generateKeyPair,
   exportPublicKey,
   exportPrivateKey,
   importPublicKey,
   importPrivateKey,
+  
+  // Envelope Encryption (Recovery System)
+  generateRecoveryCodes,
+  createEnvelopeEncryption,
+  decryptPrivateKeyWithPin,
+  recoverWithCode,
+  
+  // Legacy Backup (kept for backward compatibility)
   encryptPrivateKeyForBackup,
   decryptPrivateKeyFromBackup,
+  retrieveKeysFromServer,
+  
+  // Local Storage
   storeKeysSecurely,
   retrieveStoredKeys,
-  retrieveKeysFromServer,
   hasStoredKeys,
   verifyPin,
   clearStoredKeys,
+  
+  // Device Fingerprinting
   getDeviceIdentifier,
+  
+  // Message Encryption
   generateAESKey,
   exportAESKey,
   importAESKey,
   encryptMessageAES,
   decryptMessageAES,
-  decryptMessageWithAESKey,
-  generateRecoveryCodes,
-  storeRecoveryCodes,
-  recoverWithCode
+  decryptMessageWithAESKey
 };
