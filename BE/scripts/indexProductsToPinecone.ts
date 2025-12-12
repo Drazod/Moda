@@ -21,12 +21,10 @@ async function getEmbedding(text: string) {
 async function processBatch(products: any[], batchSize = 5) {
   for (let i = 0; i < products.length; i += batchSize) {
     const batch = products.slice(i, i + batchSize);
-    
-    // Process batch in parallel
     await Promise.all(batch.map(async (product) => {
       const text = `${product.name} ${product.description || ''} ${product.material || ''} ${product.information || ''}`;
       const embedding = await getEmbedding(text);
-
+      
       await index.upsert([
         {
           id: product.id.toString(),
@@ -40,13 +38,7 @@ async function processBatch(products: any[], batchSize = 5) {
           },
         },
       ]);
-
-      console.log(`Indexed product: ${product.name}`);
     }));
-
-    console.log(`Completed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(products.length/batchSize)}`);
-    
-    // Small delay to avoid rate limits
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
 }
