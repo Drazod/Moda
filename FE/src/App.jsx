@@ -19,6 +19,12 @@ import FriendsPage from "./layouts/friendsPage";
 import ChatPage from "./layouts/chatPage";
 
 import ExplorePage from "./layouts/explorePage";
+
+// C2C Marketplace
+import MarketplacePage from "./layouts/c2c/MarketplacePage";
+import ListingDetailPage from "./layouts/c2c/ListingDetailPage";
+import MyTradesPage from "./layouts/c2c/MyTradesPage";
+import TradeDetailPage from "./layouts/c2c/TradeDetailPage";
  
 // import Settings from "./layouts/settingPage";
 // dash's import
@@ -92,6 +98,19 @@ const App = () => {
         <Route path="/chat" element={
           <RequireAuth>
             <ChatPage />
+          </RequireAuth>
+        } />
+        {/* C2C Marketplace Routes */}
+        <Route path="/marketplace" element={<MarketplacePage />} />
+        <Route path="/marketplace/listing/:listingId" element={<ListingDetailPage />} />
+        <Route path="/marketplace/my-trades" element={
+          <RequireAuth>
+            <MyTradesPage />
+          </RequireAuth>
+        } />
+        <Route path="/marketplace/trades/:tradeId" element={
+          <RequireAuth>
+            <TradeDetailPage />
           </RequireAuth>
         } />
         {/* dash's Route */}

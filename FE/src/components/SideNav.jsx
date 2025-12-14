@@ -12,7 +12,8 @@ import {
   IoPersonCircleOutline,
   IoMenuOutline,
   IoShirtOutline,
-  IoPersonAddOutline
+  IoPersonAddOutline,
+  IoStorefrontOutline
 } from 'react-icons/io5';
 import { FaShoppingCart } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +34,7 @@ const SideNav = ({ onCartOpen }) => {
     { icon: IoHomeOutline, label: 'Home', path: '/home' },
     { icon: IoSearchOutline, label: 'Search', path: '/store' },
     { icon: IoCompassOutline, label: 'Explore', path: '/explore' },
+    { icon: IoStorefrontOutline, label: 'Marketplace', path: '/marketplace' },
     // { icon: IoFilmOutline, label: 'Reels', path: '/store' },
     { icon: IoPaperPlaneOutline, label: 'Messages', path: '/chat' },
     { icon: IoHeartOutline, label: 'Notifications', path: '/profile' },

@@ -128,6 +128,7 @@ model Clothes {
   sizes              Size[]
   features           Feature[]
   sharedInMessages   Message[] // Products shared in messages
+  c2cListings        C2CListing[] // C2C marketplace listings
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -142,6 +143,7 @@ model Size {
   transactionDetails TransactionDetail[]
   cartItems          CartItem[]
   stocks             Stock[]
+  c2cListings        C2CListing[] // C2C marketplace listings
 }
 
 model Feature {
@@ -199,6 +201,14 @@ model User {
   posts                  Post[]
   postLikes              PostLike[]
   postComments           PostComment[]
+  // C2C Relations
+  c2cListings            C2CListing[]       @relation("SellerListings")
+  c2cBuyTrades           C2CTrade[]         @relation("BuyerTrades")
+  c2cSellTrades          C2CTrade[]         @relation("SellerTrades")
+  c2cTradeMessages       C2CTradeMessage[]
+  c2cReviewsGiven        C2CReview[]        @relation("ReviewsGiven")
+  c2cReviewsReceived     C2CReview[]        @relation("ReviewsReceived")
+  c2cReputation          C2CReputation[]
   updatedAt              DateTime          @updatedAt
   createdAt              DateTime          @default(now())
   otpCode                String?
@@ -500,4 +510,233 @@ model PostComment {
 
   @@index([postId])
   @@index([userId])
+}
+
+// ============================================
+// C2C MARKETPLACE MODELS
+// ============================================
+
+// Customer listing to sell store clothing
+model C2CListing {
+  id              String              @id @default(uuid())
+  sellerId        Int
+  clothesId       Int                 // REQUIRED: Must be from store catalog
+  sizeId          Int?                // OPTIONAL: If specified, must belong to clothesId
+  condition       ClothesCondition
+  description     String              @db.Text
+  price           Decimal             @db.Decimal(10, 2)
+  status          ListingStatus       @default(ACTIVE)
+  viewCount       Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  // Relations
+  seller          User                @relation("SellerListings", fields: [sellerId], references: [id], onDelete: Cascade)
+  clothes         Clothes             @relation(fields: [clothesId], references: [id])
+  size            Size?               @relation(fields: [sizeId], references: [id], onDelete: Restrict)
+  trades          C2CTrade[]
+  images          ListingImage[]
+  
+  @@index([sellerId])
+  @@index([clothesId])
+  @@index([sizeId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Images for C2C listings (seller's actual photos)
+model ListingImage {
+  id        String     @id @default(uuid())
+  listingId String
+  imageUrl  String     @db.VarChar(512)
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+  
+  listing   C2CListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@index([listingId])
+}
+
+// Trade between buyer and seller
+model C2CTrade {
+  id                    String            @id @default(uuid())
+  listingId             String
+  buyerId               Int
+  sellerId              Int
+  agreedPrice           Decimal           @db.Decimal(10, 2)
+  
+  // Status tracking
+  status                C2CTradeStatus    @default(INITIATED)
+  
+  // Payment
+  paymentMethod         PaymentMethod?
+  paymentAmount         Decimal?          @db.Decimal(10, 2)
+  paidAt                DateTime?
+  paymentConfirmedAt    DateTime?
+  paymentProof          String?           @db.Text
+  
+  // Delivery
+  deliveryMethod        DeliveryMethod?
+  deliveryAddress       String?           @db.Text
+  shippingFee           Decimal?          @db.Decimal(10, 2)
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  deliveryProof         String?           @db.Text
+  
+  // Completion
+  autoCompleteAt        DateTime?
+  completedAt           DateTime?
+  
+  // Dispute
+  disputedAt            DateTime?
+  disputeReason         String?           @db.Text
+  disputeResolvedAt     DateTime?
+  resolutionNote        String?           @db.Text
+  
+  // Cancellation
+  cancelledAt           DateTime?
+  cancelReason          String?           @db.Text
+  
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  
+  // Relations
+  listing               C2CListing        @relation(fields: [listingId], references: [id])
+  buyer                 User              @relation("BuyerTrades", fields: [buyerId], references: [id])
+  seller                User              @relation("SellerTrades", fields: [sellerId], references: [id])
+  messages              C2CTradeMessage[]
+  reviews               C2CReview[]
+  
+  @@index([listingId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([autoCompleteAt])
+  @@index([createdAt])
+}
+
+// Trade messages between buyer and seller
+model C2CTradeMessage {
+  id        String           @id @default(uuid())
+  tradeId   String
+  senderId  Int
+  type      TradeMessageType @default(TEXT)
+  content   String           @db.Text
+  metadata  Json?
+  createdAt DateTime         @default(now())
+  
+  trade     C2CTrade         @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  sender    User             @relation(fields: [senderId], references: [id])
+  
+  @@index([tradeId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// Reviews after trade completion
+model C2CReview {
+  id         String     @id @default(uuid())
+  tradeId    String
+  reviewerId Int
+  revieweeId Int
+  role       ReviewRole
+  rating     Int
+  comment    String?    @db.Text
+  createdAt  DateTime   @default(now())
+  
+  trade      C2CTrade   @relation(fields: [tradeId], references: [id])
+  reviewer   User       @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee   User       @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  
+  @@unique([tradeId, reviewerId])
+  @@index([reviewerId])
+  @@index([revieweeId])
+  @@index([tradeId])
+}
+
+// Reputation tracking (separate for buyer/seller roles)
+model C2CReputation {
+  id               String     @id @default(uuid())
+  userId           Int
+  role             ReviewRole
+  
+  // Ratings
+  averageRating    Decimal    @default(0.00) @db.Decimal(3, 2)
+  totalRatings     Int        @default(0)
+  
+  // Trade stats
+  totalTrades      Int        @default(0)
+  completedTrades  Int        @default(0)
+  disputedTrades   Int        @default(0)
+  cancelledTrades  Int        @default(0)
+  
+  // Calculated metrics
+  completionRate   Decimal    @default(0.00) @db.Decimal(5, 2)
+  disputeRate      Decimal    @default(0.00) @db.Decimal(5, 2)
+  responseTimeAvg  Int?
+  
+  lastCalculatedAt DateTime   @default(now())
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, role])
+  @@index([userId])
+  @@index([role])
+  @@index([averageRating])
+}
+
+enum ClothesCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum ListingStatus {
+  ACTIVE
+  RESERVED
+  SOLD
+  CANCELLED
+  INACTIVE
+}
+
+enum C2CTradeStatus {
+  INITIATED
+  PAYMENT_PENDING
+  PAYMENT_CONFIRMED
+  SHIPPING
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+  DISPUTE_RESOLVED
+}
+
+enum PaymentMethod {
+  VNPAY
+  MOMO
+  WALLET_TOKENS
+  BANK_TRANSFER
+  CASH_ON_DELIVERY
+  OTHER
+}
+
+enum DeliveryMethod {
+  SHIP
+  MEETUP
+  OTHER
+}
+
+enum TradeMessageType {
+  TEXT
+  SYSTEM
+  PAYMENT_PROOF
+  DELIVERY_PROOF
+}
+
+enum ReviewRole {
+  BUYER
+  SELLER
 }

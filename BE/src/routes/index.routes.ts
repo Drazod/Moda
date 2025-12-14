@@ -27,6 +27,8 @@ import chatRoute from "./chat.routes";
 import virtualTryOnRoute from "./virtualTryOn.routes";
 import postRoute from "./post.routes";
 import deviceRoute from "./device.routes";
+import c2cListingRoute from "./c2cListing.routes";
+import c2cTradeRoute from "./c2cTrade.routes";
 
 const route = Router();
 
@@ -57,5 +59,7 @@ route.use('/chat', chatRoute);
 route.use('/virtual-tryon', virtualTryOnRoute);
 route.use('/posts', postRoute);
 route.use('/devices', deviceRoute);
+route.use('/c2c', c2cListingRoute);
+route.use('/c2c', c2cTradeRoute);
 
 export default route;
