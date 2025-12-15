@@ -119,6 +119,18 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(route);
 
+// Log server connection details
+console.log('Server is running in environment:', process.env.NODE_ENV || 'development');
+console.log('Allowed Origins:', allowedOrigins);
+console.log('CORS configuration initialized.');
+
+// Log incoming requests for debugging
+app.use((req, res, next) => {
+    console.log(`Incoming request: ${req.method} ${req.url}`);
+    console.log('Request headers:', req.headers);
+    next();
+});
+
 server.listen(PORT, () => {
     console.log(`Server ready at: ${SERVER_URL}`);
     console.log(`Server is running on port ${PORT}`);
