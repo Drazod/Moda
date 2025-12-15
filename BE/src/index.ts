@@ -106,8 +106,23 @@ app.get("/_debug/google-token", async (_req, res) => {
     res.status(500).json({ ok: false, err: e?.message, data: e?.response?.data });
   }
 });
+// Log server connection details
+console.log('Server is running in environment:', process.env.NODE_ENV || 'development');
+console.log('Allowed Origins:', allowedOrigins);
+console.log('CORS configuration initialized.');
+console.log('PORT:', PORT);
+console.log('SERVER_URL:', SERVER_URL);
+
 // cookie parser middleware
 app.use(cookieParser());
+
+// Log incoming requests for debugging (before other middleware)
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    console.log('Origin:', req.headers.origin || 'No origin header');
+    console.log('Host:', req.headers.host);
+    next();
+});
 
 // Integrar Swagger
 app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
@@ -118,18 +133,6 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(route);
-
-// Log server connection details
-console.log('Server is running in environment:', process.env.NODE_ENV || 'development');
-console.log('Allowed Origins:', allowedOrigins);
-console.log('CORS configuration initialized.');
-
-// Log incoming requests for debugging
-app.use((req, res, next) => {
-    console.log(`Incoming request: ${req.method} ${req.url}`);
-    console.log('Request headers:', req.headers);
-    next();
-});
 
 server.listen(PORT, () => {
     console.log(`Server ready at: ${SERVER_URL}`);
