@@ -93,6 +93,49 @@ code {
   transform: rotate(-45deg);
   transform-origin: bottom left;
 }
+/* Taskbar style */
+.taskbar {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background-color: #2d2d2d;
+  border-radius: 50px;
+  transition: width 0.3s ease-in-out;  /* Smooth width transition */
+  overflow: hidden;
+  width: 50px;  /* Initial width (just for the icon) */
+}
+
+.taskbar.expanded {
+  width: 300px;  /* Expanded width when clicked */
+}
+
+/* Search input style */
+.search-input {
+  color: black;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;  /* Initially, the width is 0 */
+  padding-left: 30px;  /* Space for the icon */
+  padding-right: 10px;
+  height: 40px;  /* Adjust height as needed */
+  border-radius: 20px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  outline: none;
+  transition: width 0.3s ease-in-out, padding 0.3s ease-in-out; /* Smooth width and padding transition */
+  z-index: -1;  /* Initially placed behind the search icon */
+}
+
+.search-input.expanded {
+  width: 200px;  /* Expanded width */
+  padding-left: 15px;  /* Adjust padding when expanded */
+  padding-right: 20px;  /* Adjust padding when expanded */
+  z-index: 20;  /* Bring input field in front of the icon */
+}
+
+
+
 
 /* Make text inputs transparent by default */
 input, textarea, select { background-color: transparent; }
