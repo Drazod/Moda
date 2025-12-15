@@ -115,7 +115,7 @@ app.use('/api-docs', swaggerUI.serve, swaggerUI.setup(swaggerDocument));
 // middleware
 app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));
-app.options('*', cors(corsOptions));  // Handles all OPTIONS requests
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(route);
 
