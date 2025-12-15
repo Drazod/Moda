@@ -44,11 +44,20 @@ export const prisma = new PrismaClient({
     log: ['query', 'info', 'error']
 })
 
+const allowedOrigins = ['http://localhost:5173', 'moda-six.vercel.app'];
+
 const corsOptions = {
-    origin: '*',
+     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void)  => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true); // Allow the request
+        } else {
+            callback(new Error('Not allowed by CORS')); // Block the request
+        }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true, // Allow cookies and credentials
     optionsSuccessStatus: 200,
-}
+};
 const sanitize = (s?: string) =>
   (s ?? "")
     .trim()

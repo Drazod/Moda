@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import axiosInstance from '../../configs/axiosInstance';
 
 const API_URL = "/notice"; // Relative to axiosInstance baseURL
-const SOCKET_URL = "http://localhost:4000"; // Replace with your actual Socket URL
+const SOCKET_URL = "https://moda-production.up.railway.app"; // Replace with your actual Socket URL
 
 const NotificationCard = ({ userId, page }) => {
     const [notices, setNotices] = useState([]);
