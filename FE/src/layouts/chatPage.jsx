@@ -136,6 +136,20 @@ const ChatPage = () => {
       fetchFriendPublicKey(selectedConversation);
     }
   }, [selectedConversation?.id, hasKeys, selectedConversation?.otherUser?.id]);
+  useEffect(() => {
+    if (!privateKey) return;
+
+    (async () => {
+      const pending = messages.filter(m => m.isEncrypted && m.decryptStatus === 'pending');
+      if (pending.length === 0) return;
+
+      const decrypted = await Promise.all(pending.map(decryptIncomingMessage));
+
+      setMessages(prev =>
+        prev.map(m => decrypted.find(d => d.id === m.id) ?? m)
+      );
+    })();
+  }, [privateKey, selectedConversation?.id]);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -810,6 +824,14 @@ const ChatPage = () => {
     if (!message.isEncrypted || !privateKey) {
       return message;
     }
+    if (!privateKey) {
+    return {
+      ...message,
+      content: '🔐 Encrypted message',
+      decryptStatus: 'pending',
+      isEncrypted: true
+    };
+  }
 
     // If message already has decrypted content, don't decrypt again
     if (message.content && message.content.trim() !== '') {
@@ -843,13 +865,12 @@ const ChatPage = () => {
       // Ensure content is not empty
       if (!decryptedContent || decryptedContent.trim() === '') {
         console.error('Decryption returned empty content for message:', message.id);
-        return { ...message, content: '[Decryption error]', isEncrypted: true };
-      }
-      
-      return { ...message, content: decryptedContent, isEncrypted: true };
-    } catch (error) {
-      console.error('Message decryption failed:', error);
-      return { ...message, content: '[Unable to decrypt]', isEncrypted: true };
+      return { ...message, content: '[Encrypted]', decryptStatus: 'done', isEncrypted: true };
+    }
+
+    return { ...message, content: decryptedContent, decryptStatus: 'done', isEncrypted: true };
+  } catch {
+    return { ...message, content: '[Unable to decrypt]', decryptStatus: 'done', isEncrypted: true };
     }
   };
 
@@ -1593,13 +1614,14 @@ const ChatPage = () => {
                           )}
                           
                           <div className={`max-w-xs`}>
-                            {!msg.productId && msg.content && (
+                            {!msg.productId && (
                               <div className={`rounded-3xl px-4 py-2 ${
                                 isOwn ? 'bg-[#434237] text-white' : 'bg-[#BFAF92]/50 text-black'
                               }`}>
-                                <p className="text-sm">{msg.content}</p>
+                                <p className="text-sm">{msg.content || ' '}</p>
+
                                 {/* 🔐 Encryption indicator */}
-                                {msg.isEncrypted && (
+                                {msg.isEncrypted  && (
                                   <div className="flex items-center gap-1 mt-1 text-xs opacity-70">
                                     <IoShieldCheckmarkOutline className="text-xs" />
                                     <span>Encrypted</span>
