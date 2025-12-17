@@ -73,9 +73,10 @@ export const createPayment = async (req: Request, res: Response) => {
   const locale = language || 'vn';  // Fallback to 'vn' if not provided
   const currCode = 'VND';
 
-  // Generate txnRef: YYYYMMDD + orderId (auto-incrementing number based on date and order)
+  // Generate unique txnRef: YYYYMMDD + HHMMSSms + orderId to avoid duplicate transaction errors
   const datePrefix = date.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
-  const txnRef = `${datePrefix}${orderId}`;
+  const timeStamp = date.toISOString().slice(11, 23).replace(/[-:T.]/g, ''); // HHMMSSms
+  const txnRef = `${datePrefix}${timeStamp}${orderId}`;
 
   const vnpParams: Record<string, string | number> = {
     vnp_Version: '2.1.0',
@@ -141,8 +142,9 @@ export const handleReturn = async (req: Request, res: Response) => {
       if (responseCode === '00') {
         // Payment successful, create Transaction and Shipping
         // You may need to adjust how you get userId, address, couponCode, etc.
-        const txnRef = String(vnp_Params['vnp_TxnRef']); // Format: YYYYMMDD + orderId
-        const orderId = Number(txnRef.slice(8)); // Extract orderId after date prefix (8 chars: YYYYMMDD)
+        const txnRef = String(vnp_Params['vnp_TxnRef']); // Format: YYYYMMDDHHMMSSms + orderId
+        // Extract orderId from the end of txnRef (after date+time: 8+9=17 chars)
+        const orderId = Number(txnRef.slice(17)); // Extract orderId after date+time prefix
         const amount = Number(vnp_Params['vnp_Amount']) / 100; // Convert back to normal unit
         
         // Extract pointsUsed from orderInfo
