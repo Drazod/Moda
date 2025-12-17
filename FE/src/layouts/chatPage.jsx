@@ -130,10 +130,12 @@ const ChatPage = () => {
   }, [user?.id, hasKeys]);
 
   useEffect(() => {
-    if (selectedConversation && hasKeys) {
+    if (selectedConversation && hasKeys && selectedConversation.otherUser?.id) {
+      const friendId = selectedConversation.otherUser.id;
+      console.log('🔑 Fetching public key for friend:', friendId);
       fetchFriendPublicKey(selectedConversation);
     }
-  }, [selectedConversation?.id, hasKeys]);
+  }, [selectedConversation?.id, hasKeys, selectedConversation?.otherUser?.id]);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -148,6 +150,7 @@ const ChatPage = () => {
   // Fetch messages when conversation changes
   useEffect(() => {
     if (selectedConversation) {
+      setMessages([]); // Clear messages when switching conversations
       fetchMessages(selectedConversation.id);
       markAsRead(selectedConversation.id);
     }
@@ -711,17 +714,32 @@ const ChatPage = () => {
     try {
       const friendId = conversation.otherUser?.id;
       
-      if (friendPublicKeys[friendId]) return;
+      if (!friendId) {
+        console.log('❌ No friend ID found in conversation');
+        return;
+      }
       
+      // Always fetch if not in cache
+      if (friendPublicKeys[friendId]) {
+        console.log('✅ Friend public key already cached for:', friendId);
+        return;
+      }
+      
+      console.log('🔑 Fetching public key for friend:', friendId);
       const response = await axiosInstance.get(`/chat/public-key/${friendId}`);
       const friendPublicKeyPem = response.data.publicKey;
       
-      if (!friendPublicKeyPem) return;
+      if (!friendPublicKeyPem) {
+        console.log('❌ No public key returned for friend:', friendId);
+        return;
+      }
       
+      console.log('📥 Received public key, importing...');
       const friendPublicKey = await importPublicKey(friendPublicKeyPem);
       setFriendPublicKeys(prev => ({ ...prev, [friendId]: friendPublicKey }));
+      console.log('✅ Friend public key imported and cached for:', friendId);
     } catch (error) {
-      console.error('Failed to fetch friend public key:', error);
+      console.error('❌ Failed to fetch friend public key:', error);
     }
   };
 
@@ -883,6 +901,12 @@ const ChatPage = () => {
       
       setSelectedConversation(transformedConversation);
       
+      // Fetch friend's public key if encryption is ready
+      if (hasKeys && otherUser?.id) {
+        console.log('🔑 Fetching public key for newly opened conversation:', otherUser.id);
+        fetchFriendPublicKey(transformedConversation);
+      }
+      
       // Set initial messages from the conversation response
       if (conversation.messages && conversation.messages.length > 0) {
         // Decrypt messages if needed
@@ -916,12 +940,6 @@ const ChatPage = () => {
   // CHAT - MESSAGE MANAGEMENT
   // ============================================================================
   const fetchMessages = async (conversationId, before = null) => {
-    // Skip if messages already loaded from conversation response
-    if (!before && messages.length > 0) {
-      setLoading(false);
-      return;
-    }
-    
     setLoading(true);
     try {
       const params = { limit: 50 };
@@ -930,6 +948,12 @@ const ChatPage = () => {
       
       // Response format: { messages: [...] }
       const fetchedMessages = response.data.messages || [];
+      
+      // Ensure we have friend's public key for encryption
+      if (hasKeys && selectedConversation?.otherUser?.id && !friendPublicKeys[selectedConversation.otherUser.id]) {
+        console.log('🔑 Fetching missing public key during message load');
+        await fetchFriendPublicKey(selectedConversation);
+      }
       
       // 🔐 Decrypt messages if they are encrypted
       if (privateKey && fetchedMessages.length > 0) {
@@ -965,20 +989,35 @@ const ChatPage = () => {
     setSending(true);
     const originalContent = messageInput; // Store original message
     
+    // Clear input immediately to prevent double-send
+    setMessageInput('');
+    
     try {
       const friendId = selectedConversation.otherUser?.id;
       const friendPublicKey = friendPublicKeys[friendId];
+      
+      console.log('📤 Sending message:', {
+        friendId,
+        hasFriendPublicKey: !!friendPublicKey,
+        hasKeys,
+        hasPrivateKey: !!privateKey
+      });
       
       let messageData = {
         conversationId: selectedConversation.id,
         content: originalContent,
         messageType: 'TEXT'
       };
+      
+      let isEncrypted = false;
 
-      // Encrypt if possible
+      // MUST encrypt if both users have encryption enabled
       if (friendPublicKey && hasKeys && privateKey) {
         try {
+          console.log('🔐 Encrypting message before sending...');
           const encrypted = await encryptMessageAES(originalContent, privateKey, friendPublicKey);
+          console.log('✅ Message encrypted successfully');
+          
           messageData = {
             ...messageData,
             content: '', // Server expects empty content for encrypted messages
@@ -988,40 +1027,55 @@ const ChatPage = () => {
             aesKey: encrypted.aesKey,
             isEncrypted: true
           };
+          isEncrypted = true;
         } catch (error) {
-          console.error('Encryption failed:', error);
-          toast.error('Failed to encrypt message');
+          console.error('❌ Encryption failed:', error);
+          toast.error('Failed to encrypt message. Message not sent.');
+          setSending(false);
+          setMessageInput(originalContent); // Restore input
           return; // Don't send if encryption fails
         }
+      } else {
+        console.log('⚠️ Sending unencrypted message (missing encryption keys)');
       }
 
+      // Only send after successful encryption (or if encryption not required)
+      console.log('📡 Sending encrypted message to server...');
       const response = await axiosInstance.post('/chat/message', messageData);
       let newMessage = response.data.data || response.data;
       
-      // Always use original content for display (it's already decrypted for sender)
-      if (newMessage.isEncrypted) {
+      console.log('✅ Message sent successfully, adding to UI');
+      
+      // For encrypted messages, restore the original content for sender's display
+      if (isEncrypted) {
         newMessage = { 
           ...newMessage, 
-          content: originalContent, // Use the original plain text
+          content: originalContent, // Sender sees plain text
           isEncrypted: true 
         };
       }
       
-      // Add message to UI immediately with proper content
+      // Add message to UI only after successful send and encryption
       setMessages(prev => {
         const exists = prev.some(m => m.id === newMessage.id);
         if (exists) return prev;
         return [...prev, newMessage];
       });
       
-      setMessageInput('');
       emitTyping(false);
       
       // Update conversation list with message that has content
-      updateConversationInList(selectedConversation.id, { ...newMessage, content: originalContent });
+      updateConversationInList(selectedConversation.id, { 
+        ...newMessage, 
+        content: originalContent,
+        isEncrypted 
+      });
+      
+      console.log('✅ Message displayed in UI (encrypted and sent)');
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('❌ Failed to send message:', error);
       toast.error('Failed to send message');
+      setMessageInput(originalContent); // Restore input on failure
     } finally {
       setSending(false);
     }
@@ -1413,7 +1467,13 @@ const ChatPage = () => {
                 return (
                   <div
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => {
+                      setSelectedConversation(conv);
+                      // Fetch friend's public key for encryption
+                      if (hasKeys && conv.otherUser?.id) {
+                        fetchFriendPublicKey(conv);
+                      }
+                    }}
                     className={`px-4 h-20 py-1 cursor-pointer transition flex items-center ${
                       isSelected ? 'bg-[#BFAF92]/50' : 'hover:bg-[#BFAF92]/50'
                     }`}
@@ -1447,9 +1507,11 @@ const ChatPage = () => {
                           }`}>
                             {conv.lastMessage.productId 
                               ? '📦 Shared a product' 
-                              : conv.lastMessage.senderId === user.id
-                                ? `You: ${conv.lastMessage.content}`
-                                : conv.lastMessage.content}
+                              : conv.lastMessage.isEncrypted && !conv.lastMessage.content
+                                ? '🔐 Encrypted message'
+                                : conv.lastMessage.senderId === user.id
+                                  ? `You: ${conv.lastMessage.content || '🔐 Encrypted message'}`
+                                  : conv.lastMessage.content || '🔐 Encrypted message'}
                           </p>
                         )}
                       </div>
