@@ -1580,6 +1580,11 @@ const ChatPage = () => {
                       const isOwn = msg.senderId === user?.id;
                       const isLastOwnMessage = isOwn && index === messages.length - 1;
                       
+                      // Skip rendering if encrypted message has no content yet (still decrypting)
+                      if (msg.isEncrypted && (!msg.content || msg.content.trim() === '')) {
+                        return null;
+                      }
+                      
                       return (
                         <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                           {!isOwn && (
@@ -1593,7 +1598,7 @@ const ChatPage = () => {
                           )}
                           
                           <div className={`max-w-xs`}>
-                            {!msg.productId && (
+                            {!msg.productId && msg.content && (
                               <div className={`rounded-3xl px-4 py-2 ${
                                 isOwn ? 'bg-[#434237] text-white' : 'bg-[#BFAF92]/50 text-black'
                               }`}>
