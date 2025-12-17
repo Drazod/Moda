@@ -1580,11 +1580,6 @@ const ChatPage = () => {
                       const isOwn = msg.senderId === user?.id;
                       const isLastOwnMessage = isOwn && index === messages.length - 1;
                       
-                      // Skip rendering if encrypted message has no content yet (still decrypting)
-                      if (msg.isEncrypted && (!msg.content || msg.content.trim() === '')) {
-                        return null;
-                      }
-                      
                       return (
                         <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                           {!isOwn && (
