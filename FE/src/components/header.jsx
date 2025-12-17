@@ -97,7 +97,7 @@ export default function Header() {
       </div>
       <div className="flex items-center space-x-6 col-span-1">
         <Link to="/friends" className="hover:text-gray-600" title="Friends">
-          Friends
+          Social
         </Link>
         
         {/* Expandable Search */}

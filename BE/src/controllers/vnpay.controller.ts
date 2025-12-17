@@ -167,7 +167,7 @@ export const handleReturn = async (req: Request, res: Response) => {
           console.error('Error fetching cart/user for address/coupon:', err);
         }
         if (!userId) {
-          return res.redirect('http://localhost:5173/payment-error?message=NoUser');
+          return res.redirect('http://localhost:5173/payment-failed?message=NoUser');
         }
         let transaction;
         try {
@@ -322,12 +322,12 @@ export const handleReturn = async (req: Request, res: Response) => {
               return res.redirect(`http://localhost:5173/payment-error?message=StockDepleted&refund=processing&details=${encodeURIComponent(err.message)}`);
             } catch (refundErr) {
               console.error('❌ Automatic refund failed:', refundErr);
-              return res.redirect(`http://localhost:5173/payment-error?message=StockDepleted&refund=failed&details=${encodeURIComponent(err.message)}`);
+              return res.redirect(`http://localhost:5173/payment-failed?message=StockDepleted&refund=failed&details=${encodeURIComponent(err.message)}`);
             }
           }
           
           // Generic database error
-          return res.redirect('http://localhost:5173/payment-error?message=DBError');
+          return res.redirect('http://localhost:5173/payment-failed?message=DBError');
         }
         // Payment successful, redirect to success page
         if (couponCode) {
@@ -353,7 +353,7 @@ export const handleReturn = async (req: Request, res: Response) => {
       }
     } else {
       // Invalid signature, redirect to an error page
-      return res.redirect('http://localhost:5173/payment-error?message=InvalidSignature');
+      return res.redirect('http://localhost:5173/payment-failed?message=InvalidSignature');
     }
 };
 
