@@ -21,7 +21,7 @@ export default function VoucherPanel({ onClose, onApply }) {
       const filtered = (res.data.coupons || []).filter(c => c.isActive && new Date(c.expiryDate) > now && c.stock > 0);
       setVouchers(filtered);
     } catch (err) {
-      setError(err);
+      setError(err.message || 'Failed to load vouchers');
     } finally {
       setLoading(false);
     }
