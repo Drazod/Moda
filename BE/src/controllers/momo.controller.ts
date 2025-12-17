@@ -129,7 +129,7 @@ export const createPayment = async (req: Request, res: Response) => {
     if (response.data.resultCode === 0) {
       // Success - return payment URL
       return res.status(200).json({ 
-        paymentUrl: response.data,
+        paymentUrl: response.data.payUrl,
         requestId: requestId
       });
     } else {
