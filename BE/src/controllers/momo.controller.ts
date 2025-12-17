@@ -10,8 +10,8 @@ const MoMoConfig = {
   accessKey: "F8BBA842ECF85",
   secretKey: "K951B6PE1waDMi640xX08PD3vg6EkVlz",
   apiUrl: 'https://test-payment.momo.vn/v2/gateway/api/create',
-  redirectUrl: 'http://localhost:4000/momo/payment-return',
-  ipnUrl: 'http://localhost:4000/momo/payment-notify', // IPN callback URL
+  redirectUrl: 'https://moda-production.up.railway.app/momo/payment-return',
+  ipnUrl: 'https://moda-production.up.railway.app/momo/payment-notify', // IPN callback URL
 };
 
 // Generate MoMo payment URL
@@ -191,7 +191,7 @@ export const handleReturn = async (req: Request, res: Response) => {
 
   if (signature !== computedSignature) {
     console.error('Invalid MoMo signature');
-    return res.redirect('http://localhost:5173/payment-failed?message=InvalidSignature');
+    return res.redirect('https://moda-six.vercel.app/payment-failed?message=InvalidSignature');
   }
 
   if (resultCode === '0') {
@@ -228,7 +228,7 @@ export const handleReturn = async (req: Request, res: Response) => {
     }
 
     if (!userId) {
-      return res.redirect('http://localhost:5173/payment-failed?message=NoUser');
+      return res.redirect('https://moda-six.vercel.app/payment-failed?message=NoUser');
     }
 
     let transaction;
@@ -367,10 +367,10 @@ export const handleReturn = async (req: Request, res: Response) => {
       if (err.message && (err.message.includes('Insufficient stock') || err.message.includes('Stock depleted'))) {
         // For MoMo, refund process is different - need to contact MoMo support or use refund API
         console.error(`❌ Stock depleted for order ${orderIdNum} after MoMo payment. Manual refund required.`);
-        return res.redirect(`http://localhost:5173/payment-failed?message=StockDepleted&refund=contact-support&details=${encodeURIComponent(err.message)}`);
+        return res.redirect(`https://moda-six.vercel.app/payment-failed?message=StockDepleted&refund=contact-support&details=${encodeURIComponent(err.message)}`);
       }
       
-      return res.redirect('http://localhost:5173/payment-failed?message=DBError');
+      return res.redirect('https://moda-six.vercel.app/payment-failed?message=DBError');
     }
 
     // Payment successful - process coupon and notifications
@@ -391,10 +391,10 @@ export const handleReturn = async (req: Request, res: Response) => {
         .catch(err => console.error('Error adding points:', err));
     }
     
-    return res.redirect(`http://localhost:5173/payment-success?orderId=${orderIdNum}&pointsUsed=${pointsUsed}`);
+    return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderIdNum}&pointsUsed=${pointsUsed}`);
   } else {
     // Payment failed
-    return res.redirect(`http://localhost:5173/payment-failed?orderId=${orderId}&errorCode=${resultCode}&message=${encodeURIComponent(message as string)}`);
+    return res.redirect(`https://moda-six.vercel.app/payment-failed?orderId=${orderId}&errorCode=${resultCode}&message=${encodeURIComponent(message as string)}`);
   }
 };
 

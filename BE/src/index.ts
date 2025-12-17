@@ -44,7 +44,7 @@ export const prisma = new PrismaClient({
     log: ['query', 'info', 'error']
 })
 
-const allowedOrigins = ['http://localhost:5173', 'moda-six.vercel.app','https://moda-six.vercel.app'];
+const allowedOrigins = ['https://moda-six.vercel.app', 'moda-six.vercel.app','https://moda-six.vercel.app'];
 
 const corsOptions = {
      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void)  => {

@@ -39,12 +39,12 @@ export default function CartModal({ open, onClose }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
   const [editingFulfillment, setEditingFulfillment] = useState(null); // cartItemId being edited
+  const [cartId, setCartId] = useState(undefined);
 
   // ============================================================================
   // COMPUTED VALUES
   // ============================================================================
   const availablePoints = user?.points || 0;
-  const cartId = items.length > 0 && items[0].cartId ? items[0].cartId : undefined;
   const totalQty = items.reduce((sum, it) => sum + (it.qty ?? 0), 0);
 
   const subtotal = useMemo(
@@ -76,6 +76,29 @@ export default function CartModal({ open, onClose }) {
       }));
     }
   }, [open, user]);
+
+  // Fetch cart ID when modal opens or items change
+  useEffect(() => {
+    if ((open || open === undefined) && items.length > 0) {
+      // First try to get cartId from items
+      const itemCartId = items[0]?.cartId;
+      if (itemCartId) {
+        setCartId(itemCartId);
+      } else if (user) {
+        // If no cartId in items, fetch user's cart
+        axiosInstance.get('/cart')
+          .then(res => {
+            const userCart = res.data?.data || res.data;
+            if (userCart?.cartId) {
+              setCartId(userCart.cartId);
+            }
+          })
+          .catch(err => {
+            console.error('Failed to fetch cart:', err);
+          });
+      }
+    }
+  }, [open, items, user]);
 
   useEffect(() => {
     setPointsToUse((p) => Math.min(Math.max(0, p), maxUsablePoints));

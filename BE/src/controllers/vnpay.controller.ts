@@ -11,7 +11,7 @@ const VNPayConfig = {
   hashSecret: "ER456RD4HMX9C0ZGXOEGIPHPIQWMK4P3",
   vnpUrl: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html', // Sandbox URL
   apiUrl: 'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction', // Refund API URL
-  returnUrl: 'http://localhost:4000/vnpay/payment-return', // Update with your return URL
+  returnUrl: 'https://moda-production.up.railway.app/vnpay/payment-return', // Update with your return URL
 };
 
 // Generate payment URL
@@ -172,7 +172,7 @@ export const handleReturn = async (req: Request, res: Response) => {
           console.error('Error fetching cart/user for address/coupon:', err);
         }
         if (!userId) {
-          return res.redirect('http://localhost:5173/payment-failed?message=NoUser');
+          return res.redirect('https://moda-six.vercel.app/payment-failed?message=NoUser');
         }
         let transaction;
         try {
@@ -324,15 +324,15 @@ export const handleReturn = async (req: Request, res: Response) => {
               });
               
               console.log(`✅ Automatic refund initiated for order ${orderId} due to stock depletion`);
-              return res.redirect(`http://localhost:5173/payment-error?message=StockDepleted&refund=processing&details=${encodeURIComponent(err.message)}`);
+              return res.redirect(`https://moda-six.vercel.app/payment-failed?message=StockDepleted&refund=processing&details=${encodeURIComponent(err.message)}`);
             } catch (refundErr) {
               console.error('❌ Automatic refund failed:', refundErr);
-              return res.redirect(`http://localhost:5173/payment-failed?message=StockDepleted&refund=failed&details=${encodeURIComponent(err.message)}`);
+              return res.redirect(`https://moda-six.vercel.app/payment-failed?message=StockDepleted&refund=failed&details=${encodeURIComponent(err.message)}`);
             }
           }
           
           // Generic database error
-          return res.redirect('http://localhost:5173/payment-failed?message=DBError');
+          return res.redirect('https://moda-six.vercel.app/payment-failed?message=DBError');
         }
         // Payment successful, redirect to success page
         if (couponCode) {
@@ -351,14 +351,14 @@ export const handleReturn = async (req: Request, res: Response) => {
           await addPointsFromPayment(userId, transaction.id, amount);
         }
         
-        return res.redirect(`http://localhost:5173/payment-success?orderId=${orderId}&pointsUsed=${pointsUsed}`);
+        return res.redirect(`https://moda-six.vercel.app/payment-success?orderId=${orderId}&pointsUsed=${pointsUsed}`);
       } else {
         // Payment failed, redirect to failure page
-        return res.redirect(`http://localhost:5173/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
+        return res.redirect(`https://moda-six.vercel.app/payment-failed?orderId=${vnp_Params['vnp_TxnRef']}&errorCode=${responseCode}`);
       }
     } else {
       // Invalid signature, redirect to an error page
-      return res.redirect('http://localhost:5173/payment-failed?message=InvalidSignature');
+      return res.redirect('https://moda-six.vercel.app/payment-failed?message=InvalidSignature');
     }
 };
 
