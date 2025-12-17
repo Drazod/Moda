@@ -135,21 +135,7 @@ const ChatPage = () => {
       console.log('🔑 Fetching public key for friend:', friendId);
       fetchFriendPublicKey(selectedConversation);
     }
-  }, [selectedConversation?.id, hasKeys, selectedConversation?.otherUser?.id]);
-  useEffect(() => {
-    if (!privateKey) return;
-
-    (async () => {
-      const pending = messages.filter(m => m.isEncrypted && m.decryptStatus === 'pending');
-      if (pending.length === 0) return;
-
-      const decrypted = await Promise.all(pending.map(decryptIncomingMessage));
-
-      setMessages(prev =>
-        prev.map(m => decrypted.find(d => d.id === m.id) ?? m)
-      );
-    })();
-  }, [privateKey, selectedConversation?.id]);
+  }, [selectedConversation?.id, hasKeys]);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -824,14 +810,6 @@ const ChatPage = () => {
     if (!message.isEncrypted || !privateKey) {
       return message;
     }
-    if (!privateKey) {
-    return {
-      ...message,
-      content: '🔐 Encrypted message',
-      decryptStatus: 'pending',
-      isEncrypted: true
-    };
-  }
 
     // If message already has decrypted content, don't decrypt again
     if (message.content && message.content.trim() !== '') {
@@ -865,12 +843,13 @@ const ChatPage = () => {
       // Ensure content is not empty
       if (!decryptedContent || decryptedContent.trim() === '') {
         console.error('Decryption returned empty content for message:', message.id);
-      return { ...message, content: '[Encrypted]', decryptStatus: 'done', isEncrypted: true };
-    }
-
-    return { ...message, content: decryptedContent, decryptStatus: 'done', isEncrypted: true };
-  } catch {
-    return { ...message, content: '[Unable to decrypt]', decryptStatus: 'done', isEncrypted: true };
+        return { ...message, content: '[Decryption error]', isEncrypted: true };
+      }
+      
+      return { ...message, content: decryptedContent, isEncrypted: true };
+    } catch (error) {
+      console.error('Message decryption failed:', error);
+      return { ...message, content: '[Unable to decrypt]', isEncrypted: true };
     }
   };
 
@@ -922,12 +901,6 @@ const ChatPage = () => {
       
       setSelectedConversation(transformedConversation);
       
-      // Fetch friend's public key if encryption is ready
-      if (hasKeys && otherUser?.id) {
-        console.log('🔑 Fetching public key for newly opened conversation:', otherUser.id);
-        fetchFriendPublicKey(transformedConversation);
-      }
-      
       // Set initial messages from the conversation response
       if (conversation.messages && conversation.messages.length > 0) {
         // Decrypt messages if needed
@@ -969,12 +942,6 @@ const ChatPage = () => {
       
       // Response format: { messages: [...] }
       const fetchedMessages = response.data.messages || [];
-      
-      // Ensure we have friend's public key for encryption
-      if (hasKeys && selectedConversation?.otherUser?.id && !friendPublicKeys[selectedConversation.otherUser.id]) {
-        console.log('🔑 Fetching missing public key during message load');
-        await fetchFriendPublicKey(selectedConversation);
-      }
       
       // 🔐 Decrypt messages if they are encrypted
       if (privateKey && fetchedMessages.length > 0) {
@@ -1618,10 +1585,9 @@ const ChatPage = () => {
                               <div className={`rounded-3xl px-4 py-2 ${
                                 isOwn ? 'bg-[#434237] text-white' : 'bg-[#BFAF92]/50 text-black'
                               }`}>
-                                <p className="text-sm">{msg.content || ' '}</p>
-
+                                <p className="text-sm">{msg.content}</p>
                                 {/* 🔐 Encryption indicator */}
-                                {msg.isEncrypted  && (
+                                {msg.isEncrypted && (
                                   <div className="flex items-center gap-1 mt-1 text-xs opacity-70">
                                     <IoShieldCheckmarkOutline className="text-xs" />
                                     <span>Encrypted</span>
