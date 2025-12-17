@@ -74,7 +74,7 @@ export const createPayment = async (req: Request, res: Response) => {
     const orderInfo = `Payment for Order #${orderId}${pointsUsed ? ` - Points: ${pointsUsed}` : ''}`;
     const requestType = "captureWallet";
     const extraData = ""; // Pass empty value if your merchant does not have stores
-const orderIdd = MoMoConfig.partnerCode + new Date().getTime();
+    const orderIdd = MoMoConfig.partnerCode + new Date().getTime();
     // Create raw signature
     const rawSignature = 
       `accessKey=${MoMoConfig.accessKey}` +

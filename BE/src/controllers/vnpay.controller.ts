@@ -73,13 +73,17 @@ export const createPayment = async (req: Request, res: Response) => {
   const locale = language || 'vn';  // Fallback to 'vn' if not provided
   const currCode = 'VND';
 
+  // Generate txnRef: YYYYMMDD + orderId (auto-incrementing number based on date and order)
+  const datePrefix = date.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+  const txnRef = `${datePrefix}${orderId}`;
+
   const vnpParams: Record<string, string | number> = {
     vnp_Version: '2.1.0',
     vnp_Command: 'pay',
     vnp_TmnCode: VNPayConfig.tmnCode,
     vnp_Locale: locale,
     vnp_CurrCode: currCode,
-    vnp_TxnRef: orderId,
+    vnp_TxnRef: txnRef,
     vnp_OrderInfo:  `Payment for Order #${orderId}${pointsUsed ? ` - Points: ${pointsUsed}` : ''}`,
     vnp_OrderType: orderType || 'other',
     vnp_Amount: amount * 100,  // Convert to smallest currency unit (e.g., VND)
@@ -137,7 +141,8 @@ export const handleReturn = async (req: Request, res: Response) => {
       if (responseCode === '00') {
         // Payment successful, create Transaction and Shipping
         // You may need to adjust how you get userId, address, couponCode, etc.
-        const orderId = Number(vnp_Params['vnp_TxnRef']); // This should be your cart id
+        const txnRef = String(vnp_Params['vnp_TxnRef']); // Format: YYYYMMDD + orderId
+        const orderId = Number(txnRef.slice(8)); // Extract orderId after date prefix (8 chars: YYYYMMDD)
         const amount = Number(vnp_Params['vnp_Amount']) / 100; // Convert back to normal unit
         
         // Extract pointsUsed from orderInfo
