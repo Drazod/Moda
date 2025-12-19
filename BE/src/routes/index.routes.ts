@@ -29,6 +29,7 @@ import postRoute from "./post.routes";
 import deviceRoute from "./device.routes";
 import c2cListingRoute from "./c2cListing.routes";
 import c2cTradeRoute from "./c2cTrade.routes";
+import inventoryRoute from "./inventory.routes";
 
 const route = Router();
 
@@ -61,5 +62,6 @@ route.use('/posts', postRoute);
 route.use('/devices', deviceRoute);
 route.use('/c2c', c2cListingRoute);
 route.use('/c2c', c2cTradeRoute);
+route.use('/inventory', inventoryRoute);
 
 export default route;

@@ -1,4 +1,5 @@
 import { PrismaClient, ClothesCondition, ListingStatus } from '@prisma/client';
+import { addToInventory } from './inventory.services';
 
 const prisma = new PrismaClient();
 
@@ -225,25 +226,47 @@ export const c2cListingService = {
       throw new Error('Cannot modify sold listings');
     }
 
-    const updated = await prisma.c2CListing.update({
-      where: { id: listingId },
-      data: { status },
-      include: {
-        seller: { select: { id: true, name: true } },
-        clothes: {
-          select: {
-            id: true,
-            name: true
-          }
-        },
-        size: {
-          select: {
-            id: true,
-            label: true
-          }
-        },
-        images: { orderBy: { order: 'asc' } }
+    // If cancelling an active listing, return item to inventory
+    const shouldReturnToInventory = 
+      (listing.status === ListingStatus.ACTIVE || listing.status === ListingStatus.RESERVED) &&
+      (status === ListingStatus.CANCELLED || status === ListingStatus.INACTIVE) &&
+      listing.sizeId;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedListing = await tx.c2CListing.update({
+        where: { id: listingId },
+        data: { status },
+        include: {
+          seller: { select: { id: true, name: true } },
+          clothes: {
+            select: {
+              id: true,
+              name: true
+            }
+          },
+          size: {
+            select: {
+              id: true,
+              label: true
+            }
+          },
+          images: { orderBy: { order: 'asc' } }
+        }
+      });
+
+      // Return item to inventory if cancelling
+      if (shouldReturnToInventory && listing.sizeId) {
+        await addToInventory(
+          sellerId,
+          listing.clothesId,
+          listing.sizeId,
+          1,
+          'STORE', // Original source
+          `cancelled_listing_${listingId}`
+        );
       }
+
+      return updatedListing;
     });
 
     return updated;

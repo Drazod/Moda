@@ -129,6 +129,7 @@ model Clothes {
   features           Feature[]
   sharedInMessages   Message[] // Products shared in messages
   c2cListings        C2CListing[] // C2C marketplace listings
+  inventory          Inventory[] // User inventory items
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -144,6 +145,7 @@ model Size {
   cartItems          CartItem[]
   stocks             Stock[]
   c2cListings        C2CListing[] // C2C marketplace listings
+  inventory          Inventory[] // User inventory items
 }
 
 model Feature {
@@ -209,6 +211,8 @@ model User {
   c2cReviewsGiven        C2CReview[]        @relation("ReviewsGiven")
   c2cReviewsReceived     C2CReview[]        @relation("ReviewsReceived")
   c2cReputation          C2CReputation[]
+  // Inventory
+  inventory              Inventory[]
   updatedAt              DateTime          @updatedAt
   createdAt              DateTime          @default(now())
   otpCode                String?
@@ -241,6 +245,35 @@ model RecoveryCodeWrap {
   @@unique([userId, codeHash]) // One wrap per code per user
   @@index([userId])
   @@index([codeHash])
+}
+
+// User inventory for tracking owned clothes
+model Inventory {
+  id              Int              @id @default(autoincrement())
+  userId          Int
+  clothesId       Int
+  sizeId          Int
+  quantity        Int              @default(1)
+  source          InventorySource  @default(STORE) // Where the item was acquired
+  sourceReference String?          @db.VarChar(255) // Transaction ID or Trade ID
+  acquiredAt      DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clothes         Clothes          @relation(fields: [clothesId], references: [id])
+  size            Size             @relation(fields: [sizeId], references: [id])
+  
+  @@unique([userId, clothesId, sizeId, sourceReference]) // Prevent duplicate entries
+  @@index([userId])
+  @@index([clothesId])
+  @@index([sizeId])
+  @@index([source])
+}
+
+enum InventorySource {
+  STORE        // Bought from store
+  C2C_PURCHASE // Bought from C2C market
 }
 
 model Shipping {

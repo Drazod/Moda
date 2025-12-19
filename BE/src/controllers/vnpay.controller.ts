@@ -4,6 +4,7 @@ import querystring from 'querystring';
 import crypto from 'crypto';
 import { createOrderNoticeForUser } from './notice.controller';
 import { addPointsFromPayment } from './points.controller';
+import { addToInventory } from '../services/inventory.services';
 import axios from 'axios';
 
 const VNPayConfig = {
@@ -270,6 +271,16 @@ export const handleReturn = async (req: Request, res: Response) => {
                   price: item.totalprice,
                 },
               });
+
+              // Add to user's inventory
+              await addToInventory(
+                userId,
+                item.ClothesId,
+                item.sizeId,
+                item.quantity,
+                'STORE',
+                newTransaction.id.toString()
+              );
 
               // Create shipping record for this transaction detail
               const shippingBranchId = item.fulfillmentMethod === 'pickup' 

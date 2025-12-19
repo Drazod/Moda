@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { c2cListingService } from '../services/c2cListing.services';
 import { ClothesCondition, ListingStatus } from '@prisma/client';
 import { uploadToFirebase } from '../services/upload.services';
+import { checkInventory, removeFromInventory } from '../services/inventory.services';
 import { prisma } from '..';
 
 export const c2cListingController = {
@@ -71,9 +72,21 @@ export const c2cListingController = {
             message: `Invalid sizeId: ${sizeId}. This size does not belong to clothing ${clothesId}.`
           });
         }
+
+        // Check if user owns this item in their inventory
+        const hasInventory = await checkInventory(userId, Number(clothesId), Number(sizeId), 1);
+        if (!hasInventory) {
+          return res.status(400).json({
+            message: 'You do not own this item. You can only list clothes from your inventory.'
+          });
+        }
+      } else {
+        return res.status(400).json({
+          message: 'Size is required for listing. You can only list clothes you own.'
+        });
       }
 
-      // Transaction: Upload images and create listing
+      // Transaction: Upload images, create listing, and lock inventory
       const result = await prisma.$transaction(async (tx) => {
         // Upload all images to Firebase
         const uploadedImages = await Promise.all(
@@ -111,6 +124,9 @@ export const c2cListingController = {
             images: { orderBy: { order: 'asc' } }
           }
         });
+
+        // Remove item from seller's inventory (lock it for this listing)
+        await removeFromInventory(userId, Number(clothesId), Number(sizeId), 1);
 
         return listing;
       });

@@ -1,4 +1,5 @@
 import { PrismaClient, C2CTradeStatus, PaymentMethod, DeliveryMethod, ListingStatus, TradeMessageType, ReviewRole } from '@prisma/client';
+import { addToInventory } from './inventory.services';
 // Note: Wallet/Token system not implemented - WALLET_TOKENS payment method will return error
 
 const prisma = new PrismaClient();
@@ -336,6 +337,19 @@ export const c2cTradeService = {
           listing: { include: { clothes: true, size: true } }
         }
       });
+
+      // Update inventory: Add to buyer (item was already removed from seller when listing was created)
+      if (updatedTrade.listing.size) {
+        // Add item to buyer's inventory
+        await addToInventory(
+          trade.buyerId,
+          updatedTrade.listing.clothesId,
+          updatedTrade.listing.size.id,
+          1,
+          'C2C_PURCHASE',
+          tradeId
+        );
+      }
 
       // Mark listing as SOLD
       await tx.c2CListing.update({
