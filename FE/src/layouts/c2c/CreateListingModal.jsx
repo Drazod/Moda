@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../configs/axiosInstance';
 import { useAuth } from '../../context/AuthContext';
@@ -19,10 +19,10 @@ const CreateListingModal = ({ onClose, onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef();
 
-  // Store clothing search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
+  // Inventory
+  const [inventory, setInventory] = useState([]);
+  const [loadingInventory, setLoadingInventory] = useState(true);
+  const [selectedInventoryItem, setSelectedInventoryItem] = useState(null);
   const [selectedClothing, setSelectedClothing] = useState(null);
   const [availableSizes, setAvailableSizes] = useState([]);
 
@@ -37,59 +37,37 @@ const CreateListingModal = ({ onClose, onSuccess }) => {
   const [uploadedImages, setUploadedImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
 
-  // AI Search for store clothing using semantic search
-  const performAiSearch = async (query) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
+  // Fetch user inventory
+  useEffect(() => {
+    const fetchInventory = async () => {
+      setLoadingInventory(true);
+      try {
+        const response = await axiosInstance.get('/inventory/');
+        const inventoryData = Array.isArray(response.data) ? response.data : (response.data.data || []);
+        setInventory(inventoryData);
+      } catch (error) {
+        console.error('Error fetching inventory:', error);
+        toast.error('Failed to load inventory');
+      } finally {
+        setLoadingInventory(false);
+      }
+    };
 
-    setSearching(true);
-    try {
-      const response = await axiosInstance.post('/search/semantic-search', { query });
-      const results = Array.isArray(response.data) ? response.data : (response.data.data || []);
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Error searching clothing:', error);
-      toast.error(error.response?.data?.message || 'Failed to search clothing');
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
+    fetchInventory();
+  }, []);
 
-  // Handle search with debouncing
-  const handleSearchClothing = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-
-    if (value) {
-      clearTimeout(window.createListingAiSearchTimeout);
-      window.createListingAiSearchTimeout = setTimeout(() => {
-        performAiSearch(value);
-      }, 800);
-    } else {
-      setSearchResults([]);
-    }
-  };
-
-  // Select a clothing item
-  const handleSelectClothing = async (clothing) => {
-    setSelectedClothing(clothing);
+  // Select an inventory item
+  const handleSelectInventoryItem = (item) => {
+    setSelectedInventoryItem(item);
+    setSelectedClothing(item.clothes);
     setFormData(prev => ({ 
       ...prev, 
-      clothesId: clothing.id,
-      sizeId: null
+      clothesId: item.clothesId,
+      sizeId: item.sizeId
     }));
-    setSearchQuery('');
-    setSearchResults([]);
-
-    try {
-      const response = await axiosInstance.get(`/clothes/${clothing.id}`);
-      setAvailableSizes(response.data.sizes || []);
-    } catch (error) {
-      console.error('Error fetching sizes:', error);
-      toast.error('Failed to load sizes');
+    // Set the available size based on the inventory item
+    if (item.size) {
+      setAvailableSizes([item.size]);
     }
   };
 
@@ -198,64 +176,53 @@ const CreateListingModal = ({ onClose, onSuccess }) => {
         {/* Modal Content */}
         <div className="px-6 py-4">
           <p className="text-gray-600 mb-6">
-            List a clothing item from our store for resale. Select the item, set your price, and describe the condition.
+            List a clothing item from your inventory for resale. Select the item, set your price, and describe the condition.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Select Store Clothing */}
+            {/* Select Inventory Item */}
             <div>
-              <h3 className="text-lg font-semibold mb-3">Select Store Clothing *</h3>
+              <h3 className="text-lg font-semibold mb-3">Select from Your Inventory *</h3>
               
               {!selectedClothing ? (
                 <>
-                  <div className="relative mb-4">
-                    <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
-                    <HiSparkles className="absolute right-3 top-1/2 -translate-y-1/2 text-purple-500" size={20} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={handleSearchClothing}
-                      placeholder="AI search for clothing items in our store..."
-                      className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D2D2D]"
-                    />
-                  </div>
-
-                  {searching && (
-                    <div className="flex justify-center py-4">
+                  {loadingInventory ? (
+                    <div className="flex justify-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2D2D2D]"></div>
                     </div>
-                  )}
-
-                  {searchResults.length > 0 && (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {searchResults.map((clothing) => (
-                        <button
-                          key={clothing.id}
-                          type="button"
-                          onClick={() => handleSelectClothing(clothing)}
-                          className="w-full flex items-center gap-4 p-3 border border-gray-200 rounded-lg hover:border-[#2D2D2D] hover:bg-gray-50 transition-colors text-left"
-                        >
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-[#2D2D2D]">{clothing.name}</h4>
-                            <p className="text-sm text-gray-600">
-                              Store Price: ₫{clothing.price?.toLocaleString()}
+                  ) : inventory.length > 0 ? (
+                    <div className="border border-gray-200 rounded-lg p-4 max-h-80 overflow-y-auto">
+                      <div className="grid grid-cols-6 gap-4">
+                        {inventory.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => handleSelectInventoryItem(item)}
+                            className="flex flex-col items-center gap-2 p-2 border border-gray-200 rounded-lg hover:border-[#2D2D2D] hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="w-full aspect-square overflow-hidden rounded-md">
+                              <img
+                                src={item.clothes?.mainImg?.url || ''}
+                                alt={item.clothes?.name || 'Item'}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <p className="text-xs text-center text-gray-700 font-medium line-clamp-2">
+                              {item.clothes?.name}
                             </p>
-                            {clothing.category && (
-                              <p className="text-sm text-gray-500">
-                                {typeof clothing.category === 'object' ? clothing.category.name : clothing.category}
-                              </p>
+                            {item.size && (
+                              <span className="text-xs text-gray-500">
+                                Size: {item.size.label}
+                              </span>
                             )}
-                          </div>
-                          <IoShirtOutline size={24} className="text-gray-400" />
-                        </button>
-                      ))}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-
-                  {searchQuery && !searching && searchResults.length === 0 && (
+                  ) : (
                     <div className="text-center py-8 text-gray-500">
                       <IoShirtOutline size={48} className="mx-auto mb-2 opacity-50" />
-                      <p>No clothing items found. Try a different search term.</p>
+                      <p>No items in your inventory</p>
                     </div>
                   )}
                 </>
@@ -270,6 +237,7 @@ const CreateListingModal = ({ onClose, onSuccess }) => {
                   <button
                     type="button"
                     onClick={() => {
+                      setSelectedInventoryItem(null);
                       setSelectedClothing(null);
                       setAvailableSizes([]);
                       setFormData(prev => ({ ...prev, clothesId: null, sizeId: null }));
